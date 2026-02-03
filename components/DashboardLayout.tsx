@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { User, UserRole, Booking } from '../types';
 import { cn } from '../lib/utils';
-import { LayoutDashboardIcon, PackageIcon, ShipIcon, UsersIcon, FileTextIcon, BarChartIcon, SettingsIcon, CalculatorIcon, MailIcon, SparklesIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon, BellIcon, SunIcon, MoonIcon, PlusIcon, LogOutIcon, MoreHorizontalIcon, UserIcon } from './icons';
+import { LayoutDashboardIcon, PackageIcon, ShipIcon, UsersIcon, FileTextIcon, BarChartIcon, SettingsIcon, CalculatorIcon, MailIcon, SparklesIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon, BellIcon, SunIcon, MoonIcon, PlusIcon, LogOutIcon, MoreHorizontalIcon, UserIcon, DollarSignIcon, GlobeIcon, UserCheckIcon } from './icons';
 
 interface DashboardLayoutProps {
   children?: React.ReactNode;
@@ -61,6 +61,9 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
     { name: 'Facturi', path: 'invoices', icon: FileTextIcon, visible: isAdminOrManager },
     { name: 'AI Email Parser', path: 'ai-parser', icon: SparklesIcon, visible: isAdminOrManager },
     { name: 'Rapoarte', path: 'reports', icon: BarChartIcon, visible: isAdminOrManager },
+    { name: 'Administrare Prețuri', path: 'admin-pricing', icon: DollarSignIcon, visible: isAdmin },
+    { name: 'Agenți Chinezi', path: 'agents', icon: GlobeIcon, visible: isAdmin },
+    { name: 'Panou Admin', path: 'admin-panel', icon: UserCheckIcon, visible: isAdmin },
     { name: 'Setări Admin', path: 'adminSettings', icon: SettingsIcon, visible: isAdmin },
   ];
 

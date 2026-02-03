@@ -1,0 +1,1591 @@
+PROMO-EFECT: SPECIFICAȚIE COMPLETĂ PENTRU FINALIZARE
+Document Master - Transformarea din Prototip în Platformă Production-Ready
+Data: 13 Noiembrie 2025
+Versiune: 2.0 - Finalizare Completă
+Destinație: Echipa de dezvoltare
+
+CUPRINS EXECUTIV
+Această specificație completă transformă platforma Promo-Efect dintr-un prototip funcțional frontend (85% complet) într-o soluție enterprise production-ready, completă cu backend robust, landing page optimizat pentru conversii, documentație comprehensivă și toate componentele necesare pentru operarea unei platforme de logistică profesionale.
+Stare Actuală:
+
+Frontend: 85% complet, UI profesional, responsive, dens în informații
+Backend: 0% - toate datele sunt mock-uite
+Design: 90% - aspect profesional, corporate
+
+Obiectiv Final:
+O platformă completă, securizată, scalabilă, documentată, care automatizează integral fluxul de lucru al companiei Promo-Efect SRL în procesarea containerelor maritime între China, Constanța și Moldova.
+
+PARTEA 1: ARHITECTURĂ BACKEND COMPLETĂ
+1.1 FUNDAȚIA BACKEND-ULUI
+Filozofia Arhitecturală
+Backend-ul va fi construit folosind o arhitectură în trei straturi (three-tier architecture) cu separare clară între prezentare, logică de business și persistență. Această separare permite mentenabilitate, testabilitate și scalabilitate pe termen lung.
+Stratul de Prezentare (API Layer):
+
+REST API expus public pentru frontend
+GraphQL endpoint pentru query-uri complexe ale dashboardului
+WebSocket server pentru notificări real-time
+Autentificare JWT pe toate endpoint-urile protejate
+Rate limiting per utilizator și per IP
+CORS configurat pentru domeniile autorizate
+API versioning pentru compatibilitate backwards
+
+Stratul de Business Logic (Service Layer):
+
+Servicii independente pentru fiecare domeniu funcțional
+Orchestrare complexă a workflow-urilor
+Validare de business rules
+Integrare cu servicii externe (Maersk, Terminal49, Gmail)
+Queue management pentru task-uri asincrone
+Event-driven architecture pentru acțiuni reactive
+
+Stratul de Persistență (Data Layer):
+
+PostgreSQL ca bază de date principală relațională
+Redis pentru caching și sesiuni
+MongoDB pentru log-uri și date nestructurate
+S3-compatible storage pentru documente și fișiere
+Database migrations cu version control
+Backup automatizat și disaster recovery
+
+Structura Bazei de Date
+Tabelul USERS (Utilizatori):
+
+Identificator unic UUID
+Email unic validat
+Hash parolă cu bcrypt (saltRounds=12)
+Rol (ADMIN, CLIENT, OPERATOR, AGENT)
+Status cont (ACTIVE, SUSPENDED, PENDING_VERIFICATION)
+Timestamp creare și ultima modificare
+Informații profil (nume, prenume, telefon, companie)
+Preferințe notificări (email, SMS, WhatsApp, push)
+Limba preferată (ro, en, ru)
+Timezone pentru afișare date
+Ultimul login și IP-ul utilizat
+Token resetare parolă și expirare
+Email verification token
+Flag two-factor authentication activat
+Secret pentru 2FA (TOTP)
+
+Tabelul CLIENTS (Clienți - Companii):
+
+Identificator unic UUID
+Nume companie oficial
+Cod fiscal / CUI
+Adresă completă (țară, oraș, cod poștal, stradă)
+Email oficial companie
+Telefon principal și secundar
+Contact principal (nume, email, telefon)
+Status client (ACTIVE, INACTIVE, BLACKLISTED)
+Rating client (calculat automat pe bază de istoric plăți)
+Termene de plată default (7, 14, 30, 60 zile)
+Limită credit acordată
+Sold curent (calculat din facturi neplătite)
+Discount negociat (procentaj)
+Relație cu user-ul principal (foreign key)
+Documente contractuale (link către storage)
+Note interne despre client
+Timestamp creare și modificare
+Istoricul modificărilor majore
+
+Tabelul CONTAINERS (Containere în Sistem):
+
+Identificator unic UUID
+Număr container unic (format validat: 4 litere + 7 cifre)
+Bill of Lading (B/L) number unic
+Relație cu clientul (foreign key către CLIENTS)
+Tip container (20ft Standard, 40ft Standard, 40ft High Cube, 40ft Reefer)
+Greutate brută (în kilograme)
+Greutate netă (în kilograme)
+Volum ocupat (metri cubi)
+Linie maritimă (MAERSK, MSC, HAPAG_LLOYD, ZIM, COSCO, YANGMING, ALTE)
+Port încărcare (cod UNLOCODE și nume complet)
+Data încărcare efectivă
+Port descărcare (cod UNLOCODE - ROCND pentru Constanța)
+ETA original (Estimated Time of Arrival)
+ETA actual (actualizat automat din tracking)
+ATA real (Actual Time of Arrival) - setat când containerul sosește
+Status principal (IN_TRANZIT, IN_PORT, VAMUIRE, ELIBERAT, LIVRAT)
+Sub-status detaliat (50+ stări posibile din tracking)
+Flag urgent (pentru containere cu refrigerare sau perisabile)
+Flag întârziere (setat automat când ETA depășește originalul cu >2 zile)
+Temperature setting (pentru reefer containers)
+Ventilation setting (pentru containere speciale)
+Conținut general (descriere text)
+Număr booking (de la linia maritimă)
+Număr vessel (vasul pe care se află)
+Voyage number
+Terminal destination (în portul Constanța)
+Documente atașate (JSON array cu link-uri către storage)
+Istoric tracking complet (JSON cu toate pozițiile și statusurile)
+Notificări trimise (JSON cu timestamp și tip notificare)
+Cost estimat transport
+Cost adițional (penalități, storage fees)
+Valoare mărfuri declarată
+Asigurare activă (da/nu și detalii poliță)
+Note interne operaționale
+Timestamp creare în sistem
+Timestamp ultima actualizare tracking
+User care a creat înregistrarea
+Istoric modificări (audit trail complet)
+
+Tabelul TRACKING_EVENTS (Evenimente Tracking):
+
+Identificator unic UUID
+Relație cu containerul (foreign key)
+Timestamp eveniment real (din sursa de tracking)
+Timestamp când a fost detectat în sistem
+Tip eveniment (GATE_IN, LOADED, DISCHARGED, VESSEL_DEPARTURE, VESSEL_ARRIVAL, CUSTOMS_RELEASE, GATE_OUT, 50+ alte tipuri)
+Locație geografică (latitudine, longitudine)
+Locație text (oraș, port, terminal)
+Cod UNLOCODE dacă este port
+Vas implicat (numele vasului)
+Voyage number
+Status container în acel moment
+Detalii adiționale (JSON cu metadata)
+Sursă informație (MAERSK_API, TERMINAL49, MANUAL_ENTRY, EMAIL_PARSING)
+Flag validat (da/nu - pentru evenimente introduse manual)
+Vizibilitate (PUBLIC - vizibil pentru client, INTERNAL - doar pentru echipă)
+
+Tabelul INVOICES (Facturi Generate):
+
+Identificator unic UUID
+Număr factură unic auto-generat (format: PROMO-2025-00001)
+Relație cu clientul (foreign key)
+Relație cu containerele facturate (many-to-many prin junction table)
+Data emitere
+Data scadență (calculată automat din termene client)
+Suma totală fără TVA
+TVA (procentaj și sumă)
+Suma totală cu TVA
+Valută (MDL, EUR, USD)
+Curs valutar la data emiterii (dacă nu e MDL)
+Status factură (DRAFT, ISSUED, SENT, PAID, OVERDUE, CANCELLED)
+Metoda de plată (TRANSFER_BANCAR, CASH, CARD, ALTA)
+Data plății efective
+Referință plată (număr tranzacție bancară)
+Discount aplicat (procentaj și sumă)
+Penalități întârziere (dacă e cazul)
+Fișier PDF generat (link către storage)
+Serie și număr fiscal (dacă e cazul)
+Note facturare
+Trimise reminder-e (JSON cu timestamp-uri)
+Timestamp creare, modificare
+User care a creat factura
+
+Tabelul PAYMENTS (Plăți Primite):
+
+Identificator unic UUID
+Relație cu factura (foreign key - poate fi NULL pentru avansuri)
+Relație cu clientul (foreign key)
+Suma plătită
+Valută
+Data plății
+Metoda de plată
+Referință externă (număr tranzacție)
+Status reconciliere (PENDING, CONFIRMED, REJECTED)
+Note despre plată
+Documente atașate (confirmare bancară, chitanță)
+User care a înregistrat plata
+Timestamp creare și modificare
+
+Tabelul DOCUMENTS (Documente Uploadate):
+
+Identificator unic UUID
+Tip document (B/L, PACKING_LIST, INVOICE_COMMERCIAL, CERTIFICATE_ORIGIN, CUSTOMS_DECLARATION, CONTRACT, ALTELE)
+Nume fișier original
+Nume fișier în storage (UUID-based)
+Dimensiune fișier (bytes)
+MIME type
+Relație cu containerul (foreign key - poate fi NULL)
+Relație cu factura (foreign key - poate fi NULL)
+Relație cu clientul (foreign key - poate fi NULL)
+URL complet către fișier
+Thumbnail URL (pentru imagini/PDF-uri)
+Status verificare (PENDING, APPROVED, REJECTED)
+Uploadat de user (foreign key)
+Data upload
+Data expirare (pentru documente cu validitate limitată)
+Flag document sensibil (cu acces restricționat)
+OCR text extras (pentru căutare full-text)
+Metadata adițională (JSON)
+Timestamp creare și modificare
+
+Tabelul NOTIFICATIONS (Notificări Generate):
+
+Identificator unic UUID
+Destinatar (relație cu USER)
+Tip notificare (EMAIL, SMS, WHATSAPP, PUSH, VOICE_CALL)
+Template folosit
+Subiect notificare
+Conținut notificare (poate conține variabile înlocuite)
+Relație cu containerul (foreign key - dacă e relevant)
+Status livrare (PENDING, SENT, DELIVERED, FAILED, BOUNCED)
+Timestamp programat pentru trimitere
+Timestamp efectiv trimis
+Timestamp citit de utilizator (pentru push notifications)
+Erori întâmpinate (dacă e cazul)
+Cost notificare (pentru SMS/WhatsApp/Voice)
+Response rate (dacă utilizatorul a interacționat)
+Metadata provider (răspuns de la Twilio, SendGrid, etc.)
+
+Tabelul SETTINGS (Setări Globale Sistem):
+
+Identificator unic UUID
+Categorie setare (EMAIL, SMS, TRACKING, PRICING, NOTIFICATIONS, INTEGRATIONS)
+Cheie setare (unique în cadrul categoriei)
+Valoare setare (JSON pentru flexibilitate)
+Tip date (STRING, NUMBER, BOOLEAN, JSON, ENCRYPTED)
+Descriere setare
+Validare (JSON schema pentru validare valoare)
+Ultima modificare de către user
+Timestamp modificare
+Istoric valori anterioare (audit trail)
+
+Tabelul PRICING_RULES (Reguli de Prețuri):
+
+Identificator unic UUID
+Nume regulă
+Tip container aplicabil
+Port origine aplicabil (poate fi wildcard)
+Port destinație aplicabil
+Linie maritimă aplicabilă (poate fi wildcard)
+Preț de bază
+Valută
+Taxe adiționale (JSON array)
+Discount volume (JSON cu praguri)
+Data început validitate
+Data sfârșit validitate (poate fi NULL pentru indefinit)
+Prioritate (când există multiple reguli aplicabile)
+Status regulă (ACTIVE, INACTIVE, EXPIRED)
+Condiții speciale (JSON cu reguli complexe)
+Note interne
+
+Tabelul AUDIT_LOGS (Jurnalizare Complete):
+
+Identificator unic UUID
+User care a făcut acțiunea (poate fi NULL pentru acțiuni sistem)
+Tip acțiune (CREATE, UPDATE, DELETE, LOGIN, LOGOUT, VIEW, EXPORT, API_CALL)
+Entitate afectată (USER, CLIENT, CONTAINER, INVOICE, etc.)
+ID-ul entității afectate
+Valori înainte (JSON)
+Valori după (JSON)
+IP address
+User agent (browser/device)
+Timestamp acțiune
+Durata operațiunii (milisecunde)
+Succes sau eșec
+Detalii eroare (dacă e cazul)
+Context adițional (JSON)
+
+Relații între Tabele
+Relații One-to-Many:
+
+Un CLIENT poate avea multe CONTAINERS
+Un CLIENT poate avea multe INVOICES
+Un USER poate avea multe NOTIFICATIONS
+Un CONTAINER poate avea multe TRACKING_EVENTS
+Un CONTAINER poate avea multe DOCUMENTS
+Un INVOICE poate avea multe PAYMENTS
+
+Relații Many-to-Many:
+
+INVOICES și CONTAINERS (prin junction table INVOICE_ITEMS)
+USERS și CLIENTS (prin junction table USER_CLIENT_ACCESS pentru permisiuni granulare)
+
+Relații One-to-One:
+
+USER poate fi asociat cu un singur CLIENT principal (pentru user-i tip CLIENT)
+
+Indexuri Pentru Performance
+Indexuri Esențiale:
+
+Index pe USER.email (unique, pentru login rapid)
+Index pe CONTAINER.container_number (unique)
+Index pe CONTAINER.bl_number (unique)
+Composite index pe CONTAINER (client_id, status, eta_actual) pentru query-uri dashboard
+Index pe TRACKING_EVENTS (container_id, event_timestamp) pentru cronologie
+Index pe INVOICE (client_id, due_date, status) pentru rapoarte
+Full-text search index pe DOCUMENTS.ocr_text
+Index pe NOTIFICATIONS (recipient_id, status, scheduled_at)
+Index pe AUDIT_LOGS (entity_type, entity_id, timestamp) pentru audit trails
+
+
+1.2 API ENDPOINTS COMPLETE
+Filozofia API Design
+API-ul va urma principiile REST pentru operațiuni CRUD standard și va expune endpoint-uri GraphQL pentru query-uri complexe de dashboard. Toate răspunsurile vor folosi structuri JSON consistente cu meta-informații despre paginare, sorting și filtrare.
+Structura Standard Răspuns:
+Toate răspunsurile de succes vor conține:
+
+Campo "success" boolean
+Campo "data" cu payload-ul efectiv
+Campo "meta" cu informații despre paginare, total records, current page
+Campo "timestamp" cu momentul generării răspunsului
+Campo "request_id" unic pentru debugging
+
+Toate răspunsurile de eroare vor conține:
+
+Campo "success" false
+Campo "error" cu cod eroare și mesaj
+Campo "details" cu informații adiționale pentru debugging (doar în development)
+Campo "timestamp"
+Campo "request_id"
+
+Grupul AUTH (Autentificare și Autorizare)
+Endpoint POST /api/v1/auth/register:
+
+Permite înregistrarea unui utilizator nou
+Primește: email, password, firstName, lastName, phone, company (opțional), role (doar ADMIN poate seta role)
+Validează: email format valid, password strength (minim 8 caractere, o majusculă, o cifră, un caracter special), unicitatea email-ului
+Creează user cu status PENDING_VERIFICATION
+Generează token de verificare email
+Trimite email de confirmare cu link de activare
+Returnează: user ID, mesaj că trebuie verificat email-ul
+Rate limit: 3 încercări pe IP per oră
+
+Endpoint POST /api/v1/auth/login:
+
+Autentifică utilizatorul cu email și password
+Verifică dacă contul este activ și verificat
+Compară hash-ul parolei cu bcrypt
+Generează JWT token cu expirare 24h
+Generează refresh token cu expirare 7 zile
+Actualizează last_login și last_login_ip
+Returnează: access token, refresh token, user profile complet, permissions
+Rate limit: 5 încercări greșite apoi blocare temporară 15 minute
+
+Endpoint POST /api/v1/auth/refresh:
+
+Primește refresh token valid
+Verifică validitatea și expirarea
+Generează nou access token
+Returnează: nou access token cu expirare reîmprospătată
+
+Endpoint POST /api/v1/auth/logout:
+
+Invalidează token-ul curent
+Adaugă token în blacklist (Redis)
+Returnează: mesaj de succes
+
+Endpoint POST /api/v1/auth/forgot-password:
+
+Primește email-ul utilizatorului
+Generează token resetare parolă cu expirare 1 oră
+Trimite email cu link resetare
+Returnează: mesaj generic (pentru securitate nu dezvăluie dacă email-ul există)
+Rate limit: 3 încercări per email per oră
+
+Endpoint POST /api/v1/auth/reset-password:
+
+Primește token resetare și noua parolă
+Verifică validitatea și expirarea token-ului
+Validează strength parola nouă
+Actualizează parola utilizatorului
+Invalidează toate session-urile active
+Returnează: mesaj succes și redirecționare către login
+
+Endpoint GET /api/v1/auth/verify-email:
+
+Primește token verificare din query string
+Verifică validitatea token-ului
+Activează contul utilizatorului
+Setează status ACTIVE
+Returnează: mesaj succes și redirecționare către login
+
+Endpoint POST /api/v1/auth/enable-2fa:
+
+Generează secret TOTP unic
+Returnează: QR code pentru scanare în Google Authenticator
+Returnează: backup codes pentru recovery
+
+Endpoint POST /api/v1/auth/verify-2fa:
+
+Primește codul din authenticator
+Verifică validitatea codului TOTP
+Activează 2FA pentru cont dacă valid
+Returnează: mesaj confirmare
+
+Endpoint POST /api/v1/auth/disable-2fa:
+
+Necesită parolă curentă pentru confirmare
+Dezactivează 2FA
+Șterge secret TOTP
+Returnează: mesaj confirmare
+
+Grupul USERS (Management Utilizatori)
+Endpoint GET /api/v1/users:
+
+Lista utilizatori cu paginare, sorting, filtrare
+Query params: page, limit, sortBy, sortOrder, role, status, search
+Accesibil doar pentru ADMIN
+Returnează: array de users cu meta info despre paginare
+
+Endpoint GET /api/v1/users/:id:
+
+Detalii complete despre un utilizator specific
+Include: profile, permissions, associated clients, activity history
+Utilizatorii normali pot accesa doar propriul profil
+ADMIN poate accesa orice profil
+Returnează: user object complet
+
+Endpoint PUT /api/v1/users/:id:
+
+Actualizare profil utilizator
+Poate actualiza: firstName, lastName, phone, language, timezone, notification preferences
+Utilizatorii normali pot actualiza doar propriul profil
+ADMIN poate actualiza role și status
+Validează toate câmpurile actualizate
+Returnează: user object actualizat
+
+Endpoint DELETE /api/v1/users/:id:
+
+Soft delete utilizator (marchează ca SUSPENDED, nu șterge efectiv)
+Doar ADMIN poate șterge users
+Nu permite ștergerea propriului cont de ADMIN
+Returnează: mesaj confirmare
+
+Endpoint GET /api/v1/users/:id/activity:
+
+Istoricul de activitate al utilizatorului
+Query params: page, limit, action_type, date_from, date_to
+Include: logins, modifications, API calls
+Returnează: array de audit logs cu paginare
+
+Endpoint POST /api/v1/users/:id/reset-password-admin:
+
+Doar ADMIN poate reseta parola altui user
+Generează parolă temporară
+Forțează schimbarea parolei la următorul login
+Trimite email cu parola temporară
+Returnează: mesaj confirmare
+
+Grupul CLIENTS (Management Clienți)
+Endpoint GET /api/v1/clients:
+
+Lista clienți cu paginare, sorting, filtrare
+Query params: page, limit, sortBy, sortOrder, status, rating, search, has_debt
+Search va căuta în: nume companie, cod fiscal, email, telefon
+Poate include containere active (expand=containers)
+Poate include sold curent (expand=balance)
+Returnează: array de clients cu meta info
+
+Endpoint GET /api/v1/clients/:id:
+
+Detalii complete despre client
+Include: informații companie, contact, istoric containere, istoric facturi, istoric plăți
+Calculează: sold curent, zile medii plată, rating
+Returnează: client object extins
+
+Endpoint POST /api/v1/clients:
+
+Creare client nou
+Primește: toate câmpurile necesare pentru client
+Validează: unicitatea codului fiscal, format email, format telefon
+Opțional uploadează documente contractuale
+Trimite email de bun venit cu link către portal
+Returnează: client object creat
+
+Endpoint PUT /api/v1/clients/:id:
+
+Actualizare informații client
+Validează toate modificările
+Log în audit trail
+Poate actualiza termene plată, limită credit, discount
+Returnează: client object actualizat
+
+Endpoint DELETE /api/v1/clients/:id:
+
+Soft delete client (marchează INACTIVE)
+Nu permite ștergerea dacă are containere active
+Returnează: mesaj confirmare
+
+Endpoint GET /api/v1/clients/:id/containers:
+
+Lista tuturor containerelor clientului
+Query params pentru filtrare după status, dată, port
+Include statistici: total containere, în tranzit, întârziate
+Returnează: array containere cu meta info
+
+Endpoint GET /api/v1/clients/:id/invoices:
+
+Lista facturilor clientului
+Query params pentru filtrare după status, dată, plătite/neplătite
+Include statistici: total facturat, total plătit, sold
+Returnează: array facturi cu meta info
+
+Endpoint GET /api/v1/clients/:id/payments:
+
+Istoricul plăților clientului
+Ordonat descrescător după dată
+Include metoda plată, referință, status reconciliere
+Returnează: array plăți cu meta info
+
+Endpoint GET /api/v1/clients/:id/statistics:
+
+Statistici detaliate despre client
+Include: total containere procesate, valoare medie container, frecvență comenzi, comportament plată
+Grafice pentru: evoluție volumetrie lunară, rate de plată, porturi preferate
+Returnează: object cu diverse metrici și date pentru grafice
+
+Grupul CONTAINERS (Management Containere)
+Endpoint GET /api/v1/containers:
+
+Lista containere cu capacități avansate de filtrare
+Query params: page, limit, sortBy, sortOrder, status, client_id, shipping_line, port_loading, port_discharge, urgent, delayed, date_from, date_to, search
+Search caută în: container number, B/L number, conținut
+Poate include tracking events (expand=tracking)
+Poate include client info (expand=client)
+Returnează: array containere cu meta info extinsă
+
+Endpoint GET /api/v1/containers/:id:
+
+Detalii complete container
+Include: toate informațiile, tracking events cronologic, documente atașate, facturi asociate
+Calculează: zile în tranzit, zile întârziere, cost total
+Include hartă cu poziție curentă (dacă disponibil)
+Returnează: container object foarte detaliat
+
+Endpoint POST /api/v1/containers:
+
+Creare container nou în sistem
+Primește: toate detaliile necesare
+Validează: format container number, unicitate B/L, client existent
+Opțional inițiază tracking automat
+Creează notificări programate automate
+Trimite notificare către client că containerul a fost înregistrat
+Returnează: container object creat
+
+Endpoint PUT /api/v1/containers/:id:
+
+Actualizare informații container
+Validează modificările
+Doar anumite câmpuri pot fi editate după ce containerul e în tranzit
+Log modificări în audit trail
+Recalculează notificări programate dacă ETA s-a schimbat
+Returnează: container object actualizat
+
+Endpoint DELETE /api/v1/containers/:id:
+
+Soft delete container
+Nu permite ștergerea dacă are facturi emise
+Marchează ca CANCELLED
+Returnează: mesaj confirmare
+
+Endpoint GET /api/v1/containers/:id/tracking:
+
+Cronologie completă tracking pentru container
+Ordonat cronologic
+Include hartă cu traseul complet
+Highlight evenimente importante
+Returnează: array de tracking events cu coordonate geografice
+
+Endpoint POST /api/v1/containers/:id/tracking:
+
+Adaugă eveniment tracking manual
+Necesită rol ADMIN sau OPERATOR
+Validează consistența cu evenimente existente
+Marchează ca MANUAL_ENTRY
+Returnează: tracking event creat
+
+Endpoint POST /api/v1/containers/:id/refresh-tracking:
+
+Forțează actualizare tracking de la surse externe
+Apelează API-urile liniilor maritime
+Compară cu datele existente și detectează schimbări
+Generează notificări dacă ETA s-a schimbat semnificativ
+Returnează: număr de evenimente noi găsite
+
+Endpoint GET /api/v1/containers/:id/documents:
+
+Lista documente atașate containerului
+Filtrare după tip document
+Include preview pentru imagini/PDF-uri
+Returnează: array documente
+
+Endpoint POST /api/v1/containers/:id/documents:
+
+Upload document pentru container
+Acceptă: PDF, images, Excel, Word
+Validează: dimensiune max 10MB, MIME types permise
+Opțional rulează OCR pentru extragere text
+Returnează: document object creat
+
+Endpoint GET /api/v1/containers/:id/timeline:
+
+Timeline vizual complet pentru container
+Include: tracking events, modificări în sistem, notificări trimise, documente uploadate
+Ordonat cronologic
+Returnează: array de evenimente pentru construirea timeline-ului
+
+Endpoint POST /api/v1/containers/:id/notify:
+
+Trimite notificare manuală către client despre container
+Selectează tipul notificării (email, SMS, WhatsApp)
+Poate folosi template sau mesaj custom
+Returnează: confirmare trimitere
+
+Endpoint GET /api/v1/containers/:id/estimate-costs:
+
+Calculează costurile estimate pentru container
+Include: transport base cost, taxe portuare, customs duties estimate
+Aplică discount-uri cliente
+Returnează: breakdown detaliat costuri
+
+Grupul TRACKING (Tracking External și Integrări)
+Endpoint POST /api/v1/tracking/webhook:
+
+Webhook pentru primirea update-urilor automate de la Terminal49, Maersk API, etc.
+Verifică semnătura request-ului pentru autenticitate
+Parsează payload-ul conform formatului provider-ului
+Găsește containerul în baza de date după identificatori
+Creează tracking events noi
+Detectează schimbări importante (ETA, status)
+Generează notificări automate dacă e cazul
+Returnează: status 200 pentru confirmare primire
+
+Endpoint POST /api/v1/tracking/parse-email:
+
+Primește forward de email de la partenerii din China
+Extrage folosind AI (GPT): B/L number, container number, port loading, ETA, shipping line
+Încearcă să găsească containerul existent sau creează unul nou
+Atașează email-ul ca document
+Returnează: container găsit/creat și datele extrase
+
+Endpoint GET /api/v1/tracking/vessel/:vesselName:
+
+Tracking vessel specific
+Returneză poziție curentă, traseu, ETA la următorul port
+Lista containere Promo-Efect pe acel vas
+Folosește AIS data dacă disponibil
+Returnează: vessel info cu containere
+
+Grupul INVOICES (Facturare)
+Endpoint GET /api/v1/invoices:
+
+Lista facturi cu filtrare avansată
+Query params: page, limit, status, client_id, date_from, date_to, overdue, search
+Include statistici: total facturat, total plătit, total outstanding
+Returnează: array facturi cu meta info
+
+Endpoint GET /api/v1/invoices/:id:
+
+Detalii complete factură
+Include: line items (containere facturate), istoric plăți, status plată
+Link către PDF generat
+Calculează: zile până la scadență sau zile întârziere
+Returnează: invoice object detaliat
+
+Endpoint POST /api/v1/invoices:
+
+Creare factură nouă
+Primește: client, containere de facturat, discount aplicabil
+Validează: containere aparțin clientului, nu sunt deja facturate
+Calculează: subtotal, TVA, total
+Generează număr factură unic
+Generează PDF automat
+Trimite email către client cu PDF atașat
+Programează reminder-e automate
+Returnează: invoice object creat
+
+Endpoint PUT /api/v1/invoices/:id:
+
+Actualizare factură (doar dacă status e DRAFT)
+Poate modifica line items, discount, note
+Recalculează totaluri
+Regenerează PDF
+Returnează: invoice object actualizat
+
+Endpoint DELETE /api/v1/invoices/:id:
+
+Anulare factură (doar dacă nu e plătită)
+Marchează status CANCELLED
+Trimite notificare către client
+Returnează: mesaj confirmare
+
+Endpoint POST /api/v1/invoices/:id/send:
+
+Trimite factură către client (marchează status SENT)
+Generează sau regenerează PDF dacă e nevoie
+Trimite email cu PDF atașat
+Log în audit trail
+Returnează: confirmare trimitere
+
+Endpoint POST /api/v1/invoices/:id/mark-paid:
+
+Marchează factură ca plătită
+Primește: data plății, sumă, metodă, referință
+Creează înregistrare în PAYMENTS
+Actualizează soldul clientului
+Trimite confirmare plată către client
+Returnează: invoice object actualizat
+
+Endpoint GET /api/v1/invoices/:id/pdf:
+
+Generează sau returnează PDF-ul facturii
+Include logo Promo-Efect, detalii complete
+Format profesional conform cerințelor fiscale moldovenești
+Returnează: PDF file pentru download
+
+Endpoint POST /api/v1/invoices/bulk-generate:
+
+Generare în masă pentru mai mulți clienți
+Primește: lista de clienți și perioada pentru facturare
+Pentru fiecare client găsește containerele nefacturate din perioada
+Generează facturi automat
+Returnează: lista facturilor generate
+
+Grupul PAYMENTS (Plăți)
+Endpoint GET /api/v1/payments:
+
+Lista plăți primite cu filtrare
+Query params: page, limit, client_id, date_from, date_to, method, status
+Include statistici: total încasat, metode folosite
+Returnează: array payments cu meta info
+
+Endpoint GET /api/v1/payments/:id:
+
+Detalii plată specifică
+Include: factură asociată, client, documente atașate
+Returnează: payment object detaliat
+
+Endpoint POST /api/v1/payments:
+
+Înregistrare plată nouă
+Primește: client, sumă, metodă, referință, factură (opțional)
+Validează: client există, sumă pozitivă
+Dacă e asociată cu factură, actualizează status factură
+Actualizează soldul clientului
+Trimite confirmare plată către client
+Returnează: payment object creat
+
+Endpoint POST /api/v1/payments/:id/reconcile:
+
+Reconciliază plată cu factură
+Pentru plăți fără factură asociată inițial
+Asociază plata cu factura corectă
+Actualizează statusuri
+Returnează: payment object actualizat
+
+Endpoint POST /api/v1/payments/:id/refund:
+
+Procesare rambursare
+Marchează plata ca refunded
+Actualizează factura și soldul clientului
+Trimite notificare client
+Returnează: confirmare
+
+Grupul NOTIFICATIONS (Notificări)
+Endpoint GET /api/v1/notifications:
+
+Lista notificări trimise cu filtrare
+Query params: page, limit, type, status, recipient, date_from, date_to
+Include statistici: rate de livrare, rate de citire
+Returnează: array notifications
+
+Endpoint GET /api/v1/notifications/:id:
+
+Detalii notificare specifică
+Include: conținut complet, status livrare, metadata provider
+Returnează: notification object
+
+Endpoint POST /api/v1/notifications/send:
+
+Trimite notificare manuală
+Primește: recipient, type, template sau content, container (opțional)
+Validează: destinatar valid, tip suportat
+Trimit prin provider corespunzător (Twilio, SendGrid, etc.)
+Returnează: notification object creat
+
+Endpoint GET /api/v1/notifications/templates:
+
+Lista template-uri disponibile pentru notificări
+Grupate după categorie
+Include variabile disponibile pentru fiecare template
+Returnează: array templates
+
+Endpoint POST /api/v1/notifications/test:
+
+Trimite notificare de test către admin
+Folosit pentru verificare configurare provider
+Returnează: status trimitere
+
+Grupul REPORTS (Rapoarte și Analytics)
+Endpoint GET /api/v1/reports/dashboard:
+
+Date pentru dashboard principal
+Include: KPIs (containere active, întârziate, livrate luna aceasta, venit luna aceasta)
+Grafice: evoluție lunară containere, top clienți, porturi folosite
+Containere cu acțiuni necesare
+Recent activity
+Returnează: object complex cu toate datele pentru dashboard
+
+Endpoint GET /api/v1/reports/containers:
+
+Raport detaliat containere cu parametri flexibili
+Query params: date_from, date_to, client_id, status, port, shipping_line, export_format
+Poate exporta în: PDF, Excel, CSV
+Include: tabel detaliat, statistici, grafice
+Returnează: raport în formatul solicitat
+
+Endpoint GET /api/v1/reports/financiar:
+
+Raport financiar cu venituri, cheltuieli, profit
+Query params: date_from, date_to, group_by (month/quarter/year), export_format
+Include: venituri pe client, pe linie maritimă, evoluție în timp
+Calculează: marje profit, rata de colectare plăți
+Returnează: raport financiar complet
+
+Endpoint GET /api/v1/reports/client-performance:
+
+Analiza performanței clienților
+Metrici: volumetrie, regularitate comenzi, promptitudine plăți, valoare medie
+Identifică: top clienți, clienți în risc, oportunități creștere
+Returnează: raport cu recommendations
+
+Endpoint GET /api/v1/reports/operational:
+
+Raport operațional cu metrici interne
+Metrici: timp mediu tranzit, rata întârzieri, eficiență operațională
+Identifică: bottleneck-uri, îmbunătățiri necesare
+Returnează: raport cu insights operaționale
+
+Grupul SETTINGS (Setări Sistem)
+Endpoint GET /api/v1/settings:
+
+Lista toate setările sistem grupate pe categorii
+Accesibil doar pentru ADMIN
+Returnează: object cu toate settings
+
+Endpoint GET /api/v1/settings/:category:
+
+Setări pentru o categorie specifică
+Returnează: object cu settings din categoria respectivă
+
+Endpoint PUT /api/v1/settings/:category/:key:
+
+Actualizare setare specifică
+Validează valoarea conform schema definită
+Log modificare în audit trail
+Dacă e setare de integrare (API keys), validează funcționarea
+Returnează: setting actualizat
+
+Endpoint POST /api/v1/settings/integrations/test:
+
+Testează o integrare (Maersk API, Terminal49, Twilio, etc.)
+Verifică API keys, connectivity
+Returnează: success/fail cu detalii
+
+Grupul EMAIL (Integrare Email)
+Endpoint POST /api/v1/email/parse:
+
+Parsează un email forwarded cu AI
+Extrage: B/L, container number, shipping line, ports, dates, weight
+Încearcă să asocieze cu container existent sau sugerează creare
+Returnează: parsed data și actions sugerate
+
+Endpoint POST /api/v1/email/forward-setup:
+
+Setup adresă forward pentru procesare automată
+Generează adresă unică de forward (containers@promo-efect.app)
+Configurează reguli pentru procesare automată
+Returnează: adresă și instrucțiuni de configurare
+
+
+1.3 BUSINESS LOGIC COMPLEXĂ
+Motor de Procesare Email cu AI
+Flux Complet Procesare Email:
+Când un email ajunge pe adresa configurată de forwarding:
+
+Webhook-ul de la provider (Gmail API, Mailgun) primește notificarea
+Sistemul descarcă conținutul complet al emailului (headers, body, attachments)
+Identifică limba emailului (română, engleză, chineză) folosind language detection
+Extrage textul din attachments PDF dacă există (folosind PDF parsing)
+Trimite tot conținutul către OpenAI GPT cu un prompt structurat
+
+Promptul pentru GPT va cere extragerea:
+
+Bill of Lading (B/L) number în orice format
+Container number(s) - poate fi unul sau mai multe
+Shipping line (Maersk, MSC, CMA CGM, etc.)
+Vessel name și voyage number
+Port of loading cu cod și nume
+Port of discharge
+ETD (Estimated Time of Departure)
+ETA (Estimated Time of Arrival)
+Greutate brută și netă
+Tip container (20ft, 40ft, 40HQ, Reefer)
+Conținut/commodity
+Temperature setting (dacă e reefer)
+Orice alte informații relevante
+
+GPT va returna un JSON structurat cu toate datele extrase plus un confidence score pentru fiecare câmp.
+
+Sistemul validează fiecare câmp extras:
+
+Container number față de format standard (4 litere + 7 cifre cu check digit valid)
+Shipping line față de lista cunoscută de linii maritime
+Port codes față de baza UNLOCODE
+Date în format consistent
+
+
+Caută în baza de date dacă există deja un container cu același B/L sau container number
+
+Dacă există:
+
+Compară datele extrase cu datele existente
+Dacă sunt diferențe semnificative, notifică operatorul pentru review
+Dacă sunt update-uri minore (ETA ajustat, greutate precizată), actualizează automat
+Adaugă emailul ca document atașat la container
+Creează tracking event cu tipul "EMAIL_UPDATE"
+
+Dacă nu există:
+
+Creează draft de container nou cu datele extrase
+Setează status "PENDING_REVIEW" până când un operator validează
+Încearcă să identifice clientul bazat pe: expeditor email, consignee name, istoric
+Dacă nu poate identifica clientul cu certitudine, marchează pentru alocare manuală
+Trimite notificare către operatori că există container nou de validat
+Atașează emailul original ca document
+
+
+Generează raport de procesare:
+
+Ce date au fost extrase cu succes
+Ce date lipsesc și necesită completare manuală
+Confidence score general
+Actions sugerate
+
+
+
+Motor Tracking Automat și Sincronizare
+Arhitectura Tracking-ului:
+Sistemul va avea multiple surse de date pentru tracking și va trebui să le sincronizeze inteligent:
+Surse primare:
+
+API-uri directe de la liniile maritime (Maersk API, MSC API când disponibil)
+Terminal49 ca agregator universal pentru toate liniile
+Scraping controlat pentru linii care nu au API public
+Manual entries de la operatori pentru informații exclusive
+
+Procesul de tracking automat:
+
+La crearea unui container în sistem:
+
+Sistemul înregistrează shipping line și container number
+Inițiază subscription la Terminal49 pentru acel container specific
+Dacă linia are API direct, înregistrează și acolo pentru redundanță
+Programează primul check de tracking în următoarele 5 minute
+
+
+Verificări periodice automate (Polling):
+
+Fiecare container activ (status != DELIVERED) e verificat la intervale calculate inteligent:
+Containere fără ETA: check la fiecare 6 ore
+Containere cu ETA > 14 zile: check zilnic
+Containere cu ETA între 7-14 zile: check la fiecare 12 ore
+Containere cu ETA < 7 zile: check la fiecare 4 ore
+Containere întârziate: check la fiecare 2 ore
+Containere în port: check la fiecare oră
+
+
+Procesarea datelor primite de tracking:
+
+Sistemul primește răspunsul API (fie via polling, fie via webhook)
+Parsează JSON-ul și extrage toate evenimentele disponibile
+Pentru fiecare eveniment nou (care nu există deja în TRACKING_EVENTS):
+
+Validează timestamp-ul
+Verifică dacă locația este consistentă cu traseul așteptat
+Verifică dacă ordinea evenimentelor are sens logic
+Dacă detectează inconsistențe, marchează pentru review manual
+Creează tracking event nou în baza de date
+Update-ază statusul principal al containerului bazat pe cel mai recent eveniment
+
+
+
+
+Detectare Anomalii și Alerte:
+
+Întârziere detectată: Când ETA actual devine > ETA original + 2 zile
+
+Setează flag "delayed" pe container
+Calculează numărul de zile întârziere
+Generează notificare automată către client
+Notifică echipa internă pentru acțiune
+Recalculează impact asupra altor containere ale aceluiași client
+
+
+Schimbare vessel: Când containerul e transferat pe alt vas
+
+Tracking event special "VESSEL_CHANGE"
+Notificare către client cu detaliile noului vas
+Recalculare ETA bazată pe noul vessel schedule
+
+
+Customs hold: Când containerul e reținut de vamă
+
+Flag urgent activat automat
+Notificare imediată către client și operatori
+Tracking special pentru durata hold-ului
+
+
+Demurrage risk: Când containerul e în port și se apropie de termenul de free time
+
+Calculează zilele rămase până la demurrage
+Notificări escalate: cu 3 zile înainte, cu 1 zi înainte, la începutul demurrage
+Inclus estimat cost demurrage pe zi în notificare
+
+
+
+
+Reconciliere între surse multiple:
+
+Când există date din multiple surse (Terminal49 + Maersk API direct)
+Sistemul compară datele și folosește algoritmul:
+
+Preferă sursa directă de la linia maritimă (mai actualizată)
+Dacă sunt diferențe de ETA, folosește cea mai recentă
+Păstrează toate sursele în metadata pentru audit
+Marchează inconsistențe majore pentru review manual
+
+
+
+
+Caching inteligent:
+
+Răspunsurile API sunt cached în Redis pentru:
+
+Reducerea numărului de API calls (cost saving)
+Viteză mai mare pentru query-uri frecvente
+Resilience când API-ul extern e down
+
+
+TTL pentru cache bazat pe urgența containerului:
+
+Containers cu ETA > 7 zile: cache 4 ore
+Containers cu ETA < 7 zile: cache 1 oră
+Containers în port: cache 15 minute
+
+
+
+
+
+Motor de Notificări Inteligente
+Tipuri de Notificări Automate:
+1. Notificări Proactive Bazate pe Timeline:
+Fiecare container va avea un set de notificări programate automat la crearea sa, calculate față de ETA:
+
+Cu 14 zile înainte de ETA:
+
+Email către client: "Container-ul dumneavoastră [NUMBER] va sosi în aproximativ 2 săptămâni"
+Conține: ETA actual, detalii container, link tracking
+Acțiune cerută: pregătire documente vamale
+
+
+Cu 7 zile înainte de ETA:
+
+Email + SMS: "O săptămână până la sosire"
+Push notification în portal
+Acțiune cerută: confirmare pregătire recepție
+
+
+Cu 3 zile înainte de ETA:
+
+Email + SMS + WhatsApp: "3 zile până la sosire"
+Ton mai urgent
+Acțiune cerută: confirmare finală logistică
+
+
+Cu 1 zi înainte de ETA:
+
+Email + SMS + WhatsApp + Voice call (dacă clientul nu a confirmat)
+Foarte urgent
+Include: adresă precisă terminal, proceduri, contact urgențe
+
+
+La sosire efectivă (ATA):
+
+Notificare imediată când containerul intră în port
+Email + SMS + Push: "Container-ul a sosit în port!"
+Include: instrucțiuni pentru retragere, documente necesare, contact agent port
+
+
+Zilnic cât containerul e în port (după ziua 3):
+
+Reminder: "Container-ul e în port de X zile, Y zile free time rămase"
+Escalare tonul după cum se apropie demurrage
+
+
+
+2. Notificări Reactive (Event-Driven):
+Declanșate de evenimente specifice din tracking:
+
+Delay detectat:
+
+Notificare imediată când ETA se schimbă cu mai mult de 1 zi
+Include: nou ETA, motivul întârzierii (dacă e disponibil), impact potențial
+
+
+Vessel departure:
+
+Când vasul părăsește portul de încărcare
+Email simplu informativ cu ETA confirmat
+
+
+Transshipment:
+
+Când containerul e transferat între vase
+Detalii despre noul vas, motiv transfer, impact ETA
+
+
+Customs release:
+
+Notificare critică când containerul e eliberat de vamă
+Acțiune urgentă: retragere din port
+
+
+Abnormal events:
+
+Orice eveniment neașteptat (customs hold, damage, etc.)
+Notificare către client + escalare către management Promo-Efect
+
+
+
+3. Notificări Administrative:
+
+Facturi:
+
+La emitere: email cu PDF atașat
+Cu 7 zile înainte de scadență: reminder politicos
+Cu 3 zile înainte: reminder mai insistent
+La scadență: notificare ultimatum
+După scadență: notificări zilnice + voice call după 3 zile
+
+
+Documente:
+
+Când client uploadează document: confirmare primire
+Când lipsesc documente necesare: reminder periodic
+Când document e aproape de expirare: alert preventiv
+
+
+
+Motor de Inteligență pentru Notificări:
+Sistemul va avea un learning mechanism pentru a optimiza notificările:
+
+Tracking engagement:
+
+Monitorizează: rate de deschidere email, click-through rate, răspunsuri la SMS
+Pentru fiecare client, învață ce canal preferă
+Ajustează prioritatea canalelor bazat pe engagement istoric
+
+
+Timing optimization:
+
+Analizează la ce ore clientul interacționează de obicei
+Evită trimiterea notificărilor în weekend/noapte (cu excepția urgențelor)
+Pentru clienți business: 9-18, luni-vineri
+Pentru clienți mici: mai flexibil
+
+
+Frequency capping:
+
+Nu trimite mai mult de 3 notificări pe zi către același client (cu excepția urgențelor)
+Dacă sunt multiple containere, grupează notificările într-un singur mesaj
+
+
+Smart escalation:
+
+Dacă clientul nu răspunde la email după 24h, trimite SMS
+Dacă nu răspunde la SMS după 12h, trimite WhatsApp
+Dacă e urgent și nu răspunde, voice call automat
+După voice call, escalare la echipa Promo-Efect pentru contact manual
+
+
+
+Motor de Prețuri și Calculare Costuri
+Sistem Flexibil de Pricing:
+Platforma trebuie să suporte un sistem complex de calculare a prețurilor bazat pe multiple variabile:
+Factori care influențează prețul:
+
+Tip container (20ft, 40ft, 40HQ, Reefer - fiecare are bază diferită)
+Linie maritimă (fiecare linie are rate diferite)
+Port de încărcare (China - Shanghai mai ieftin decât Qingdao)
+Sezonalitate (peak season nov-ian mai scump)
+Volumul clientului (discount pentru clienți fideli)
+Servicii adiționale (insurance, special handling)
+Fluctuații de piață (freight rates variază săptămânal)
+
+Structura Pricing Engine:
+
+Pricing Rules Database:
+
+Fiecare regulă are: conditii (port, linie, tip container, perioada) și prețuri
+Multiple reguli pot fi aplicabile, sistemul alege pe cea cu prioritate maximă
+Reguli pot avea dată de expirare și sunt versionate
+
+
+Calculator Interactiv pentru Clienți:
+
+Client introduce în portal: port origine, tip container, cantitate
+Sistemul calculează instant: preț transport, taxe estimate, total
+Include breakdown detaliat: freight rate, port fees, customs estimate, Promo-Efect margin
+Opțiune să salveze quote-ul și să-l transforme în booking
+
+
+Generare Automată Facturi:
+
+La finalizarea containerului, sistemul:
+
+Verifică pricing rule aplicabilă la data efectivă
+Calculează costul conform regulii
+Aplică discount-ul clientului (dacă are)
+Adaugă costuri adiționale (demurrage dacă e cazul, storage fees)
+Generează line items pentru factură
+Calculează TVA
+Creează draft de factură pentru review operator
+
+
+
+
+Price History și Trends:
+
+Sistemul păstrează istoric al tuturor cotațiilor
+Dashboard pentru admin arată: evoluția prețurilor, comparație între linii, identificare oportunități
+
+
+
+Integrare 1C și Export Date
+Sincronizare Bidirectională cu 1C:
+Deoarece Promo-Efect folosește 1C pentru contabilitate, platforma trebuie să comunice cu 1C:
+Export spre 1C:
+
+La sfârșitul fiecărei zile, sistemul generează un fișier de export în format compatibil 1C
+Include: toate facturile emise în ziua respectivă, toate plățile primite, documentele justificative
+Format: XML sau Excel structurat conform cerințelor 1C
+Upload automat via API (dacă 1C are API) sau generate pentru download manual
+
+Import din 1C:
+
+Sistemul poate importa planul de conturi și setări contabile din 1C
+Import periodic al băncii pentru reconciliere automată plăți
+
+Endpoint dedicat:
+
+GET /api/v1/integrations/1c/export?date_from=X&date_to=Y
+
+Generează export pentru perioada specificată
+Include toate transacțiile financiare
+Format selectabil (XML, Excel, CSV)
+
+
+POST /api/v1/integrations/1c/import
+
+Primește fișier de la 1C
+Parsează și importă datele
+Reconciliază automat unde e posibil
+Raportează discrepanțe pentru review manual
+
+
+
+
+PARTEA 2: LANDING PAGE PROFESIONAL
+2.1 STRATEGIE LANDING PAGE
+Obiectivele Landing Page-ului:
+
+Conversie Clienți Noi: Transformă vizitatori în lead-uri calificate
+Educare Piață: Explică avantajele folosirii serviciilor Promo-Efect
+Credibilitate: Construiește încredere prin testimoniale, numere, certificări
+Acces Portal: Punct de intrare pentru clienții existenți către portal
+SEO: Optimizat pentru căutări locale Moldova + România + import containere
+
+Structura Strategică a Paginii:
+Landing page-ul va urma modelul AIDA (Attention, Interest, Desire, Action) și va avea următoarele secțiuni în ordine psihologică:
+Secțiunea HERO (Above the Fold)
+Elementele Critice:
+Headline Principal (H1):
+
+"Importă Containere din China în Moldova. Simplu. Transparent. Automat."
+Sau varianta: "Platforma Completă pentru Importul Containerelor Maritime în Moldova"
+Trebuie să fie: clar, specific, orientat pe beneficiu
+
+Sub-headline (H2):
+
+"Tracking în timp real, notificări automate și prețuri transparente pentru importatorii moldoveni"
+Explică valoarea propusă în mod concis
+
+Call-to-Action Principal:
+
+Buton mare, contrastant: "Solicită Cotație Gratuită"
+Secundar: "Vezi Demo" sau "Intră în Portal"
+
+Hero Visual:
+
+Imagine/video cu: container în port, hartă cu traseu China-Moldova, sau screenshot platform dashboard
+Trebuie să fie profesional, high-quality, relevant
+
+Trust Indicators:
+
+Numărul de containere procesate: "Peste 5,000 de containere importate"
+Numărul de clienți activi: "150+ companii ne au încredere"
+Linii maritime partenere: logo-uri Maersk, MSC, etc.
+
+Secțiunea PROBLEMĂ (Pain Points)
+Headline: "De ce Importul Tradițional Este Complicat"
+3-4 Pain Points Ilustrate:
+
+"Comunicare Haotică"
+
+Icon: email/telefon
+Text: "Email-uri de la China, apeluri repetate, lipsa transparenței. Pierzi timp prețios."
+
+
+"Tracking Manual"
+
+Icon: lupă/hartă
+Text: "Verificări zilnice pe 5 site-uri diferite. Nu știi când ajunge containerul."
+
+
+"Costuri Ascunse"
+
+Icon: bani/factură
+Text: "Demurrage, taxe suplimentare, surprize neplăcute. Bugetul e depășit."
+
+
+"Birocrație"
+
+Icon: documente
+Text: "Zeci de documente, termene strânse, risc de penalități. Stress constant."
+
+
+
+Fiecare pain point cu o ilustrație simplă și text concis care rezonează cu experiența targetului.
+Secțiunea SOLUȚIE (How It Works)
+Headline: "Cum Funcționează Promo-Efect"
+3-4 Pași Simpli (Process Flow):
+
+"Booking Instant"
+
+Icon: calendar/container
+Descriere: "Introduci detaliile containerului în portal. Primești cotație instant și confirmare."
+
+
+"Tracking Automat"
+
+Icon: GPS/hartă
+Descriere: "Urmărești containerul în timp real pe hartă. Primești notificări la fiecare etapă importantă."
+
+
+"Notificări Proactive"
+
+Icon: notificare/clopoțel
+Descriere: "Te alertăm când containerul sosește, când sunt documente necesare, înainte de termene critice."
+
+
+"Finalizare Simplă"
+
+Icon: check/livrare
+Descriere: "Toate documentele în aplicație, facturare transparentă, plată online. Livrare fără stres."
+
+
+
+Vizual: flow diagram sau timeline cu săgeți între pași.
+Secțiunea BENEFICII (Value Proposition)
+Headline: "De Ce Să Alegi Promo-Efect"
+Grid cu 6-8 Beneficii Cheie:
+
+"Economisești Timp"
+
+"75% mai puțin timp pe tracking și comunicare"
+Icon: ceas
+
+
+"Costuri Previzibile"
+
+"Prețuri transparente, fără surprize"
+Icon: calculator
+
+
+"Notificări Automate"
+
+"Nu mai verifici manual. Te anunțăm noi."
+Icon: notificare
+
+
+"Tracking în Timp Real"
+
+"Vezi exact unde e containerul, 24/7"
+Icon: locație/GPS
+
+
+"Portal Personalizat"
+
+"Toate containerele tale într-un singur loc"
+Icon: dashboard
+
+
+"Support Expert"
+
+"Echipă dedicată, răspunde în 2 ore"
+Icon: support/headset
+
+
+"Istoric Complete"
+
+"Toate documentele și facturi accesibile oricând"
+Icon: arhivă
+
+
+"Integrare 1C"
+
+"Sincronizare automată cu contabilitatea ta"
+Icon: sync
+
+
+
+Fiecare beneficiu cu icon, headline scurt, descriere 1 propoziție.
+
+
+
+10.3 MARKET OPPORTUNITY
+Moldova Import Market:
+
+250-450 containere/month (doar Promo-Efect acum)
+Total market Moldova: estimate ~2,000 containere/month (all companies)
+Market share potential: 20-30% = 400-600 containere/month
+
+Expansion Opportunity:
+
+România: piață mult mai mare (~50,000 containere/month total)
+Ukraine: piață emergentă
+White-label pentru alte țări
+
+Competitive Advantage:
+
+First-mover advantage în Moldova cu full-featured platform
+Automation și AI diferențiază de competiție tradițională
+Transparent pricing atrage clienți frustrați de competiție
+
+
+CONCLUZIE: RECAP ȘI NEXT STEPS
+Această specificație completă acoperă întreaga transformare a platformei Promo-Efect dintr-un prototip frontend într-o soluție enterprise production-ready.
+Am Acoperit:
+✅ Backend Complete: Arhitectură robustă, baze de date, API-uri comprehensive
+✅ Landing Page: Strategie conversie, design, SEO
+✅ Documentație: Tehnică, API, user guides, admin docs
+✅ Deployment: Infrastructure AWS, CI/CD, monitoring
+✅ Security: Authentication, encryption, compliance (GDPR, PCI, fiscal)
+✅ Testing: Unit, integration, E2E, performance, security
+✅ Training: User onboarding, admin training, ongoing education
+✅ Maintenance: Support system, monitoring, incident response
+✅ Roadmap: V2.0 features, mobile apps, AI enhancements
+✅ Business: Cost analysis, revenue model, market opportunity
+Pași Următori Recomandați:
+Faza 1: Planning și Prioritization (1 săptămână)
+
+Review această specificație cu stakeholders
+Prioritize features: must-have vs nice-to-have
+Finalize budget și timeline
+Assign roles: cine face ce
+
+Faza 2: Infrastructure Setup (2 săptămâni)
+
+Setup AWS account și resources
+Configure CI/CD pipeline
+Setup development, staging, production environments
+Configure monitoring și alerting
+
+Faza 3: Backend Development (6-8 săptămâni)
+
+Database schema implementation
+API endpoints development (prioritize core features)
+Authentication și authorization
+Integrări externe (Maersk, Terminal49, etc.)
+Email processing cu AI
+Notification system
+
+Faza 4: Frontend-Backend Integration (2 săptămâni)
+
+Replace mock data cu API calls
+Authentication flow integration
+Real-time updates (WebSockets)
+Error handling și loading states
+
+Faza 5: Landing Page Development (2 săptămâni)
+
+Concurrent cu backend development
+
+
+Design landing page conform spec
+Implement cu Next.js
+SEO optimization
+Deploy și testing
+
+Faza 6: Documentation (2 săptămâni)
+
+Concurrent cu development
+
+
+Technical documentation
+API documentation (auto-generated din OpenAPI)
+User guides și video tutorials
+Admin documentation
+
+Faza 7: Testing și QA (2-3 săptămâni)
+
+Unit tests writing
+Integration tests
+E2E tests pentru critical flows
+Performance testing
+Security audit
+Bug fixing
+
+Faza 8: Beta Launch (2 săptămâni)
+
+Deploy la production
+Onboard 10-20 beta clienți
+Gather feedback
+Fix critical bugs
+Optimize bazat pe usage real
+
+Faza 9: Full Launch (1 săptămână)
+
+Marketing campaign
+Onboard remaining clienți
+Training sessions
+Monitor closely
+
+Faza 10: Iteration și Improvement (Ongoing)
+
+Weekly reviews: metrics, feedback, bugs
+Bi-weekly sprints pentru new features și improvements
+Monthly strategic reviews
+
+Timeline Estimat Total:
+Development: 3-4 luni (cu echipă de 2-3 developeri full-time)
+Testing și Refinement: 1 lună
+Beta: 2 săptămâni
+Full Launch: Ready în ~5-6 luni de la start
+Budget Total Estimat:
+Development: 35,000-45,000 EUR (one-time)
+Infrastructure Setup: 1,000-2,000 EUR (one-time)
+Monthly Operations: 1,500-2,000 EUR (ongoing)
+ROI Projection:
+Break-even: 6-12 luni după launch
+Year 1 Revenue Potential: 100,000-200,000 EUR (conservative)
+Year 2 Revenue Potential: 300,000-500,000 EUR (cu growth)
+Year 3+: Expansion opportunities (white-label, România, etc.)
+
+Document Pregătit Pentru:
+Echipa de dezvoltare Promo-Efect SRL
+Pregătit De:
+Claude AI - Consultant Tehnic
+Dată:
+13 Noiembrie 2025
+Versiune:
+2.0 - Specificație Completă pentru Finalizare Platformă
+Status:
+READY FOR DEVELOPMENT
+
+Notă Finală:
+Această specificație este un document viu. Pe măsură ce platforma se dezvoltă, feedback-ul utilizatorilor și schimbările în piață vor necesita ajustări și îmbunătățiri. Recomand review-uri trimestriale ale acestei specificații și actualizări bazate pe learnings-urile din implementare.
+Succces la dezvoltarea platformei Promo-Efect! 🚀📦🌍

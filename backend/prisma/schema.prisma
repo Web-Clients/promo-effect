@@ -15,30 +15,41 @@ datasource db {
 // ============================================
 
 model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
-  passwordHash  String    @map("password_hash")
-  name          String
-  phone         String?
-  company       String?
-  role          String    @default("CLIENT") // CLIENT, AGENT, ADMIN, SUPER_ADMIN
+  id           String  @id @default(uuid())
+  email        String  @unique
+  passwordHash String  @map("password_hash")
+  name         String
+  phone        String?
+  company      String?
+  role         String  @default("CLIENT") // CLIENT, AGENT, ADMIN, SUPER_ADMIN
 
-  emailVerified Boolean   @default(false) @map("email_verified")
+  emailVerified     Boolean @default(false) @map("email_verified")
   verificationToken String? @unique @map("verification_token")
 
-  resetToken     String?  @unique @map("reset_token")
+  resetToken       String?   @unique @map("reset_token")
   resetTokenExpiry DateTime? @map("reset_token_expiry")
 
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-  lastLoginAt   DateTime? @map("last_login_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  lastLoginAt DateTime? @map("last_login_at")
+  lastLoginIp String?   @map("last_login_ip")
+
+  // Preferences
+  language                String? @default("ro") // ro, en, ru
+  timezone                String? @default("Europe/Chisinau")
+  notificationPreferences String? @map("notification_preferences") // JSON: {"email": true, "sms": false, "whatsapp": false, "push": true}
+
+  // 2FA
+  twoFactorEnabled Boolean @default(false) @map("two_factor_enabled")
+  twoFactorSecret  String? @map("two_factor_secret")
+  backupCodes      String? @map("backup_codes") // JSON array
 
   // Relations
   sessions      Session[]
   notifications Notification[]
   auditLogs     AuditLog[]
-  createdAgents Agent[]   @relation("CreatedBy")
-  agentProfile  Agent?    @relation("AgentUser")
+  createdAgents Agent[]        @relation("CreatedBy")
+  agentProfile  Agent?         @relation("AgentUser")
 
   @@map("users")
 }
@@ -52,7 +63,7 @@ model Session {
   ipAddress    String?  @map("ip_address")
   userAgent    String?  @map("user_agent")
 
-  createdAt    DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -66,30 +77,38 @@ model Session {
 // ============================================
 
 model Client {
-  id            String   @id @default(uuid())
-  companyName   String   @map("company_name")
-  contactPerson String   @map("contact_person")
-  email         String   @unique
+  id            String  @id @default(uuid())
+  companyName   String  @map("company_name")
+  contactPerson String  @map("contact_person")
+  email         String  @unique
   phone         String
   address       String?
 
   // Business info
-  taxId         String?  @unique @map("tax_id")
-  bankAccount   String?  @map("bank_account")
+  taxId       String? @unique @map("tax_id")
+  bankAccount String? @map("bank_account")
 
   // Stats
-  totalBookings Int      @default(0) @map("total_bookings")
-  totalRevenue  Float    @default(0) @map("total_revenue")
+  totalBookings Int   @default(0) @map("total_bookings")
+  totalRevenue  Float @default(0) @map("total_revenue")
 
-  status        String   @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
+  // Business settings
+  paymentTerms   Int?   @default(30) @map("payment_terms") // Days: 7, 14, 30, 60
+  creditLimit    Float? @default(0) @map("credit_limit")
+  currentBalance Float  @default(0) @map("current_balance") // Calculated from unpaid invoices
+  discount       Float? @default(0) // Percentage discount
+  rating         Float? @default(5.0) // Client rating 1-5
 
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  status String @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED, BLACKLISTED
+
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
   lastBookingAt DateTime? @map("last_booking_at")
 
   // Relations
   bookings Booking[]
   invoices Invoice[]
+  payments Payment[]
 
   @@index([email])
   @@index([status])
@@ -97,26 +116,26 @@ model Client {
 }
 
 model Agent {
-  id          String   @id @default(uuid())
-  userId      String   @unique @map("user_id")
-  agentCode   String   @unique @map("agent_code")
-  company     String
+  id        String @id @default(uuid())
+  userId    String @unique @map("user_id")
+  agentCode String @unique @map("agent_code")
+  company   String
 
   // Contact in China
-  contactName String   @map("contact_name")
-  wechatId    String?  @map("wechat_id")
+  contactName String  @map("contact_name")
+  wechatId    String? @map("wechat_id")
 
-  status      String   @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
+  status String @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
 
   createdById String   @map("created_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
-  user        User         @relation("AgentUser", fields: [userId], references: [id], onDelete: Cascade)
-  createdBy   User         @relation("CreatedBy", fields: [createdById], references: [id])
-  prices      AgentPrice[]
-  bookings    Booking[]
+  user      User         @relation("AgentUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User         @relation("CreatedBy", fields: [createdById], references: [id])
+  prices    AgentPrice[]
+  bookings  Booking[]
 
   @@index([agentCode])
   @@index([status])
@@ -127,19 +146,93 @@ model Agent {
 // 3. PRICING SYSTEM
 // ============================================
 
+// Base shipping prices - managed by Ion
+model BasePrice {
+  id              String   @id @default(uuid())
+  shippingLine    String   @map("shipping_line") // MSC, Maersk, Hapag-Lloyd, CMA CGM, Cosco, Yangming
+  portOrigin      String   @map("port_origin") // Shanghai, Ningbo, Qingdao, etc.
+  portDestination String   @map("port_destination") // Constanta, Odessa
+  containerType   String   @map("container_type") // 20ft, 40ft, 40ft_HC
+
+  basePrice       Float    @map("base_price") // Base freight price in USD
+  transitDays     Int      @map("transit_days") // Estimated transit time
+
+  validFrom       DateTime @map("valid_from")
+  validUntil      DateTime @map("valid_until")
+  isActive        Boolean  @default(true) @map("is_active")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  createdBy       String?  @map("created_by")
+
+  @@unique([shippingLine, portOrigin, portDestination, containerType])
+  @@index([portOrigin, portDestination, containerType])
+  @@index([shippingLine])
+  @@index([isActive])
+  @@map("base_prices")
+}
+
+// Port adjustments - additional costs for specific ports
+model PortAdjustment {
+  id         String   @id @default(uuid())
+  portName   String   @unique @map("port_name") // Shanghai, Qingdao, Xiamen, etc.
+  adjustment Float    @default(0) // Adjustment in USD (can be positive or negative)
+  notes      String?  @db.Text
+
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("port_adjustments")
+}
+
+// HS Codes - Harmonized System customs codes for cargo classification
+model HsCode {
+  id          String  @id @default(uuid())
+  code        String  @unique // HS code like "9403.30.00" or "9403.30"
+  description String  @db.Text // Full description in Romanian
+  descriptionEn String? @map("description_en") @db.Text // English description
+
+  // Category hierarchy
+  chapter     String  // First 2 digits (e.g., "94" for furniture)
+  heading     String  // First 4 digits (e.g., "9403" for other furniture)
+  subheading  String? // Full 6-digit code (e.g., "9403.30")
+
+  // Customs info
+  dutyRate    Float?  @map("duty_rate") // Import duty percentage
+  vatRate     Float?  @default(20) @map("vat_rate") // VAT percentage (default 20% for Moldova)
+
+  // Special requirements
+  requiresInspection Boolean @default(false) @map("requires_inspection")
+  requiresLicense    Boolean @default(false) @map("requires_license")
+  restrictions       String? @db.Text // Any import restrictions
+
+  // Search optimization
+  keywords    String? @db.Text // Additional keywords for search
+
+  isActive    Boolean @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([code])
+  @@index([chapter])
+  @@index([heading])
+  @@index([isActive])
+  @@map("hs_codes")
+}
+
 model AgentPrice {
-  id            String   @id @default(uuid())
-  agentId       String?  @map("agent_id")
-  addedByAdmin  String?  @map("added_by_admin")
+  id           String  @id @default(uuid())
+  agentId      String? @map("agent_id")
+  addedByAdmin String? @map("added_by_admin")
 
   // Price details
-  freightPrice  Float    @map("freight_price")
-  shippingLine  String   @map("shipping_line")
+  freightPrice Float  @map("freight_price")
+  shippingLine String @map("shipping_line")
 
   // Route & specs
-  portOrigin    String   @map("port_origin")
-  containerType String   @map("container_type")
-  weightRange   String   @map("weight_range")
+  portOrigin    String @map("port_origin")
+  containerType String @map("container_type")
+  weightRange   String @map("weight_range")
 
   // Validity
   validFrom     DateTime @map("valid_from")
@@ -147,13 +240,13 @@ model AgentPrice {
   departureDate DateTime @map("departure_date")
 
   // Admin override info
-  reason        String?
+  reason String?
 
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  agent   Agent?   @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agent    Agent?    @relation(fields: [agentId], references: [id], onDelete: Cascade)
   bookings Booking[]
 
   @@index([portOrigin, containerType, weightRange])
@@ -162,23 +255,35 @@ model AgentPrice {
 }
 
 model AdminSettings {
-  id                    Int      @id @default(1)
+  id Int @id @default(1)
 
-  // Fixed costs (USD)
-  portTaxes             Float    @default(221.67) @map("port_taxes")
-  customsTaxes          Float    @default(150.00) @map("customs_taxes")
-  terrestrialTransport  Float    @default(600.00) @map("terrestrial_transport")
-  commission            Float    @default(200.00) @map("commission")
+  // Fixed costs for Constanta (USD)
+  portTaxesConstanta            Float @default(221.67) @map("port_taxes_constanta")
+  terrestrialTransportConstanta Float @default(600.00) @map("terrestrial_transport_constanta")
+
+  // Fixed costs for Odessa (USD)
+  portTaxesOdessa            Float @default(200.00) @map("port_taxes_odessa")
+  terrestrialTransportOdessa Float @default(550.00) @map("terrestrial_transport_odessa")
+
+  // Common costs (USD)
+  customsTaxes         Float @default(150.00) @map("customs_taxes")
+  commission           Float @default(200.00) @map("commission")
+  insuranceCost        Float @default(50.00) @map("insurance_cost") // Standard insurance cost
+  profitMarginPercent  Float @default(10.0) @map("profit_margin_percent") // Profit margin %
+
+  // Legacy fields (for backward compatibility)
+  portTaxes            Float @default(221.67) @map("port_taxes")
+  terrestrialTransport Float @default(600.00) @map("terrestrial_transport")
 
   // Weight ranges config (stored as JSON string)
-  weightRanges          String   @default("[{\"label\": \"1-10 tone\", \"min\": 1, \"max\": 10, \"enabled\": true}, {\"label\": \"10-20 tone\", \"min\": 10, \"max\": 20, \"enabled\": true}, {\"label\": \"20-23 tone\", \"min\": 20, \"max\": 23, \"enabled\": true}, {\"label\": \"23-24 tone\", \"min\": 23, \"max\": 24, \"enabled\": true}]") @map("weight_ranges")
+  weightRanges String @default("[{\"label\": \"1-10 tone\", \"min\": 1, \"max\": 10, \"enabled\": true}, {\"label\": \"10-20 tone\", \"min\": 10, \"max\": 20, \"enabled\": true}, {\"label\": \"20-23 tone\", \"min\": 20, \"max\": 23, \"enabled\": true}, {\"label\": \"23-24 tone\", \"min\": 23, \"max\": 24, \"enabled\": true}]") @map("weight_ranges")
 
   // Gmail OAuth Integration
-  gmailAccessToken      String?   @map("gmail_access_token")
-  gmailRefreshToken     String?   @map("gmail_refresh_token")
-  gmailTokenExpiry      DateTime? @map("gmail_token_expiry")
-  gmailEmail            String?   @map("gmail_email")
-  lastEmailFetchAt      DateTime? @map("last_email_fetch_at")
+  gmailAccessToken  String?   @map("gmail_access_token")
+  gmailRefreshToken String?   @map("gmail_refresh_token")
+  gmailTokenExpiry  DateTime? @map("gmail_token_expiry")
+  gmailEmail        String?   @map("gmail_email")
+  lastEmailFetchAt  DateTime? @map("last_email_fetch_at")
 
   updatedBy String?  @map("updated_by")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -187,63 +292,129 @@ model AdminSettings {
 }
 
 // ============================================
+// 9. SETTINGS (Flexible Settings System)
+// ============================================
+
+model Setting {
+  id          String  @id @default(uuid())
+  category    String // EMAIL, SMS, TRACKING, PRICING, NOTIFICATIONS, INTEGRATIONS
+  key         String // Unique within category
+  value       String  @db.Text // JSON value for flexibility
+  type        String // STRING, NUMBER, BOOLEAN, JSON, ENCRYPTED
+  description String? @db.Text
+  validation  String? @db.Text // JSON schema for validation
+
+  updatedBy String?  @map("updated_by")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([category, key])
+  @@index([category])
+  @@map("settings")
+}
+
+// ============================================
+// 10. PRICING RULES
+// ============================================
+
+model PricingRule {
+  id       String @id @default(uuid())
+  name     String // Rule name/description
+  priority Int    @default(0) // Higher priority = applied first
+
+  // Conditions
+  containerType   String? @map("container_type") // 20ft, 40ft, 40HQ, Reefer, or null for all
+  portOrigin      String? @map("port_origin") // Specific port or null for all
+  portDestination String? @map("port_destination") // Specific port or null for all
+  shippingLine    String? @map("shipping_line") // Specific line or null for all
+
+  // Pricing
+  basePrice       Float   @map("base_price") // Base freight price
+  currency        String  @default("USD") // USD, EUR, MDL
+  additionalTaxes String? @map("additional_taxes") @db.Text // JSON array of taxes
+  volumeDiscounts String? @map("volume_discounts") @db.Text // JSON with volume thresholds
+
+  // Validity period
+  validFrom DateTime  @map("valid_from")
+  validTo   DateTime? @map("valid_to") // null = indefinite
+
+  // Special conditions (JSON)
+  specialConditions String? @map("special_conditions") @db.Text // JSON with complex rules
+
+  // Status
+  status String  @default("ACTIVE") // ACTIVE, INACTIVE, EXPIRED
+  notes  String? @db.Text
+
+  // Metadata
+  createdBy String?  @map("created_by")
+  updatedBy String?  @map("updated_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([containerType, portOrigin, shippingLine])
+  @@index([status, validFrom, validTo])
+  @@index([priority])
+  @@map("pricing_rules")
+}
+
+// ============================================
 // 4. BOOKINGS & CONTAINERS
 // ============================================
 
 model Booking {
-  id         String   @id
+  id String @id
 
   // Relationships
-  clientId   String   @map("client_id")
-  agentId    String?  @map("agent_id")
-  priceId    String?  @map("price_id")
+  clientId String  @map("client_id")
+  agentId  String? @map("agent_id")
+  priceId  String? @map("price_id")
 
   // Route
-  portOrigin       String @map("port_origin")
-  portDestination  String @map("port_destination")
-  containerType    String @map("container_type")
+  portOrigin      String @map("port_origin")
+  portDestination String @map("port_destination")
+  containerType   String @map("container_type")
 
   // Cargo details
-  cargoCategory    String @map("cargo_category")
-  cargoWeight      String @map("cargo_weight")
-  cargoReadyDate   DateTime @map("cargo_ready_date")
+  cargoCategory  String   @map("cargo_category")
+  cargoWeight    String   @map("cargo_weight")
+  cargoReadyDate DateTime @map("cargo_ready_date")
 
   // Pricing breakdown
-  shippingLine           String  @map("shipping_line")
-  freightPrice           Float @map("freight_price")
-  portTaxes              Float @map("port_taxes")
-  customsTaxes           Float @map("customs_taxes")
-  terrestrialTransport   Float @map("terrestrial_transport")
-  commission             Float @map("commission")
-  totalPrice             Float @map("total_price")
+  shippingLine         String @map("shipping_line")
+  freightPrice         Float  @map("freight_price")
+  portTaxes            Float  @map("port_taxes")
+  customsTaxes         Float  @map("customs_taxes")
+  terrestrialTransport Float  @map("terrestrial_transport")
+  commission           Float  @map("commission")
+  totalPrice           Float  @map("total_price")
 
   // Supplier info
-  supplierName    String?  @map("supplier_name")
-  supplierPhone   String?  @map("supplier_phone")
-  supplierEmail   String?  @map("supplier_email")
-  supplierAddress String?  @map("supplier_address")
+  supplierName    String? @map("supplier_name")
+  supplierPhone   String? @map("supplier_phone")
+  supplierEmail   String? @map("supplier_email")
+  supplierAddress String? @map("supplier_address")
 
   // Status tracking
-  status          String @default("CONFIRMED") // CONFIRMED, SENT, IN_TRANSIT, ARRIVED, DELIVERED, CANCELLED
-  departureDate   DateTime?     @map("departure_date")
-  eta             DateTime?     @map("eta")
-  actualArrival   DateTime?     @map("actual_arrival")
+  status        String    @default("CONFIRMED") // CONFIRMED, SENT, IN_TRANSIT, ARRIVED, DELIVERED, CANCELLED
+  departureDate DateTime? @map("departure_date")
+  eta           DateTime? @map("eta")
+  actualArrival DateTime? @map("actual_arrival")
 
   // Notes
-  internalNotes   String?  @map("internal_notes")
-  clientNotes     String?  @map("client_notes")
+  internalNotes String? @map("internal_notes")
+  clientNotes   String? @map("client_notes")
 
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  client       Client       @relation(fields: [clientId], references: [id])
-  agent        Agent?       @relation(fields: [agentId], references: [id])
+  client        Client      @relation(fields: [clientId], references: [id])
+  agent         Agent?      @relation(fields: [agentId], references: [id])
   selectedPrice AgentPrice? @relation(fields: [priceId], references: [id])
 
-  containers   Container[]
-  documents    Document[]
-  invoices     Invoice[]
+  containers    Container[]
+  documents     Document[]
+  invoices      Invoice[]
   notifications Notification[]
 
   @@index([clientId])
@@ -253,33 +424,53 @@ model Booking {
 }
 
 model Container {
-  id               String   @id @default(uuid())
-  bookingId        String   @map("booking_id")
-  containerNumber  String   @unique @map("container_number")
+  id              String  @id @default(uuid())
+  bookingId       String  @map("booking_id")
+  containerNumber String  @unique @map("container_number")
+  blNumber        String? @unique @map("bl_number") // Bill of Lading number
 
   // Specs
-  type             String
-  sealNumber       String?  @map("seal_number")
+  type        String // 20ft, 40ft, 40HQ, Reefer
+  sealNumber  String? @map("seal_number")
+  weightGross Float?  @map("weight_gross") // kg
+  weightNet   Float?  @map("weight_net") // kg
+  volume      Float? // m³
+  content     String? @db.Text // Description of content
+
+  // Reefer settings
+  temperatureSetting Float?  @map("temperature_setting") // For reefer containers
+  ventilationSetting String? @map("ventilation_setting") // For special containers
+
+  // Flags
+  urgent  Boolean @default(false) // Urgent container flag
+  delayed Boolean @default(false) // Delayed flag (ETA exceeded)
 
   // Tracking
-  currentStatus    String?  @map("current_status")
-  currentLocation  String?  @map("current_location")
-  currentLat       Float? @map("current_lat")
-  currentLng       Float? @map("current_lng")
+  currentStatus   String? @map("current_status")
+  currentLocation String? @map("current_location")
+  currentLat      Float?  @map("current_lat")
+  currentLng      Float?  @map("current_lng")
 
   // ETA
-  eta              DateTime? @map("eta")
-  actualArrival    DateTime? @map("actual_arrival")
+  eta           DateTime? @map("eta")
+  etaOriginal   DateTime? @map("eta_original") // Original ETA for comparison
+  actualArrival DateTime? @map("actual_arrival")
+
+  // Costs
+  estimatedCost    Float?  @map("estimated_cost")
+  additionalCosts  Float?  @default(0) @map("additional_costs") // Demurrage, storage fees
+  insuranceActive  Boolean @default(false) @map("insurance_active")
+  insuranceDetails String? @map("insurance_details") @db.Text
 
   // API source
-  apiSource        String?  @map("api_source")
-  lastSyncAt       DateTime? @map("last_sync_at")
+  apiSource  String?   @map("api_source") // MAERSK_API, TERMINAL49, MANUAL_ENTRY, EMAIL_PARSING
+  lastSyncAt DateTime? @map("last_sync_at")
 
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  booking        Booking          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  booking        Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   trackingEvents TrackingEvent[]
 
   @@index([bookingId])
@@ -288,22 +479,35 @@ model Container {
 }
 
 model TrackingEvent {
-  id          String   @id @default(uuid())
-  containerId String   @map("container_id")
+  id          String @id @default(uuid())
+  containerId String @map("container_id")
 
   // Event details
-  eventType   String   @map("event_type")
-  location    String
-  portName    String?  @map("port_name")
-  vessel      String?
+  eventType    String  @map("event_type") // GATE_IN, LOADED, DISCHARGED, VESSEL_DEPARTURE, etc.
+  location     String
+  portName     String? @map("port_name")
+  unlocode     String? // UNLOCODE port code
+  vessel       String?
+  voyageNumber String? @map("voyage_number")
 
   // Geo
-  latitude    Float?
-  longitude   Float?
+  latitude  Float?
+  longitude Float?
+
+  // Status at event time
+  containerStatus String? @map("container_status") // Status of container at this event
+
+  // Additional details (JSON)
+  details String? @db.Text // JSON with additional metadata
+
+  // Source and validation
+  source     String? @default("MANUAL_ENTRY") // MAERSK_API, TERMINAL49, MANUAL_ENTRY, EMAIL_PARSING
+  validated  Boolean @default(false) // For manual entries
+  visibility String? @default("PUBLIC") // PUBLIC or INTERNAL
 
   // Timing
-  eventDate   DateTime @map("event_date")
-  createdAt   DateTime @default(now()) @map("created_at")
+  eventDate DateTime @map("event_date")
+  createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
   container Container @relation(fields: [containerId], references: [id], onDelete: Cascade)
@@ -317,21 +521,21 @@ model TrackingEvent {
 // ============================================
 
 model Document {
-  id         String   @id @default(uuid())
-  bookingId  String?  @map("booking_id")
+  id        String  @id @default(uuid())
+  bookingId String? @map("booking_id")
 
   // File info
-  fileName   String   @map("file_name")
-  fileType   String   @map("file_type")
-  mimeType   String   @map("mime_type")
-  fileSize   Int      @map("file_size")
+  fileName String @map("file_name")
+  fileType String @map("file_type")
+  mimeType String @map("mime_type")
+  fileSize Int    @map("file_size")
 
   // Storage
-  storageKey String   @unique @map("storage_key")
+  storageKey String  @unique @map("storage_key")
   url        String?
 
   // OCR/AI extracted data (stored as JSON string)
-  extractedData String?  @map("extracted_data")
+  extractedData String? @map("extracted_data")
 
   uploadedBy String   @map("uploaded_by")
   uploadedAt DateTime @default(now()) @map("uploaded_at")
@@ -349,36 +553,51 @@ model Document {
 // ============================================
 
 model Invoice {
-  id            String   @id @default(uuid())
-  invoiceNumber String   @unique @map("invoice_number")
+  id            String @id @default(uuid())
+  invoiceNumber String @unique @map("invoice_number")
 
-  bookingId     String   @map("booking_id")
-  clientId      String   @map("client_id")
+  bookingId String @map("booking_id")
+  clientId  String @map("client_id")
 
   // Amounts
-  amount        Float
-  currency      String   @default("USD")
+  amount       Float // Amount without VAT
+  vatPercent   Float? @default(0) @map("vat_percent")
+  vatAmount    Float? @default(0) @map("vat_amount")
+  totalAmount  Float  @map("total_amount") // Amount + VAT
+  currency     String @default("USD")
+  exchangeRate Float? @map("exchange_rate") // If currency is not MDL
 
   // Dates
-  issueDate     DateTime @default(now()) @map("issue_date")
-  dueDate       DateTime @map("due_date")
-  paidDate      DateTime? @map("paid_date")
+  issueDate DateTime  @default(now()) @map("issue_date")
+  dueDate   DateTime  @map("due_date")
+  paidDate  DateTime? @map("paid_date")
 
   // Status
-  status        String @default("UNPAID") // UNPAID, PAID, OVERDUE, CANCELLED
+  status String @default("DRAFT") // DRAFT, ISSUED, SENT, UNPAID, PAID, OVERDUE, CANCELLED
+
+  // Payment method
+  paymentMethod String? @map("payment_method") // TRANSFER_BANCAR, CASH, CARD, ALTA
+
+  // Discount and penalties
+  discount       Float? @default(0) // Percentage
+  discountAmount Float? @default(0) @map("discount_amount")
+  penalties      Float? @default(0) // Late payment penalties
+
+  // Reminders sent (JSON array of timestamps)
+  remindersSent String? @map("reminders_sent") // JSON: ["2025-12-18T10:00:00Z", ...]
 
   // Files
-  pdfUrl        String?  @map("pdf_url")
+  pdfUrl String? @map("pdf_url")
 
   // Notes
-  notes         String?
+  notes String?
 
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  booking  Booking  @relation(fields: [bookingId], references: [id])
-  client   Client   @relation(fields: [clientId], references: [id])
+  booking  Booking   @relation(fields: [bookingId], references: [id])
+  client   Client    @relation(fields: [clientId], references: [id])
   payments Payment[]
 
   @@index([clientId])
@@ -388,20 +607,25 @@ model Invoice {
 }
 
 model Payment {
-  id          String   @id @default(uuid())
-  invoiceId   String   @map("invoice_id")
+  id        String  @id @default(uuid())
+  invoiceId String? @map("invoice_id") // Can be NULL for advance payments
+  clientId  String? @map("client_id") // For payments without invoice
 
-  amount      Float
-  currency    String   @default("USD")
+  amount   Float
+  currency String @default("USD")
 
-  method      String // BANK_TRANSFER, CASH, CARD, OTHER
-  reference   String?
+  method    String // TRANSFER_BANCAR, CASH, CARD, ALTA
+  reference String? // Transaction reference number
 
-  paidAt      DateTime @default(now()) @map("paid_at")
-  notes       String?
+  // Reconciliation
+  reconciliationStatus String @default("PENDING") @map("reconciliation_status") // PENDING, CONFIRMED, REJECTED
+
+  paidAt DateTime @default(now()) @map("paid_at")
+  notes  String?
 
   // Relations
-  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  client  Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
 
   @@index([invoiceId])
   @@map("payments")
@@ -412,24 +636,24 @@ model Payment {
 // ============================================
 
 model Notification {
-  id         String   @id @default(uuid())
-  userId     String   @map("user_id")
-  bookingId  String?  @map("booking_id")
+  id        String  @id @default(uuid())
+  userId    String  @map("user_id")
+  bookingId String? @map("booking_id")
 
   // Content
-  type       String // BOOKING_CONFIRMED, BOOKING_STATUS_CHANGED, etc
-  title      String
-  message    String
+  type    String // BOOKING_CONFIRMED, BOOKING_STATUS_CHANGED, etc
+  title   String
+  message String
 
   // Delivery (stored as comma-separated string)
-  channels   String // "email,sms,whatsapp"
+  channels String // "email,sms,whatsapp"
 
   // Status
-  read       Boolean  @default(false)
-  sent       Boolean  @default(false)
-  sentAt     DateTime? @map("sent_at")
+  read   Boolean   @default(false)
+  sent   Boolean   @default(false)
+  sentAt DateTime? @map("sent_at")
 
-  createdAt  DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -440,34 +664,34 @@ model Notification {
 }
 
 model EmailQueue {
-  id          String   @id @default(uuid())
+  id String @id @default(uuid())
 
   // Recipients (stored as comma-separated strings)
-  to          String
-  cc          String   @default("")
-  bcc         String   @default("")
+  to  String
+  cc  String @default("")
+  bcc String @default("")
 
   // Content
-  subject     String
-  htmlBody    String   @map("html_body")
-  textBody    String?  @map("text_body")
+  subject  String
+  htmlBody String  @map("html_body")
+  textBody String? @map("text_body")
 
   // Attachments (stored as JSON string)
   attachments String?
 
   // Metadata
-  template    String?
-  bookingId   String?  @map("booking_id")
+  template  String?
+  bookingId String? @map("booking_id")
 
   // Status
-  status      String @default("PENDING") // PENDING, SENDING, SENT, FAILED, CANCELLED
-  attempts    Int      @default(0)
-  lastError   String?  @map("last_error")
+  status    String  @default("PENDING") // PENDING, SENDING, SENT, FAILED, CANCELLED
+  attempts  Int     @default(0)
+  lastError String? @map("last_error")
 
   scheduledFor DateTime? @map("scheduled_for")
   sentAt       DateTime? @map("sent_at")
 
-  createdAt    DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([status])
   @@index([scheduledFor])
@@ -479,27 +703,27 @@ model EmailQueue {
 // ============================================
 
 model IncomingEmail {
-  id           String   @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   // Email metadata
-  messageId    String   @unique @map("message_id")
-  fromAddress  String   @map("from_address")
-  subject      String
-  body         String   @db.Text
-  receivedAt   DateTime @map("received_at")
-  
+  messageId   String   @unique @map("message_id")
+  fromAddress String   @map("from_address")
+  subject     String
+  body        String   @db.Text
+  receivedAt  DateTime @map("received_at")
+
   // Processing status
-  status       String   @default("PENDING") // PENDING, PROCESSING, PROCESSED, FAILED
-  processedAt  DateTime? @map("processed_at")
-  
+  status      String    @default("PENDING") // PENDING, PROCESSING, PROCESSED, FAILED
+  processedAt DateTime? @map("processed_at")
+
   // Linked booking (if created)
-  bookingId    String?  @map("booking_id")
-  
+  bookingId String? @map("booking_id")
+
   // AI extracted data (stored as JSON)
   extractedData String? @map("extracted_data") @db.Text
-  
-  createdAt    DateTime @default(now()) @map("created_at")
-  
+
+  createdAt DateTime @default(now()) @map("created_at")
+
   @@index([status])
   @@index([receivedAt])
   @@map("incoming_emails")
@@ -510,22 +734,22 @@ model IncomingEmail {
 // ============================================
 
 model AuditLog {
-  id          String   @id @default(uuid())
-  userId      String?  @map("user_id")
+  id     String  @id @default(uuid())
+  userId String? @map("user_id")
 
   // Action details
-  action      String
-  entityType  String   @map("entity_type")
-  entityId    String?  @map("entity_id")
+  action     String
+  entityType String  @map("entity_type")
+  entityId   String? @map("entity_id")
 
   // Changes (stored as JSON string)
-  changes     String?
+  changes String?
 
   // Request info
-  ipAddress   String?  @map("ip_address")
-  userAgent   String?  @map("user_agent")
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent")
 
-  createdAt   DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -536,25 +760,25 @@ model AuditLog {
 }
 
 model BackgroundJob {
-  id          String   @id @default(uuid())
+  id String @id @default(uuid())
 
   // Job details
-  jobType     String   @map("job_type")
-  jobData     String   @map("job_data") // JSON string
+  jobType String @map("job_type")
+  jobData String @map("job_data") // JSON string
 
   // Scheduling
   status      String @default("PENDING") // PENDING, RUNNING, COMPLETED, FAILED, CANCELLED
-  attempts    Int      @default(0)
-  maxAttempts Int      @default(3) @map("max_attempts")
+  attempts    Int    @default(0)
+  maxAttempts Int    @default(3) @map("max_attempts")
 
   scheduledFor DateTime? @map("scheduled_for")
   startedAt    DateTime? @map("started_at")
   completedAt  DateTime? @map("completed_at")
 
   // Error handling
-  lastError    String?  @map("last_error")
+  lastError String? @map("last_error")
 
-  createdAt    DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([status])
   @@index([jobType])

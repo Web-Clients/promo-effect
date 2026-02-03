@@ -1,0 +1,490 @@
+LISTĂ COMPLETĂ ÎNSĂRCINĂRI -
+PLATFORMA PROMO-EFECT
+ANALIZĂ DISCUȚIE - ÎNȚELEGEREA CERINȚELOR
+Ce am înțeles din conversație:
+Schimbarea principală: Calculatorul de preț nu este o rezervare directă. Clientul trebuie să
+vadă mai întâi mai multe oferte de preț (cinci variante diferite), să aleagă oferta care îi
+convine, și apoi să plaseze comanda. Aceasta este o diferență foarte importantă față de cum
+funcționează acum.
+Flow-ul corect:
+1. Clientul completează formularul cu datele containerului
+2. Sistemul calculează și afișează cinci oferte diferite, sortate de la cel mai ieftin la cel
+mai scump
+3. Clientul alege oferta care îi convine
+4. Clientul completează datele furnizorului
+5. Sistemul trimite emailuri automate către client, către agentul chinez și către Ion
+Despre prețuri: Ion vrea să poată ajusta manual prețurile pentru că ele se schimbă des și
+depind de multe lucruri (portul de plecare, linia maritimă, greutatea mărfii). El vrea un panou
+de administrare unde să poată schimba aceste prețuri rapid, fără să ceară ajutor de la
+programatori.
+Despre agenții chinezi: Pentru început (primele câteva săptămâni), Ion va ajusta singur
+prețurile. După aceea, vrea să dea acces agenților chinezi să își ajusteze ei prețurile, dar cu
+aprobare din partea lui Ion înainte ca prețurile să devină publice.
+ÎNSĂRCINĂRI PRIORITARE - TREBUIE FĂCUTE
+URGENT
+ÎNSĂRCINARE NUMĂRUL 1: MODIFICAREA CALCULATORULUI DE
+PREȚ
+Responsabil: Patric
+Termen limită: 29 Ianuarie 2026
+Prioritate: FOARTE URGENTĂ
+Ce trebuie schimbat:
+Calculatorul actual afișează un singur preț sau permite clientului să aleagă linia maritimă.
+Aceasta este greșit. Ion a explicat foarte clar că sistemul trebuie să calculeze prețul pentru
+TOATE liniile maritime disponibile și să afișeze cinci oferte sortate de la cel mai ieftin la cel
+mai scump.
+Partea de introducere date (ce completează clientul):
+Clientul trebuie să completeze următoarele câmpuri:
+● Portul de încărcare (Shanghai, Ningbo, Qingdao, Shenzhen, Xiamen sau alte porturi
+din China)
+● Portul de destinație (trebuie să arate și portul intermediar: Constanța sau Odessa,
+plus destinația finală: Chișinău)
+● Tipul containerului (20 picioare standard, 40 picioare standard, 40 picioare înalt)
+● Greutatea mărfii (cu opțiuni: 1-5 tone, 5-10 tone, 10-15 tone, 15-20 tone, 20-24 tone)
+● Tipul mărfii (din nomenclatorul vamal - vezi Însărcinarea 2)
+● Cantitatea de containere (poate adăuga mai multe tipuri de containere - vezi
+Însărcinarea 7)
+IMPORTANT: NU trebuie să existe câmpul unde clientul alege linia maritimă. Sistemul
+calculează automat pentru toate liniile.
+Partea de afișare rezultate (ce vede clientul):
+Sistemul trebuie să afișeze un tabel cu cinci oferte, sortate după preț (de la cel mai ieftin la
+cel mai scump). Fiecare ofertă trebuie să arate:
+● Rangul ofertei (numărul 1, 2, 3, 4, 5)
+● Linia maritimă (Maersk, MSC, Hapag-Lloyd, CMA sau altele)
+● Ruta completă (de exemplu: Shanghai - Constanța - Chișinău sau Shanghai -
+Odessa - Chișinău)
+● Prețul total în dolari americani
+● Timpul de tranzit (câte zile durează transportul)
+● Un buton pentru a selecta acea ofertă
+Exemple concrete din discuție: Ion a dat exemplu: "Prima ofertă: 5000 dolari, Shanghai -
+Constanța - Chișinău, linia Maersk. A doua ofertă: 4900 dolari, Shanghai - Odessa -
+Chișinău, linia MSC."
+După ce clientul alege oferta:
+Când clientul apasă butonul de selectare la oferta dorită, sistemul trebuie să îl ducă la un
+formular unde completează:
+● Datele furnizorului (numele companiei, adresa completă, telefonul, emailul)
+● Datele beneficiarului (acestea se completează automat din profilul clientului)
+● Opțional: poate să bifeze dacă dorește asigurare pentru marfă (care adaugă o taxă
+standard)
+După completarea acestui formular, clientul apasă pe butonul "Plasează comanda" și
+sistemul trimite emailurile automate (vezi Însărcinarea 4).
+Cum se calculează prețul:
+Sistemul trebuie să ia prețurile din baza de date (care vor fi introduse de Ion prin panoul de
+administrare - vezi Însărcinarea 3) și să le calculeze astfel:
+Pentru fiecare linie maritimă disponibilă:
+● Se ia prețul de bază pentru transport maritim (din setările pe care le pune Ion)
+● Se adaugă ajustarea pentru portul de plecare (dacă e necesar - de exemplu,
+Shanghai costă la fel ca prețul de bază, dar Qingdao costă plus 50 dolari, Xiamen
+costă plus 150 dolari)
+● Se adaugă taxele portuare (pentru Constanța sau Odessa)
+● Se adaugă costul transportului terestru (de la Constanța sau Odessa până la
+Chișinău)
+● Se adaugă marja de profit a companiei Promo-Efect
+După calcularea prețului pentru toate liniile disponibile, sistemul sortează rezultatele de la
+cel mai ieftin la cel mai scump și afișează doar primele cinci oferte.
+Ce trebuie verificat când lucrarea este gata:
+● Calculatorul afișează exact cinci oferte sortate după preț
+● Nu există câmpul unde clientul alege linia maritimă
+● Se pot adăuga mai multe tipuri de containere (de exemplu: un container de 20
+picioare și trei containere de 40 picioare)
+● Se afișează ruta completă cu toate punctele (plecare - intermediar - destinație)
+● După selectarea ofertei, formularul se deschide cu datele deja completate din oferta
+aleasă
+ÎNSĂRCINARE NUMĂRUL 2: ADĂUGAREA NOMENCLATORULUI VAMAL
+Responsabili: Patric (partea tehnică) și Ion Scacun (furnizarea datelor)
+Termen limită: 28 Ianuarie 2026
+Prioritate: FOARTE URGENTĂ
+Context din discuție:
+Ion a spus: "Tipul mărfii care am discutat ca să selectăm din nomenclatorul vamal, acolo
+sunt pozițiile." El a promis să caute nomenclatorul pe internet și să îl trimită.
+Ce trebuie să facă Ion Scacun:
+Ion trebuie să caute și să trimită nomenclatorul vamal complet. Acesta este un document
+care conține codurile oficiale pentru diferite tipuri de mărfuri (numite coduri armonizate sau
+coduri HS). De exemplu, există coduri pentru mobilier, electronice, textile, jucării și altele.
+Nomenclatorul trebuie să conțină:
+● Codul (de obicei un număr de zece cifre)
+● Descrierea în limba română a tipului de marfă
+● Dacă există taxe vamale speciale pentru acel tip de marfă
+● Dacă acel tip de marfă necesită inspecție sau documente speciale
+Ce trebuie să facă Patric:
+După primirea datelor de la Ion, Patric trebuie să creeze în baza de date un tabel unde să
+stocheze toate aceste informații despre tipurile de mărfuri.
+În calculator, în loc de un câmp simplu pentru tipul mărfii, trebuie să fie un câmp cu căutare
+unde clientul poate:
+● Căuta după codul vamal (de exemplu: "9403.30")
+● Căuta după descriere (de exemplu: "mobilier lemn")
+● Să vadă rezultatul complet (de exemplu: "9403.30 - Mobilier din lemn pentru birouri")
+Când clientul selectează tipul mărfii, sistemul salvează codul în baza de date pentru a-l
+folosi mai târziu când se calculează taxele vamale.
+Ce trebuie verificat când lucrarea este gata:
+● Toate categoriile din nomenclatorul primit de la Ion sunt adăugate în sistem
+● Căutarea funcționează atât după cod cât și după descriere
+● Codul selectat se salvează corect și se folosește la calcularea prețului
+ÎNSĂRCINARE NUMĂRUL 3: CREAREA PANOULUI DE ADMINISTRARE
+PENTRU PREȚURI
+Responsabil: Patric
+Termen limită: 30 Ianuarie 2026
+Prioritate: URGENTĂ
+Context din discuție:
+Ion a explicat foarte detaliat cum trebuie să funcționeze sistemul de prețuri. El a spus: "Eu o
+să am nevoie să intru ca administrator, unde o să ajustez prețurile... Ningbo - Shanghai noi o
+să-i dăm de exemplu 3000 de dolari până la Constanța. Qingdao plus 50 dolari să meargă.
+Xiamen sau în celelalte porturi plus 150 dolari."
+Ion vrea să poată schimba aceste prețuri oricând, fără să îl sune pe Patric sau pe Oleg. De
+aceea are nevoie de un panou de administrare simplu și ușor de folosit.
+Pagina pentru prețurile de bază:
+Ion trebuie să vadă un tabel cu toate combinațiile de prețuri. Fiecare rând din tabel trebuie
+să arate:
+● Linia maritimă (Maersk, MSC, Hapag-Lloyd, CMA, Cosco, Yangming)
+● Portul de plecare de bază (Ningbo, Shanghai sau Shenzhen - acestea au același
+preț)
+● Portul de destinație (Constanța sau Odessa)
+● Tipul containerului (20 picioare, 40 picioare standard, 40 picioare înalt)
+● Prețul de bază în dolari americani
+● Câte zile durează transportul
+● De când este valabil prețul și până când este valabil
+● Dacă prețul este activ sau inactiv
+● Butoane pentru a modifica sau a șterge prețul
+Ion trebuie să poată să apese pe butonul de modificare, să schimbe prețul sau alte date și
+să salveze. Sistemul trebuie să folosească noile prețuri imediat în calculator.
+Pagina pentru ajustările de porturi:
+Cum a explicat Ion, unele porturi au costuri suplimentare. De aceea trebuie o altă pagină
+unde Ion să poată să vadă și să modifice aceste ajustări. Tabelul trebuie să arate:
+● Numele portului
+● Cât se adaugă la preț (în dolari americani)
+● Notițe sau explicații (de ce costă mai mult)
+De exemplu:
+● Shanghai: plus 0 dolari (port de bază)
+● Ningbo: plus 0 dolari (port de bază)
+● Shenzhen: plus 0 dolari (port de bază)
+● Qingdao: plus 50 dolari (port secundar)
+● Xiamen: plus 150 dolari (port îndepărtat)
+Ion trebuie să poată adăuga porturi noi, să modifice ajustările existente sau să șteargă
+porturi care nu mai sunt folosite.
+Pagina pentru taxe și marje:
+Trebuie să existe o pagină unde Ion să poată seta toate taxele și marjele care se aplică la
+toate comenzile. Acestea includ:
+● Taxele portuare la Constanța (cât costă în dolari)
+● Taxele portuare la Odessa (cât costă în dolari)
+● Transportul terestru de la Constanța la Chișinău (cât costă în dolari)
+● Transportul terestru de la Odessa la Chișinău (cât costă în dolari)
+● Marja de profit a companiei Promo-Efect (poate fi un procent sau o sumă fixă în
+dolari)
+● Costul standard pentru asigurarea mărfii (în dolari sau procent Ion trebuie să poată modifica aceste valori oricând și sistemul trebuie să le folosească
+imediat în toate calculele.
+Baza de date:
+Patric trebuie să creeze trei tabele în baza de date:
+Prima tabelă stochează prețurile de bază și conține:
+● Un identificator unic pentru fiecare preț
+● Linia maritimă
+● Portul de plecare
+● Portul de destinație
+● Tipul containerului
+● Prețul de bază în dolari
+● Câte zile durează transportul
+● De când este valabil
+● Până când este valabil
+● Dacă este activ sau nu
+● Când a fost creată înregistrarea
+● Când a fost modificată ultima dată
+A doua tabelă stochează ajustările pentru porturi și conține:
+● Un identificator unic
+● Numele portului (trebuie să fie unic)
+● Ajustarea în dolari
+● Notițe sau explicații
+A treia tabelă stochează setările generale ale sistemului și conține:
+● Un identificator unic
+● Numele setării (de exemplu: "taxe_portuare_constanta")
+● Valoarea setării (de exemplu: "350")
+● Descrierea setării (de exemplu: "Taxe portuare la Constanța în dolari americani")
+Recomandare suplimentară: Ar fi bine ca sistemul să țină evidența tuturor modificărilor pe
+care le face Ion, astfel încât să se poată vedea cine a schimbat ce și când. Aceasta ajută la
+depanare dacă apar probleme.
+Ce trebuie verificat când lucrarea este gata:
+● Ion poate modifica prețurile fără ajutor tehnic
+● Ion poate adăuga, modifica sau șterge porturi cu ajustări
+● Ion poate modifica taxele și marjele generale
+● Calculatorul folosește automat noile setări din panoul de administrare
+● Toate schimbările se salvează corect în baza de date
+ÎNSĂRCINARE NUMĂRUL 4: TRIMITEREA AUTOMATĂ A EMAILURILOR
+Responsabil: Patric
+Termen limită: 31 Ianuarie 2026
+Prioritate: URGENTĂ
+Context din discuție:
+Ion a spus clar: "Când el trimite comanda sau plasează comanda, el primește automat
+înapoi un email cu datele la agentul care a cărui rată a fost selectată."
+Cine primește emailuri și ce conțin:
+Când un client plasează o comandă după selectarea ofertei, sistemul trebuie să trimită
+automat trei emailuri:
+Primul email - către client:
+Subiectul emailului: "Comanda numărul [numărul comenzii] plasată cu succes -
+Promo-Efect"
+Conținutul emailului trebuie să conțină:
+● Mulțumiri pentru comandă
+● Toate detaliile comenzii: ruta completă, prețul ales, linia maritimă, tipul și cantitatea
+containerelor
+● Datele agentului chinez care va gestiona comanda: nume, email, număr WeChat
+(dacă există)
+● Numărul comenzii care va fi folosit pentru urmărire
+● Un link direct către pagina de urmărire unde clientul poate vedea unde se află
+containerul
+Al doilea email - către agentul chinez:
+Subiectul emailului: "Comandă nouă numărul [numărul comenzii] - [numele clientului] -
+[ruta]"
+Conținutul emailului trebuie să conțină:
+● Notificare că a fost primită o comandă nouă
+● Toate detaliile comenzii complete
+● Datele furnizorului (completate de client în formular)
+● Datele beneficiarului (clientul care a plasat comanda)
+● Cererea de confirmare a rezervării
+Al treilea email - către Promo-Efect (Ion):
+Subiectul emailului: "Comandă nouă numărul [numărul comenzii] necesită procesare"
+Conținutul emailului trebuie să conțină:
+● Copie la toate informațiile din comanda
+● Link către panoul de administrare pentru procesare
+Problema cu emailul corporativ:
+În timpul discuției, Ion a menționat că nu are încă email corporativ. El a spus: "Deja când o
+să pornim site-ul ăsta, o să facem atunci și email corporativ."
+Pentru moment, trebuie folosit emailul personal al lui Ion (Gmail). Patric trebuie să
+configureze sistemul astfel încât să trimită emailuri prin serviciul SendGrid sau un serviciu
+similar, dar răspunsurile să vină la emailul lui Ion.
+Când Ion va avea emailul corporativ, trebuie să fie simplu de schimbat în sistem, fără
+modificări mari de programare.
+Aspectul emailurilor:
+Emailurile trebuie să arate profesional. Patric trebuie să creeze șabloane frumoase care
+includ:
+● Logo-ul companiei Promo-Efect
+● Text formatat clar și ușor de citit
+● Să se vadă bine atât pe calculator cât și pe telefon mobil
+● Link-urile de urmărire să funcționeze corect când se apasă pe ele
+Ce trebuie verificat când lucrarea este gata:
+● Când un client plasează o comandă, se trimit automat toate cele trei emailuri
+● Toate datele din emailuri sunt corecte și complete
+● Link-urile de urmărire funcționează
+● Emailurile arată profesional pe toate dispozitivele
+ÎNSĂRCINARE NUMĂRUL 5: GESTIONAREA DATELOR AGENȚILOR
+CHINEZI
+Responsabili: Patric (partea tehnică) și Ion Scacun (furnizarea datelor)
+Termen limită: 2 Februarie 2026
+Prioritate: MEDIE (dar necesară pentru trimiterea emailurilor)
+Context:
+Pentru ca sistemul să poată trimite emailuri către agenții chinezi corecți, trebuie să avem
+datele lor stocate în sistem. Din conversație se înțelege că fiecare agent gestionează una
+sau mai multe linii maritime.
+Ce trebuie să facă Ion Scacun:
+Ion trebuie să pregătească o listă cu toți agenții chinezi cu care colaborează. Pentru fiecare
+agent trebuie să furnizeze:
+● Numele companiei agentului
+● Persoana de contact (numele persoanei cu care discută de obicei)
+● Emailul principal (unde să primească comenzile)
+● Numărul de WeChat (dacă agentul folosește WeChat)
+● Numărul de telefon WhatsApp (dacă agentul folosește WhatsApp)
+● Care linii maritime gestionează agentul (poate fi una sau mai multe: Maersk, MSC,
+Hapag-Lloyd și altele)
+Ce trebuie să facă Patric:
+Patric trebuie să creeze în baza de date un loc unde să stocheze toate aceste informații
+despre agenți.
+De asemenea, trebuie să creeze în panoul de administrare o pagină unde Ion să poată:
+● Să vadă lista tuturor agenților
+● Să adauge un agent nou
+● Să modifice datele unui agent existent
+● Să șteargă un agent care nu mai colaborează cu compania
+● Să atribuie fiecărui agent liniile maritime pe care le gestionează
+Când un client alege o ofertă de la o anumită linie maritimă și plasează comanda, sistemul
+trebuie să găsească automat agentul care gestionează acea linie maritimă și să îi trimită
+emailul.
+Ce trebuie verificat când lucrarea este gata:
+● Ion poate adăuga și modifica agenți fără ajutor tehnic
+● Emailurile de notificare ajung la agentul corect în funcție de linia maritimă aleasă
+● Un agent poate gestiona mai multe linii maritime
+● Toate datele agentului se afișează corect în emailul trimis clientului
+ÎNSĂRCINARE NUMĂRUL 6: ÎMBUNĂTĂȚIREA SISTEMULUI DE
+URMĂRIRE
+Responsabil: Patric
+Termen limită: 3 Februarie 2026
+Prioritate: MEDIE
+Context din discuție:
+Ion a explicat: "El poate să introducă de exemplu numărul la container, dar poate să meargă
+la rezervări. El o să aibă o listă la toate containerele care sunt în drum. Face click pe
+container și se duce la informația unde se află containerul."
+Ion vrea ca clientul să nu fie nevoit să introducă de fiecare dată numărul containerului pentru
+a-l urmări. Clientul trebuie să vadă o listă cu toate comenzile sale și să poată apăsa direct
+un buton pentru urmărire.
+Pagina cu rezervările clientului:
+În portalul clientului trebuie să existe o pagină numită "Rezervările mele" sau similar. Acolo
+clientul trebuie să vadă un tabel cu toate comenzile sale. Fiecare rând din tabel trebuie să
+arate:
+● Numărul comenzii (generat automat de sistem când plasează comanda)
+● Data când a fost plasată comanda
+● Ruta (de exemplu: Shanghai → Constanța → Chișinău)
+● Linia maritimă aleasă
+● Numărul containerului (când devine disponibil acest număr)
+● Starea comenzii (de exemplu: În procesare, În tranzit, Livrat)
+● Când se estimează că ajunge containerul (data estimată de sosire)
+● Butoane: "Urmărește" și "Detalii"
+Funcția butonului de urmărire:
+Când clientul apasă pe butonul "Urmărește", trebuie să se deschidă fie o fereastră nouă, fie
+o altă pagină care arată:
+O hartă cu ruta containerului (dacă este posibil să se ia de la SeaRates sau să se creeze
+una simplă)
+O cronologie cu evenimente, care arată:
+● Comanda plasată (cu data când s-a întâmplat)
+● Containerul încărcat (în așteptare sau cu dată)
+● Nava plecat (în așteptare sau cu dată)
+● În tranzit maritim
+● Ajuns la Constanța sau Odessa (în așteptare sau cu dată)
+● Transportul terestru pornit
+● Livrat la Chișinău (în așteptare sau cu dată)
+Informații suplimentare:
+● Numele navei (dacă este disponibil)
+● Data estimată de sosire actualizată
+Integrarea cu SeaRates sau alternative:
+Patric trebuie să încerce să ia datele de urmărire de la SeaRates folosind numărul
+containerului. Dacă SeaRates nu returnează date sau nu funcționează, sistemul trebuie să
+afișeze starea din baza de date (pe care Ion sau alți administratori o actualizează manual).
+Ce trebuie verificat când lucrarea este gata:
+● Clientul vede lista tuturor containerelor în panoul său
+● Apăsarea pe butonul "Urmărește" duce direct la urmărire, fără introducere manuală
+● Sistemul de urmărire funcționează (fie prin integrare cu SeaRates, fie prin date din
+baza de date)
+● Cronologia evenimentelor se actualizează corect
+ÎNSĂRCINARE NUMĂRUL 7: PERMITEREA SELECTĂRII MAI MULTOR
+TIPURI DE CONTAINERE
+Responsabil: Patric
+Termen limită: 2 Februarie 2026
+Prioritate: MEDIE
+Context din discuție:
+Ion a explicat foarte clar: "Poate să fie de exemplu 5 containere de 20, să indice numărul...
+Dar poate să fie unul de 20 și trei de 40."
+Clientul trebuie să poată comanda mai multe containere de tipuri diferite în aceeași
+comandă.
+Cum trebuie să arate în calculator:
+În loc să fie un câmp simplu unde clientul alege un singur tip de container, trebuie să fie o
+listă unde clientul poate adăuga mai multe rânduri. Fiecare rând trebuie să arate:
+● Tipul containerului (20 picioare standard, 40 picioare standard, 40 picioare înalt)
+● Cantitatea (câte containere de acest tip)
+● Un buton pentru a șterge rândul
+Sub listă trebuie să fie un buton "Adaugă alt tip de container" pe care clientul îl apasă dacă
+vrea să adauge mai multe tipuri.
+De exemplu, clientul poate adăuga:
+● Rând 1: 2 containere de 20 picioare standard
+● Rând 2: 3 containere de 40 picioare standard
+● Rând 3: 1 container de 40 picioare înalt
+Cum se calculează prețul:
+Când sistemul calculează prețul, trebuie să îl calculeze pentru fiecare tip de container
+separat și apoi să le adune. În rezultate trebuie să se vadă detaliat:
+2 containere de 20 picioare la 2.800 dolari fiecare = 5.600 dolari 3 containere de 40 picioare
+la 4.200 dolari fiecare = 12.600 dolari 1 container de 40 picioare înalt la 4.500 dolari = 4.500
+dolari Linie de separare TOTAL: 22.700 dolari
+Salvarea în baza de date:
+Patric trebuie să salveze toate tipurile de containere din comandă. Poate fie să creeze mai
+multe înregistrări (câte una pentru fiecare tip), fie să salveze totul împreună într-un format
+structurat.
+Ce trebuie verificat când lucrarea este gata:
+● Clientul poate adăuga mai multe tipuri de containere
+● Prețul se calculează corect pentru fiecare tip
+● Toate tipurile de containere se salvează în comanda
+ÎNSĂRCINARE NUMĂRUL 8: CREAREA PANOULUI DE ADMINISTRARE
+GENERAL PENTRU ION
+Responsabil: Patric
+Termen limită: 4 Februarie 2026
+Prioritate: SCĂZUTĂ (dar utilă)
+Context din discuție:
+Ion a spus: "Să vedem toate containerele. Cu data când ajung ele la Constanța, linia
+maritimă, tot toată informația."
+Ion vrea un panou unde să poată vedea toate comenzile dintr-o singură privire, să le poată
+filtra și sorta rapid.
+Partea cu statistici rapide:
+În partea de sus a panoului trebuie să fie câteva cifre mari care arată:
+● Câte comenzi sunt în procesare în total
+● Câte containere sunt în tranzit maritim
+● Câte containere au ajuns la Constanța sau Odessa și așteaptă transportul terestru
+● Câte containere sunt în drum către Chișinău
+Tabelul cu toate comenzile:
+Sub statistici trebuie să fie un tabel mare cu toate comenzile. Tabelul trebuie să arate:
+● Numărul comenzii
+● Numele clientului care a plasat comanda
+● Ruta completă
+● Linia maritimă aleasă
+● Numărul containerului (când devine disponibil)
+● Starea comenzii
+● Când se estimează că ajunge la Constanța sau Odessa
+● Când se estimează că ajunge la Chișinău
+● Prețul total al comenzii
+● Butoane pentru a vedea detalii sau a modifica starea
+Ion trebuie să poată:
+● Filtra comenzile după stare (de exemplu: să vadă doar cele în tranzit)
+● Filtra după linia maritimă
+● Filtra după dată
+● Filtra după client
+● Sorta după oricare coloană (de exemplu: după data comenzii, după preț, după data
+estimată de sosire)
+Opțional - vedere calendar:
+Dacă este timp, ar fi util să existe și o vedere de calendar unde Ion să poată vedea pe un
+calendar toate datele estimate de sosire. Containerele care sunt urgente (de exemplu, cele
+frigorifice) ar putea fi evidențiate cu o culoare diferită.
+Ce trebuie verificat când lucrarea este gata:
+● Ion vede toate comenzile dintr-o privire
+● Filtrarea și sortarea funcționează corect
+● Statisticile se actualizează automat
+● Ion poate vedea informațiile esențiale fără să fie nevoit să apese multe butoane
+ÎNSĂRCINĂRI PENTRU FAZA URMĂTOARE (DUPĂ
+LANSARE)
+ÎNSĂRCINARE NUMĂRUL 9: CREAREA PORTALULUI PENTRU AGENȚII
+CHINEZI
+Responsabil: Patric
+Termen: După 3-4 săptămâni de la lansare
+Prioritate: PENTRU VIITOR
+Context din discuție:
+Ion a explicat că prima perioadă (1-3 săptămâni) el va ajusta singur prețurile prin panoul de
+administrare. După aceea, vrea să dea posibilitatea agenților chinezi să își ajusteze ei
+prețurile, dar cu aprobare din partea lui înainte ca prețurile să devină active.
+Când vine timpul să se facă aceasta:
+Agenții chinezi vor avea conturi separate în sistem, diferite de conturile clienților și de contul
+de administrator al lui Ion.
+Când un agent se conectează, va vedea o pagină cu prețurile pe care le gestionează. Va
+putea să modifice prețurile doar pentru liniile maritime pe care le gestionează.
+Când un agent modifică un preț și îl salvează, prețul nu devine imediat activ. Starea prețului
+devine "În așteptarea aprobării".
+Ion primește o notificare că un agent a trimis un preț nou pentru aprobare. Ion intră în panoul
+său de administrare, vede prețul propus și poate fie să îl aprobe (și atunci devine activ în
+calculator), fie să îl respingă (și atunci rămâne prețul vechi).
+ÎNSĂRCINARE NUMĂRUL 10: ADĂUGAREA URMĂRIRII GPS PENTRU
+CAMIOANE
+Responsabil: Patric
+Termen: După lansare (fază viitoare)
+Prioritate: PENTRU VIITOR
+Context din discuție:
+Ion a menționat: "Dacă putem să implementăm și poziția GPS a mașinii. El să vadă poziția
+de exemplu unde este camionul... Să vadă și datele șoferului."
+Dar apoi Ion a clarificat: "Asta e pentru viitor. Acuma noi trebuie să facem cabinetul personal,
+prețuri, tracking containere."
+Această funcționalitate nu trebuie făcută acum. Va fi făcută într-o fază viitoare, după ce
+platforma principală este lansată și funcționează bine.
+Când va veni timpul, va trebui să se cerceteze soluții pentru urmărire GPS a camioanelor, să
+se creeze o aplicație mobilă pentru șoferi și să se integreze cu harta din portalul clientului.
+INFORMAȚII NECESARE DE LA ION SCACUN
+Următoarele informații sunt necesare urgent pentru ca Patric să poată continua dezvoltarea:
+URGENT - Necesar imediat:
+1. Nomenclatorul vamal cu codurile armonizate
+● Stare: În așteptare
+● Ion a promis: "O să găsesc și vi-l transmit"
+● Impact: Fără acesta nu se poate finaliza câmpul pentru tipul mărfii în calculator
+● Acțiune Oleg: Contactează Ion mâine dimineață pentru a urmări
+2. Lista cu prețurile de bază și ajustările pentru porturi
+● Stare: În așteptare
+● Necesar: Prețuri pentru toate cele 6 linii maritime pentru porturile principale
+● Impact: Fără acestea nu se poate testa și verifica calculatorul de prețuri
+● Acțiune Ion: Pregătește un tabel simplu (poate fi în Excel) cu structura:
+○ Linia maritimă
+○ Portul de plecare
+○ Portul de destinație
+○ Preț pentru container de 20 picioare
+○ Preț pentru container de 40 picioare
+○ Preț pentru container de 40 picioare înalt
+○ Câte zile durează transportul
+3. Datele agenților chinezi
+● Stare: În așteptare
+● Necesar: Listă completă cu toți agenții: nume, email, WeChat, liniile pe care le
+gestionează
+● Impact: Fără aceste date nu se pot trimite emailurile automate
+● Acțiune Ion: Pregătește lista cu toate datele de contact

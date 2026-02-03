@@ -1,6 +1,7 @@
 import prisma from '../../lib/prisma';
 import { generateBookingId } from '../../utils/booking-id.util';
 import { CreateBookingDTO, UpdateBookingDTO, BookingFilters } from '../../types/booking.types';
+import notificationService from '../../services/notification.service';
 
 export class BookingsService {
   /**
@@ -142,8 +143,40 @@ export class BookingsService {
       },
     });
 
-    // 8. TODO: Create notification (will be implemented in notification service)
-    // await notificationService.send(booking.clientId, 'BOOKING_CONFIRMED', { booking });
+    // 8. Send email notification to client
+    try {
+      const clientUsers = await prisma.user.findMany({
+        where: {
+          // Find users associated with this client
+          // Note: This assumes User has a clientId field or relation
+          // If not, we'll use the client email directly
+        },
+      });
+
+      // Get client email from booking
+      const clientEmail = booking.client?.email;
+      if (clientEmail) {
+          // Find user associated with client
+          const clientUser = await prisma.user.findFirst({
+            where: {
+              // Try to find user by client email or clientId relation
+              email: clientEmail,
+            },
+          });
+
+          await notificationService.sendNotification({
+            userId: clientUser?.id || booking.clientId, // Use user ID if found, otherwise clientId
+            bookingId: booking.id,
+            type: 'BOOKING_CONFIRMED',
+            title: `Rezervare Confirmată: ${booking.id}`,
+            message: `Rezervarea dumneavoastră ${booking.id} a fost confirmată.\n\nDetalii:\n- Port origine: ${booking.portOrigin}\n- Port destinație: ${booking.portDestination}\n- Tip container: ${booking.containerType}\n- Preț total: ${booking.totalPrice} ${booking.currency || 'USD'}\n\nVă vom anunța când containerul va fi disponibil pentru tracking.`,
+            channels: { email: true, push: false, sms: false, whatsapp: false },
+          });
+      }
+    } catch (error) {
+      console.error('[BookingsService] Failed to send booking confirmation email:', error);
+      // Don't fail the booking creation if email fails
+    }
 
     return booking;
   }
@@ -344,9 +377,32 @@ export class BookingsService {
       },
     });
 
-    // TODO: Send notification if status changed
+    // Send email notification if status changed
     if (data.status && data.status !== existing.status) {
-      // await notificationService.send(updated.clientId, 'BOOKING_STATUS_CHANGED', { booking: updated });
+      try {
+        const clientEmail = updated.client?.email;
+        if (clientEmail) {
+          const statusLabels: Record<string, string> = {
+            'CONFIRMED': 'Confirmată',
+            'IN_TRANSIT': 'În Tranzit',
+            'ARRIVED': 'Sosită',
+            'DELIVERED': 'Livrată',
+            'CANCELLED': 'Anulată',
+          };
+          
+          await notificationService.sendNotification({
+            userId: updated.clientId,
+            bookingId: updated.id,
+            type: 'BOOKING_STATUS_CHANGED',
+            title: `Status Rezervare Actualizat: ${booking.id}`,
+            message: `Statusul rezervării ${updated.id} a fost actualizat la: ${statusLabels[data.status] || data.status}.\n\nDetalii rezervare:\n- Port origine: ${updated.portOrigin}\n- Port destinație: ${updated.portDestination}\n- Tip container: ${updated.containerType}`,
+            channels: { email: true, push: false, sms: false, whatsapp: false },
+          });
+        }
+      } catch (error) {
+        console.error('[BookingsService] Failed to send status change email:', error);
+        // Don't fail the update if email fails
+      }
     }
 
     return updated;
@@ -387,8 +443,27 @@ export class BookingsService {
       },
     });
 
-    // TODO: Send notification
-    // await notificationService.send(cancelled.clientId, 'BOOKING_CANCELLED', { booking: cancelled });
+    // Send email notification to client
+    try {
+      const cancelledBooking = await prisma.booking.findUnique({
+        where: { id },
+        include: { client: true },
+      });
+      
+      if (cancelledBooking?.client?.email) {
+        await notificationService.sendNotification({
+          userId: cancelledBooking.clientId,
+          bookingId: cancelledBooking.id,
+          type: 'BOOKING_CANCELLED',
+          title: `Rezervare Anulată: ${cancelledBooking.id}`,
+          message: `Rezervarea ${cancelledBooking.id} a fost anulată.\n\nDacă aveți întrebări, vă rugăm să ne contactați.\n\nEchipa Promo-Efect`,
+          channels: { email: true, push: false, sms: false, whatsapp: false },
+        });
+      }
+    } catch (error) {
+      console.error('[BookingsService] Failed to send cancellation email:', error);
+      // Don't fail the cancellation if email fails
+    }
 
     return { message: 'Booking cancelled successfully' };
   }

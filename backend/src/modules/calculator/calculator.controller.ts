@@ -97,4 +97,79 @@ router.get(
   }
 );
 
+/**
+ * GET /api/calculator/destinations
+ * Get list of available destination ports (for dropdown)
+ */
+router.get(
+  '/destinations',
+  authMiddleware,
+  async (req: Request, res: Response) => {
+    try {
+      const destinations = await calculatorService.getAvailableDestinations();
+      res.json({ destinations });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to get destinations';
+      res.status(500).json({ error: message });
+    }
+  }
+);
+
+/**
+ * GET /api/calculator/shipping-lines
+ * Get list of available shipping lines
+ */
+router.get(
+  '/shipping-lines',
+  authMiddleware,
+  async (req: Request, res: Response) => {
+    try {
+      const shippingLines = await calculatorService.getAvailableShippingLines();
+      res.json({ shippingLines });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to get shipping lines';
+      res.status(500).json({ error: message });
+    }
+  }
+);
+
+/**
+ * POST /api/calculator/place-order
+ * Place order with selected offer
+ * Creates booking and sends 3 emails: supplier, agent, customer
+ *
+ * Body:
+ * {
+ *   offerId: string,
+ *   offer: PriceOffer,
+ *   calculatorInput: CalculatorInput,
+ *   supplierData: SupplierData
+ * }
+ */
+router.post(
+  '/place-order',
+  authMiddleware,
+  async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const result = await calculatorService.placeOrder(req.body, userId);
+      res.json(result);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to place order';
+      res.status(400).json({ error: message });
+    }
+  }
+);
+
 export default router;

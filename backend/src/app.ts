@@ -9,6 +9,20 @@ import invoiceRoutes from './modules/invoices/invoice.routes';
 import trackingRoutes from './modules/tracking/tracking.routes';
 import calculatorRoutes from './modules/calculator/calculator.controller';
 import emailRoutes from './modules/emails/email.controller';
+import usersRoutes from './modules/users/users.routes';
+import paymentsRoutes from './modules/payments/payments.routes';
+import notificationsRoutes from './modules/notifications/notifications.routes';
+import settingsRoutes from './modules/settings/settings.routes';
+import reportsRoutes from './modules/reports/reports.routes';
+import pricingRoutes from './modules/pricing/pricing.routes';
+import landingRoutes from './modules/landing/landing.routes';
+import hscodesRoutes from './modules/hscodes/hscodes.routes';
+import adminPricingRoutes from './modules/admin-pricing/admin-pricing.routes';
+import agentsRoutes from './modules/agents/agents.routes';
+import adminDashboardRoutes from './modules/admin/admin-dashboard.routes';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './config/swagger';
+import { apiLimiter } from './middleware/rateLimit.middleware';
 
 const app = express();
 
@@ -23,14 +37,21 @@ app.use(cors({
       process.env.FRONTEND_URL, // optional explicit allow
       'http://localhost:5173',
       'http://127.0.0.1:5173',
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
       'http://localhost:3002',
       'http://127.0.0.1:3002',
+      'http://54.38.137.230:3000', // User's laptop IP
+      'http://54.38.137.230:5173',
     ].filter(Boolean) as string[];
 
     // Allow same-LAN/dev origins (e.g. http://192.168.x.x:3002)
     const isLanDevOrigin = /^http:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[0-1])\.)[0-9.]+(?::\d+)?$/.test(origin);
+    
+    // Allow specific public IPs for development (e.g. http://54.38.137.230:3000)
+    const isDevPublicIP = /^http:\/\/54\.38\.137\.230(?::\d+)?$/.test(origin);
 
-    if (allowed.includes(origin) || isLanDevOrigin) {
+    if (allowed.includes(origin) || isLanDevOrigin || isDevPublicIP) {
       return callback(null, true);
     }
 
@@ -43,21 +64,73 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Rate limiting - apply to all API routes
+app.use('/api', apiLimiter);
+
 // Health Check Route
 // FIX: Explicitly type req and res to ensure correct type resolution for res.status.
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'UP', timestamp: new Date().toISOString() });
 });
 
-// API Routes
+// Swagger/OpenAPI Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Promo-Efect API Documentation',
+  customfavIcon: '/favicon.ico',
+}));
+
+// Swagger JSON endpoint
+app.get('/api-docs.json', (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
+// API Routes - Version 1
+// Все основные API endpoints под версией v1 для backward compatibility
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/users', usersRoutes);
+app.use('/api/v1/clients', clientRoutes);
+app.use('/api/v1/bookings', bookingsRoutes);
+app.use('/api/v1/containers', trackingRoutes); // Containers endpoints
+app.use('/api/v1/tracking', trackingRoutes);
+app.use('/api/v1/invoices', invoiceRoutes);
+app.use('/api/v1/payments', paymentsRoutes);
+app.use('/api/v1/notifications', notificationsRoutes);
+app.use('/api/v1/reports', reportsRoutes);
+app.use('/api/v1/settings', settingsRoutes);
+app.use('/api/v1/pricing', pricingRoutes);
+app.use('/api/v1/calculator', calculatorRoutes);
+app.use('/api/v1/hscodes', hscodesRoutes); // HS codes lookup
+app.use('/api/v1/landing', landingRoutes); // Landing page public endpoints
+
+// Legacy routes (backward compatibility - will be deprecated)
 app.use('/api/auth', authRoutes);
 app.use('/api/bookings', bookingsRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/tracking', trackingRoutes);
 app.use('/api/calculator', calculatorRoutes);
+
+// Admin routes (no versioning for internal tools)
 app.use('/api/admin', emailRoutes);   // Email processing (admin only)
 app.use('/api/emails', emailRoutes);  // Email parsing endpoints
+app.use('/api/admin-pricing', adminPricingRoutes); // Admin pricing management
+app.use('/api/agents', agentsRoutes); // Agents management
+app.use('/api/admin/dashboard', adminDashboardRoutes); // Admin dashboard stats
+
+// Static file serving for storage (invoices, documents, etc.)
+import path from 'path';
+const storagePath = process.env.LOCAL_STORAGE_PATH || path.join(__dirname, '../storage');
+app.use('/storage', express.static(storagePath, {
+  setHeaders: (res, filePath) => {
+    // Set appropriate headers for PDF files
+    if (filePath.endsWith('.pdf')) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline');
+    }
+  },
+}));
 
 // TODO: Implement a proper error handling middleware
 // FIX: Using explicitly imported Request, Response, and NextFunction types to fix 'status' property not found error.

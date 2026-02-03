@@ -21,6 +21,7 @@ const ResetPassword = () => {
     uppercase: false,
     lowercase: false,
     number: false,
+    special: false,
   });
 
   useEffect(() => {
@@ -29,6 +30,7 @@ const ResetPassword = () => {
       uppercase: /[A-Z]/.test(newPassword),
       lowercase: /[a-z]/.test(newPassword),
       number: /[0-9]/.test(newPassword),
+      special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(newPassword),
     });
   }, [newPassword]);
 
@@ -170,6 +172,7 @@ const ResetPassword = () => {
               <PasswordCheck passed={passwordChecks.uppercase} label="O literă mare" />
               <PasswordCheck passed={passwordChecks.lowercase} label="O literă mică" />
               <PasswordCheck passed={passwordChecks.number} label="O cifră" />
+              <PasswordCheck passed={passwordChecks.special} label="Un caracter special" />
             </div>
           </div>
 

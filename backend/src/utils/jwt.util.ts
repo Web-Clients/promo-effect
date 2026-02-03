@@ -19,9 +19,10 @@ export const generateAccessToken = (user: User): string => {
     role: user.role,
   };
 
+  const expiresIn = process.env.JWT_EXPIRES_IN || '7d';
   return jwt.sign(payload, process.env.JWT_SECRET!, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
-  });
+    expiresIn,
+  } as jwt.SignOptions);
 };
 
 export const generateRefreshToken = (user: User): string => {
@@ -31,9 +32,10 @@ export const generateRefreshToken = (user: User): string => {
     role: user.role,
   };
 
+  const expiresIn = process.env.REFRESH_TOKEN_EXPIRES_IN || '30d';
   return jwt.sign(payload, process.env.JWT_SECRET!, {
-    expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '30d',
-  });
+    expiresIn,
+  } as jwt.SignOptions);
 };
 
 export const verifyToken = (token: string): JWTPayload => {

@@ -114,34 +114,30 @@ export interface SystemSettings {
     syncInterval: number;
   };
   
-  // Notifications - Email
+  // Notifications - Email (uses FREE SMTP via nodemailer)
   emailNotificationSettings: {
-    provider: 'SENDGRID' | 'AWS_SES' | 'MAILGUN';
-    sendgridApiKey: string;
-    awsSesAccessKey: string;
-    awsSesSecretKey: string;
-    awsSesRegion: string;
+    provider: 'SMTP' | 'GMAIL' | 'OUTLOOK' | 'CUSTOM_SMTP';
+    smtpHost: string;
+    smtpPort: number;
+    smtpUser: string;
+    smtpPassword: string;
     senderEmail: string;
     senderName: string;
     enabled: boolean;
   };
   
-  // Notifications - SMS
+  // Notifications - SMS (currently disabled - requires paid service)
   smsSettings: {
-    provider: 'TWILIO' | 'VONAGE' | 'AWS_SNS';
-    twilioAccountSid: string;
-    twilioAuthToken: string;
-    twilioPhoneNumber: string;
+    provider: 'DISABLED' | 'FUTURE_FREE_SERVICE';
     enabled: boolean;
+    note: string; // "SMS requires paid service. Use email notifications instead."
   };
   
-  // Notifications - WhatsApp
+  // Notifications - WhatsApp (currently disabled - requires paid service)
   whatsappSettings: {
-    provider: 'TWILIO' | 'WHATSAPP_BUSINESS_API';
-    twilioWhatsappNumber: string;
-    whatsappBusinessAccountId: string;
-    whatsappAccessToken: string;
+    provider: 'DISABLED' | 'FUTURE_FREE_SERVICE';
     enabled: boolean;
+    note: string; // "WhatsApp requires paid service. Use email notifications instead."
   };
   
   // Notifications - Viber

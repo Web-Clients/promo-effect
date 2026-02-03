@@ -28,28 +28,24 @@ const mockSettings: SystemSettings = {
     syncInterval: 60,
   },
   emailNotificationSettings: {
-    provider: 'SENDGRID',
-    sendgridApiKey: 'SG.xxxxxxxxxxxx',
-    awsSesAccessKey: '',
-    awsSesSecretKey: '',
-    awsSesRegion: '',
+    provider: 'SMTP',
+    smtpHost: 'smtp.gmail.com',
+    smtpPort: 587,
+    smtpUser: 'your-email@gmail.com',
+    smtpPassword: '',
     senderEmail: 'notifications@promoefect.md',
     senderName: 'Promo-Efect Notifications',
     enabled: true,
   },
   smsSettings: {
-    provider: 'TWILIO',
-    twilioAccountSid: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-    twilioAuthToken: 'auth-token-123',
-    twilioPhoneNumber: '+1234567890',
+    provider: 'DISABLED',
     enabled: false,
+    note: 'SMS requires paid service. Use email notifications instead.',
   },
   whatsappSettings: {
-    provider: 'TWILIO',
-    twilioWhatsappNumber: 'whatsapp:+14155238886',
-    whatsappBusinessAccountId: '',
-    whatsappAccessToken: '',
+    provider: 'DISABLED',
     enabled: false,
+    note: 'WhatsApp requires paid service. Use email notifications instead.',
   },
   viberSettings: {
     botToken: 'viber-bot-token',
@@ -247,8 +243,10 @@ const AdminSettingsPage = () => {
               <div className="space-y-4">
                  <label className="text-sm font-medium">Furnizor</label>
                  <Select value={settings.emailNotificationSettings.provider} onChange={(e) => updateSettings('emailNotificationSettings.provider', e.target.value)}>
-                    <option value="SENDGRID">SendGrid</option>
-                    <option value="AWS_SES">AWS SES</option>
+                    <option value="SMTP">SMTP (Gmail/Outlook/Custom)</option>
+                    <option value="GMAIL">Gmail</option>
+                    <option value="OUTLOOK">Outlook</option>
+                    <option value="CUSTOM_SMTP">Custom SMTP</option>
                   </Select>
               </div>
             </Card>

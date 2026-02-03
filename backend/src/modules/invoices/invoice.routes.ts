@@ -311,6 +311,58 @@ router.get('/:id/pdf', authMiddleware, async (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/v1/invoices/bulk-generate
+ * Bulk generate invoices for multiple clients
+ * @access ADMIN, SUPER_ADMIN, MANAGER
+ */
+router.post(
+  '/bulk-generate',
+  authMiddleware,
+  requireRole(['ADMIN', 'SUPER_ADMIN', 'MANAGER']),
+  async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+      const { clientIds, dateFrom, dateTo } = req.body;
+
+      // Validation
+      if (!clientIds || !Array.isArray(clientIds) || clientIds.length === 0) {
+        return res.status(400).json({ error: 'clientIds array is required' });
+      }
+
+      if (!dateFrom || !dateTo) {
+        return res.status(400).json({ error: 'dateFrom and dateTo are required' });
+      }
+
+      const dateFromObj = new Date(dateFrom);
+      const dateToObj = new Date(dateTo);
+
+      if (dateFromObj > dateToObj) {
+        return res.status(400).json({ error: 'dateFrom must be before dateTo' });
+      }
+
+      const result = await invoicesService.bulkGenerate(
+        clientIds,
+        dateFromObj,
+        dateToObj,
+        user.userId
+      );
+
+      res.status(201).json({
+        ...result,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      console.error('Bulk generate invoices error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to bulk generate invoices',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+);
+
+/**
  * POST /api/invoices/update-overdue
  * Update overdue invoices status (for cron job)
  * @access ADMIN, SUPER_ADMIN

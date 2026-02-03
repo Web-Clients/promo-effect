@@ -5,33 +5,61 @@
 
 import api from './api';
 
+// Container entry for multiple containers support
+export interface ContainerEntry {
+  type: string;
+  quantity: number;
+}
+
 // Calculator interfaces for API
 export interface CalculatePriceData {
   portOrigin: string;
   portDestination?: string;
-  containerType: string;
+  containerType: string; // Main container type (for backward compatibility)
+  containers?: ContainerEntry[]; // Multiple containers support
   cargoCategory: string;
   cargoWeight: string;
   cargoReadyDate: string;
 }
 
+// Container price breakdown for individual container types
+export interface ContainerPriceBreakdown {
+  type: string;
+  quantity: number;
+  unitPriceUSD: number;
+  totalPriceUSD: number;
+  freightPrice: number;
+  portAdjustment: number;
+}
+
 export interface PriceOffer {
   rank: number;
   shippingLine: string;
-  agentPriceId: string;
+  basePriceId: string;
 
-  // Price breakdown
+  // Route info
+  route: string;
+  portOrigin: string;
+  portIntermediate: string;
+  portFinal: string;
+
+  // Price breakdown (aggregate or single)
   freightPrice: number;
+  portAdjustment: number;
   portTaxes: number;
   customsTaxes: number;
   terrestrialTransport: number;
   commission: number;
+  insurance: number;
 
   totalPriceUSD: number;
   totalPriceMDL: number;
 
+  // Multiple containers breakdown (optional)
+  containerBreakdown?: ContainerPriceBreakdown[];
+  totalContainers?: number;
+
   estimatedTransitDays: number;
-  departureDate: string;
   availability: 'AVAILABLE' | 'LIMITED' | 'UNAVAILABLE';
 }
 
@@ -39,10 +67,12 @@ export interface CalculatorResult {
   offers: PriceOffer[];
   exchangeRate: number;
   calculatedAt: string;
+  totalContainers: number;
   input: {
     portOrigin: string;
     portDestination: string;
     containerType: string;
+    containers?: ContainerEntry[];
     cargoCategory: string;
     cargoWeight: string;
     cargoReadyDate: string;
@@ -100,12 +130,60 @@ export const getAvailableWeightRanges = async (): Promise<string[]> => {
   }
 };
 
+/**
+ * Get list of available destination ports (for dropdown)
+ */
+export const getAvailableDestinations = async (): Promise<string[]> => {
+  try {
+    const response = await api.get<{ destinations: string[] }>('/calculator/destinations');
+    return response.data.destinations;
+  } catch (error: any) {
+    throw new Error(error.message || 'Nu s-au putut încărca porturile de destinație');
+  }
+};
+
+// Supplier data interface for order placement
+export interface SupplierData {
+  supplierName: string;
+  supplierAddress: string;
+  supplierContact: string;
+  supplierEmail: string;
+  supplierPhone: string;
+  cargoDescription: string;
+  invoiceValue: number;
+  invoiceCurrency: string;
+  specialInstructions?: string;
+}
+
+// Order placement request
+export interface PlaceOrderRequest {
+  offerId: string;
+  offer: PriceOffer;
+  calculatorInput: CalculatePriceData;
+  supplierData: SupplierData;
+}
+
+/**
+ * Place order with selected offer
+ */
+export const placeOrder = async (data: PlaceOrderRequest): Promise<{ success: boolean; bookingId: string; message: string }> => {
+  try {
+    const response = await api.post<{ success: boolean; bookingId: string; message: string }>('/calculator/place-order', data);
+    return response.data;
+  } catch (error: any) {
+    const errorMessage = error.response?.data?.error || error.message || 'Nu s-a putut plasa comanda';
+    throw new Error(errorMessage);
+  }
+};
+
 // Export calculator service
 const calculatorService = {
   calculatePrices,
   getAvailablePorts,
   getAvailableContainerTypes,
   getAvailableWeightRanges,
+  getAvailableDestinations,
+  placeOrder,
 };
 
 export default calculatorService;

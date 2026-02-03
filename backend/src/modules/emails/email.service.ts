@@ -11,6 +11,7 @@
  */
 
 import prisma from '../../lib/prisma';
+import notificationService from '../../services/notification.service';
 
 // ===== EMAIL PARSING TYPES =====
 
@@ -70,6 +71,7 @@ export interface EmailProcessingResult {
   status: 'SUCCESS' | 'NEEDS_REVIEW' | 'FAILED';
   extractedData?: ExtractedBookingData;
   bookingId?: string;             // If booking was auto-created
+  containerId?: string;           // If container was found or created
   error?: string;
   processingTime: number;         // ms
 }
@@ -291,113 +293,66 @@ export class EmailService {
   }
 
   /**
-   * Parse email using OpenAI GPT-4 (fallback when regex confidence < 80%)
+   * Parse email using Gemini AI (fallback when regex confidence < 80%)
    */
   async parseEmailWithAI(email: ParsedEmail): Promise<ExtractedBookingData> {
-    const apiKey = process.env.OPENAI_API_KEY;
+    try {
+      // Import Gemini service dynamically
+      const geminiService = await import('../../services/gemini.service');
 
-    if (!apiKey) {
-      console.warn('OpenAI API key not configured, skipping AI parsing');
-      return {
-        confidence: 0,
-        extractionMethod: 'AI',
-        rawEmailId: email.id,
-      };
-    }
+      if (!geminiService.isGeminiConfigured()) {
+        console.warn('Gemini API key not configured, skipping AI parsing');
+        return {
+          confidence: 0,
+          extractionMethod: 'AI',
+          rawEmailId: email.id,
+        };
+      }
 
-    const prompt = `
-You are an expert logistics email parser. Extract shipping/booking information from this email.
-
-EMAIL:
+      // Prepare email content for Gemini
+      const emailContent = `
 From: ${email.from}
 Subject: ${email.subject}
 Date: ${email.date.toISOString()}
 Body:
-${email.body.substring(0, 3000)}
+${email.body.substring(0, 5000)}
+      `.trim();
 
-EXTRACT THE FOLLOWING (return null if not found):
-1. containerNumber - Container ID (format: 4 letters + 7 digits, e.g., TEMU1234567)
-2. blNumber - Bill of Lading number
-3. shippingLine - Shipping company (MSC, Maersk, Hapag-Lloyd, Cosco, ZIM, Yangming, etc.)
-4. vesselName - Ship name
-5. voyageNumber - Voyage number
-6. portOrigin - Port of loading (Chinese city)
-7. portDestination - Port of discharge (usually Constanta)
-8. etd - Estimated Time of Departure (ISO date format)
-9. eta - Estimated Time of Arrival (ISO date format)
-10. containerType - 20ft, 40ft, or 40ft_HC
-11. cargoWeight - Weight range (e.g., "10-20t")
-12. cargoDescription - What's in the container
-13. supplierName - Chinese supplier/agent name
-14. supplierPhone - Phone number
-15. supplierEmail - Email address
+      // Parse with Gemini
+      const geminiResult = await geminiService.parseEmailWithGemini(emailContent);
 
-Respond ONLY with valid JSON, no explanations:
-{
-  "containerNumber": null,
-  "blNumber": null,
-  "shippingLine": null,
-  "vesselName": null,
-  "voyageNumber": null,
-  "portOrigin": null,
-  "portDestination": null,
-  "etd": null,
-  "eta": null,
-  "containerType": null,
-  "cargoWeight": null,
-  "cargoDescription": null,
-  "supplierName": null,
-  "supplierPhone": null,
-  "supplierEmail": null,
-  "confidence": 0
-}
-`;
-
-    try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4-turbo-preview',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a logistics email parser. Extract shipping information and return valid JSON only.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          temperature: 0.1,
-          max_tokens: 1000,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.status}`);
+      if (geminiResult.error) {
+        console.warn('Gemini parsing failed:', geminiResult.error);
+        return {
+          confidence: 0,
+          extractionMethod: 'AI',
+          rawEmailId: email.id,
+        };
       }
 
-      const data = await response.json();
-      const content = data.choices[0]?.message?.content;
-
-      if (!content) {
-        throw new Error('Empty response from OpenAI');
-      }
-
-      // Parse the JSON response
-      const parsed = JSON.parse(content);
-
-      return {
-        ...parsed,
-        etd: parsed.etd ? new Date(parsed.etd) : undefined,
-        eta: parsed.eta ? new Date(parsed.eta) : undefined,
+      // Map Gemini result to ExtractedBookingData format
+      const extracted: ExtractedBookingData = {
+        containerNumber: geminiResult.containerNumber,
+        blNumber: geminiResult.billOfLading,
+        shippingLine: geminiResult.shippingLine,
+        vesselName: geminiResult.vesselName,
+        voyageNumber: undefined, // Gemini doesn't extract this yet
+        portOrigin: geminiResult.portOfLoading,
+        portDestination: geminiResult.portOfDischarge,
+        etd: geminiResult.departureDate ? new Date(geminiResult.departureDate) : undefined,
+        eta: geminiResult.eta ? new Date(geminiResult.eta) : undefined,
+        containerType: undefined, // Will be inferred from other data
+        cargoWeight: geminiResult.weight,
+        cargoDescription: geminiResult.cargoDescription,
+        supplierName: undefined,
+        supplierPhone: undefined,
+        supplierEmail: undefined,
+        confidence: geminiResult.confidence || 75,
         extractionMethod: 'AI',
         rawEmailId: email.id,
       };
+
+      return extracted;
     } catch (error) {
       console.error('AI parsing failed:', error);
       return {
@@ -441,55 +396,211 @@ Respond ONLY with valid JSON, no explanations:
         }
       }
 
-      // Step 3: Determine if we should auto-create booking
+      // Step 3: Check if container already exists
+      let existingContainer = null;
+      if (extractedData.containerNumber) {
+        existingContainer = await prisma.container.findUnique({
+          where: { containerNumber: extractedData.containerNumber.toUpperCase() },
+          include: { booking: true },
+        });
+      } else if (extractedData.blNumber) {
+        existingContainer = await prisma.container.findFirst({
+          where: { blNumber: extractedData.blNumber.toUpperCase() } as any,
+          include: { booking: true },
+        });
+      }
+
+      // Step 4: If container exists, update it with new data
+      if (existingContainer) {
+        const containerWithBooking = existingContainer as any;
+        // Compare extracted data with existing data
+        const hasSignificantChanges = 
+          (extractedData.eta && existingContainer.eta && 
+           Math.abs(new Date(extractedData.eta).getTime() - new Date(existingContainer.eta).getTime()) > 24 * 60 * 60 * 1000) ||
+          (extractedData.portOrigin && containerWithBooking.booking?.portOrigin !== extractedData.portOrigin);
+
+        if (hasSignificantChanges) {
+          // Notify operator for review
+          try {
+            const operators = await prisma.user.findMany({
+              where: {
+                role: { in: ['OPERATOR', 'ADMIN', 'SUPER_ADMIN'] },
+              },
+            });
+
+            for (const operator of operators) {
+              await notificationService.sendNotification({
+                userId: operator.id,
+                bookingId: containerWithBooking.booking?.id,
+                type: 'CONTAINER_UPDATE_REVIEW',
+                title: `Container ${existingContainer.containerNumber} - Modificări Semnificative`,
+                message: `Containerul ${existingContainer.containerNumber} are modificări semnificative care necesită revizuire:\n\n- ETA modificat: ${extractedData.eta ? new Date(extractedData.eta).toLocaleDateString('ro-RO') : 'N/A'}\n- Port origine: ${extractedData.portOrigin || 'N/A'}\n\nVă rugăm să verificați și să validați modificările.`,
+                channels: { email: true, push: false, sms: false, whatsapp: false },
+              });
+            }
+          } catch (error) {
+            console.error(`[EmailService] Failed to send notification about container ${existingContainer.containerNumber}:`, error);
+          }
+          console.log(`[EmailService] Container ${existingContainer.containerNumber} has significant changes, needs review`);
+        } else {
+          // Update minor changes automatically
+          await prisma.container.update({
+            where: { id: existingContainer.id },
+            data: {
+              eta: extractedData.eta ? new Date(extractedData.eta) : existingContainer.eta,
+              currentLocation: extractedData.portOrigin || existingContainer.currentLocation,
+              updatedAt: new Date(),
+            } as any,
+          });
+
+          // Create tracking event
+          await prisma.trackingEvent.create({
+            data: {
+              containerId: existingContainer.id,
+              eventType: 'EMAIL_UPDATE',
+              eventDate: new Date(),
+              location: extractedData.portOrigin || existingContainer.currentLocation || 'Unknown',
+              source: 'EMAIL_PARSING',
+              validated: false,
+              visibility: 'INTERNAL',
+            } as any,
+          });
+        }
+
+        return {
+          emailId: email.id,
+          status: 'SUCCESS',
+          extractedData,
+          containerId: existingContainer.id,
+          bookingId: existingContainer.bookingId,
+          processingTime: Date.now() - startTime,
+        };
+      }
+
+      // Step 5: Container doesn't exist - create new container and booking
       if (autoCreateBooking && extractedData.confidence >= minConfidenceForAutoCreate) {
         // Check minimum required fields
-        if (extractedData.portOrigin && extractedData.containerType) {
+        if (extractedData.portOrigin && (extractedData.containerNumber || extractedData.blNumber)) {
           // Find or create client based on email
           let client = await prisma.client.findFirst({
             where: { email: email.from },
           });
 
           if (!client) {
-            // Use default client for now
-            client = await prisma.client.findFirst({
-              where: { status: 'ACTIVE' },
-            });
+            // Try to find client by supplier email or name
+            if (extractedData.supplierEmail) {
+              client = await prisma.client.findFirst({
+                where: { email: extractedData.supplierEmail },
+              });
+            }
+
+            // If still not found, use default client
+            if (!client) {
+              client = await prisma.client.findFirst({
+                where: { status: 'ACTIVE' },
+              });
+            }
           }
 
           if (client) {
             // Create booking from extracted data
             const booking = await prisma.booking.create({
               data: {
+                id: undefined, // Let Prisma generate ID
                 clientId: client.id,
                 portOrigin: extractedData.portOrigin,
                 portDestination: extractedData.portDestination || 'Constanta',
-                containerType: extractedData.containerType,
+                containerType: extractedData.containerType || '40ft',
                 cargoCategory: 'TBD',
                 cargoWeight: extractedData.cargoWeight || 'TBD',
                 cargoReadyDate: extractedData.etd || new Date(),
                 shippingLine: extractedData.shippingLine || 'TBD',
+                freightPrice: 0,
+                portTaxes: 0,
+                customsTaxes: 0,
+                terrestrialTransport: 0,
+                commission: 0,
+                totalPrice: 0,
                 supplierName: extractedData.supplierName,
                 supplierPhone: extractedData.supplierPhone,
                 supplierEmail: extractedData.supplierEmail || email.from,
                 clientNotes: `Auto-created from email: ${email.subject}\n\nContainer: ${extractedData.containerNumber || 'N/A'}\nB/L: ${extractedData.blNumber || 'N/A'}`,
                 status: 'DRAFT', // Admin will review
-              },
+              } as any,
             });
+
+            // Create container if we have container number or B/L
+            let containerId: string | undefined;
+            if (extractedData.containerNumber || extractedData.blNumber) {
+              const container = await prisma.container.create({
+                data: {
+                  bookingId: booking.id,
+                  containerNumber: extractedData.containerNumber?.toUpperCase() || `TEMP-${Date.now()}`,
+                  blNumber: extractedData.blNumber?.toUpperCase(),
+                  type: extractedData.containerType || '40ft',
+                  weightGross: extractedData.cargoWeight ? parseFloat(extractedData.cargoWeight.replace(/[^0-9.]/g, '')) : undefined,
+                  content: extractedData.cargoDescription,
+                  temperatureSetting: extractedData.containerType?.includes('Reefer') ? 2 : undefined,
+                  currentStatus: 'PENDING_REVIEW', // Needs operator validation
+                  eta: extractedData.eta ? new Date(extractedData.eta) : undefined,
+                  urgent: false,
+                  delayed: false,
+                } as any,
+              });
+              containerId = container.id;
+
+              // Create initial tracking event
+              await prisma.trackingEvent.create({
+                data: {
+                  containerId: container.id,
+                  eventType: 'BOOKING_CONFIRMED',
+                  eventDate: new Date(),
+                  location: extractedData.portOrigin || 'Unknown',
+                  source: 'EMAIL_PARSING',
+                  validated: false, // Needs operator validation
+                  visibility: 'INTERNAL',
+                } as any,
+              });
+
+              // Send notification to operators about new container needing review
+              try {
+                const operators = await prisma.user.findMany({
+                  where: {
+                    role: { in: ['OPERATOR', 'ADMIN', 'SUPER_ADMIN'] },
+                  },
+                });
+
+                for (const operator of operators) {
+                  await notificationService.sendNotification({
+                    userId: operator.id,
+                    bookingId: booking.id,
+                    type: 'NEW_CONTAINER_REVIEW',
+                    title: `Container Nou Creat din Email: ${container.containerNumber}`,
+                    message: `Un nou container a fost creat automat din email și necesită revizuire:\n\n- Container: ${container.containerNumber}\n- Booking: ${booking.id}\n- Client: ${client.companyName}\n- Port origine: ${extractedData.portOrigin || 'N/A'}\n- ETA: ${extractedData.eta ? new Date(extractedData.eta).toLocaleDateString('ro-RO') : 'N/A'}\n- Confidence: ${extractedData.confidence}%\n\nVă rugăm să verificați și să validați datele.`,
+                    channels: { email: true, push: false, sms: false, whatsapp: false },
+                  });
+                }
+              } catch (error) {
+                console.error(`[EmailService] Failed to send notification about new container ${container.containerNumber}:`, error);
+              }
+              console.log(`[EmailService] Created container ${container.containerNumber} from email, needs review`);
+            }
 
             // Log to audit
             await prisma.auditLog.create({
               data: {
-                entityType: 'BOOKING',
-                entityId: booking.id,
+                entityType: containerId ? 'CONTAINER' : 'BOOKING',
+                entityId: containerId || booking.id,
                 action: 'CREATE',
-                changes: {
+                changes: JSON.stringify({
                   source: 'EMAIL_AUTO_CREATE',
                   emailId: email.id,
                   emailFrom: email.from,
                   emailSubject: email.subject,
                   confidence: extractedData.confidence,
-                },
+                  containerNumber: extractedData.containerNumber,
+                  blNumber: extractedData.blNumber,
+                }),
               },
             });
 
@@ -498,6 +609,7 @@ Respond ONLY with valid JSON, no explanations:
               status: 'SUCCESS',
               extractedData,
               bookingId: booking.id,
+              containerId,
               processingTime: Date.now() - startTime,
             };
           }
@@ -564,7 +676,7 @@ Respond ONLY with valid JSON, no explanations:
    * Save raw email to queue for processing
    */
   async queueEmailForProcessing(email: ParsedEmail): Promise<void> {
-    await prisma.incomingEmail.create({
+    await (prisma as any).incomingEmail.create({
       data: {
         messageId: email.id,
         fromAddress: email.from,
@@ -588,14 +700,14 @@ Respond ONLY with valid JSON, no explanations:
 
     const where = status ? { status } : {};
 
-    const emails = await prisma.incomingEmail.findMany({
+    const emails = await (prisma as any).incomingEmail.findMany({
       where,
       orderBy: { receivedAt: 'desc' },
       take: limit,
       skip: offset,
     });
 
-    return emails.map(email => ({
+    return emails.map((email: any) => ({
       id: email.id,
       messageId: email.messageId,
       from: email.fromAddress,
@@ -614,13 +726,13 @@ Respond ONLY with valid JSON, no explanations:
    * Get pending emails from queue
    */
   async getPendingEmails(): Promise<ParsedEmail[]> {
-    const queued = await prisma.incomingEmail.findMany({
+    const queued = await (prisma as any).incomingEmail.findMany({
       where: { status: 'PENDING' },
       orderBy: { receivedAt: 'desc' },
       take: 10,
     });
 
-    return queued.map(q => ({
+    return queued.map((q: any) => ({
       id: q.messageId,
       from: q.fromAddress,
       subject: q.subject,
@@ -634,7 +746,7 @@ Respond ONLY with valid JSON, no explanations:
    * Mark email as processed in queue
    */
   async markEmailProcessed(messageId: string, status: 'PROCESSED' | 'FAILED', error?: string): Promise<void> {
-    await prisma.incomingEmail.update({
+    await (prisma as any).incomingEmail.update({
       where: { messageId },
       data: {
         status,

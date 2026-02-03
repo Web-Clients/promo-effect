@@ -32,6 +32,24 @@ interface RegisterData {
 interface LoginData {
   email: string;
   password: string;
+  twoFactorCode?: string;
+}
+
+interface LoginResponse {
+  success: boolean;
+  user?: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    phone?: string;
+    company?: string;
+  };
+  accessToken?: string;
+  refreshToken?: string;
+  requires2FA?: boolean;
+  tempToken?: string;
+  message?: string;
 }
 
 // Convert backend user to frontend User type
@@ -46,23 +64,66 @@ const mapBackendUserToFrontend = (backendUser: LoginResponse['user']): User => {
 
 /**
  * Login user with email and password
+ * Returns user if successful, or { requires2FA: true, tempToken: string } if 2FA is needed
  */
-export const login = async (data: LoginData): Promise<User> => {
+export const login = async (data: LoginData): Promise<User | { requires2FA: true; tempToken: string }> => {
   try {
     const response = await api.post<LoginResponse>('/auth/login', data);
 
-    const { user, accessToken, refreshToken } = response.data;
+    // If 2FA is required, return special response
+    if (response.data.requires2FA && response.data.tempToken) {
+      return {
+        requires2FA: true,
+        tempToken: response.data.tempToken,
+      };
+    }
 
-    // Store tokens
-    tokenManager.setTokens(accessToken, refreshToken);
+    // Normal login success
+    if (response.data.user && response.data.accessToken && response.data.refreshToken) {
+      const { user, accessToken, refreshToken } = response.data;
 
-    // Map and store user
-    const frontendUser = mapBackendUserToFrontend(user);
-    tokenManager.setUser(frontendUser);
+      // Store tokens
+      tokenManager.setTokens(accessToken, refreshToken);
 
-    return frontendUser;
+      // Map and store user
+      const frontendUser = mapBackendUserToFrontend(user);
+      tokenManager.setUser(frontendUser);
+
+      return frontendUser;
+    }
+
+    throw new Error('Invalid response from server');
   } catch (error: any) {
-    throw new Error(error.message || 'Autentificare eșuată');
+    throw new Error(error.response?.data?.error || error.message || 'Autentificare eșuată');
+  }
+};
+
+/**
+ * Complete login with 2FA code using temp token
+ */
+export const complete2FALogin = async (tempToken: string, twoFactorCode: string): Promise<User> => {
+  try {
+    const response = await api.post<LoginResponse>('/auth/complete-2fa-login', {
+      tempToken,
+      twoFactorCode,
+    });
+
+    if (response.data.user && response.data.accessToken && response.data.refreshToken) {
+      const { user, accessToken, refreshToken } = response.data;
+
+      // Store tokens
+      tokenManager.setTokens(accessToken, refreshToken);
+
+      // Map and store user
+      const frontendUser = mapBackendUserToFrontend(user);
+      tokenManager.setUser(frontendUser);
+
+      return frontendUser;
+    }
+
+    throw new Error('Invalid response from server');
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error || error.message || 'Autentificare 2FA eșuată');
   }
 };
 
@@ -194,9 +255,66 @@ export const resetPassword = async (
   }
 };
 
+/**
+ * Verify email address using verification token
+ */
+export const verifyEmail = async (token: string): Promise<void> => {
+  try {
+    await api.get('/auth/verify-email', { params: { token } });
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error || error.message || 'Verificare email eșuată');
+  }
+};
+
+/**
+ * Enable 2FA - get QR code and backup codes
+ */
+export const enable2FA = async (): Promise<{ secret: string; qrCodeUrl: string; backupCodes: string[] }> => {
+  try {
+    const response = await api.post<{
+      success: boolean;
+      secret: string;
+      qrCodeUrl: string;
+      backupCodes: string[];
+      message: string;
+    }>('/auth/enable-2fa');
+
+    return {
+      secret: response.data.secret,
+      qrCodeUrl: response.data.qrCodeUrl,
+      backupCodes: response.data.backupCodes,
+    };
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error || error.message || 'Activare 2FA eșuată');
+  }
+};
+
+/**
+ * Verify 2FA code and activate 2FA
+ */
+export const verify2FA = async (code: string): Promise<void> => {
+  try {
+    await api.post('/auth/verify-2fa', { code });
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error || error.message || 'Verificare 2FA eșuată');
+  }
+};
+
+/**
+ * Disable 2FA
+ */
+export const disable2FA = async (password: string): Promise<void> => {
+  try {
+    await api.post('/auth/disable-2fa', { password });
+  } catch (error: any) {
+    throw new Error(error.response?.data?.error || error.message || 'Dezactivare 2FA eșuată');
+  }
+};
+
 // Export auth service
 const authService = {
   login,
+  complete2FALogin,
   register,
   logout,
   getCurrentUser,
@@ -205,6 +323,10 @@ const authService = {
   refreshToken,
   requestPasswordReset,
   resetPassword,
+  verifyEmail,
+  enable2FA,
+  verify2FA,
+  disable2FA,
 };
 
 export default authService;

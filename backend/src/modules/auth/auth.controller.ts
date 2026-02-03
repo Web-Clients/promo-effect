@@ -1,30 +1,63 @@
 import { Router, Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
+import { authLimiter, registerLimiter, passwordResetLimiter } from '../../middleware/rateLimit.middleware';
 
 const router = Router();
 const authService = new AuthService();
 
 // POST /api/auth/register
-router.post('/register', async (req: Request, res: Response) => {
+// TODO: Re-enable registerLimiter in production
+router.post('/register', /* registerLimiter, */ async (req: Request, res: Response) => {
   try {
     const result = await authService.register(req.body);
-    res.status(201).json(result);
+    res.status(201).json({
+      success: true,
+      ...result,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Registration failed';
-    res.status(400).json({ error: message });
+    res.status(400).json({ 
+      success: false,
+      error: message 
+    });
   }
 });
 
 // POST /api/auth/login
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', authLimiter, async (req: Request, res: Response) => {
   try {
-    const result = await authService.login(req.body);
-    console.log("jhfjkhdff");
-    res.json(result);
+    const { email, password, twoFactorCode } = req.body;
+    const ipAddress = req.ip || req.socket.remoteAddress || undefined;
+    const userAgent = req.headers['user-agent'];
+
+    const result = await authService.login(
+      { email, password },
+      twoFactorCode,
+      ipAddress,
+      userAgent
+    );
+
+    // If 2FA is required, return special response
+    if ('requires2FA' in result && result.requires2FA) {
+      return res.status(200).json({
+        success: true,
+        requires2FA: true,
+        tempToken: result.tempToken,
+        message: 'Please enter your 2FA code',
+      });
+    }
+
+    res.json({
+      success: true,
+      ...result,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Login failed';
-    res.status(401).json({ error: message });
+    res.status(401).json({ 
+      success: false,
+      error: message 
+    });
   }
 });
 
@@ -73,7 +106,7 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
 });
 
 // POST /api/auth/forgot-password
-router.post('/forgot-password', async (req: Request, res: Response) => {
+router.post('/forgot-password', passwordResetLimiter, async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
 
@@ -128,6 +161,161 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     
     // Password validation errors
     if (message.includes('Password must')) {
+      return res.status(400).json({ error: message });
+    }
+    
+    res.status(500).json({ error: message });
+  }
+});
+
+// GET /api/auth/verify-email
+router.get('/verify-email', async (req: Request, res: Response) => {
+  try {
+    const { token } = req.query;
+
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({ error: 'Verification token is required' });
+    }
+
+    const result = await authService.verifyEmail(token);
+    res.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Email verification failed';
+    
+    if (message.includes('Invalid or expired')) {
+      return res.status(400).json({ error: message });
+    }
+    
+    res.status(500).json({ error: message });
+  }
+});
+
+// POST /api/auth/resend-verification
+router.post('/resend-verification', registerLimiter, async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const result = await authService.resendVerificationEmail(email);
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to resend verification email';
+    res.status(500).json({ 
+      success: false,
+      error: message 
+    });
+  }
+});
+
+// POST /api/auth/enable-2fa
+router.post('/enable-2fa', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const result = await authService.enable2FA(userId);
+    
+    res.json({
+      success: true,
+      ...result,
+      message: 'Scan the QR code with your authenticator app, then verify with a code',
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to enable 2FA';
+    
+    if (message.includes('already enabled')) {
+      return res.status(400).json({ error: message });
+    }
+    
+    res.status(500).json({ error: message });
+  }
+});
+
+// POST /api/auth/verify-2fa
+router.post('/verify-2fa', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { code } = req.body;
+    const userId = req.user!.userId;
+
+    if (!code || typeof code !== 'string') {
+      return res.status(400).json({ error: '2FA code is required' });
+    }
+
+    const result = await authService.verify2FA(userId, code);
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to verify 2FA';
+    
+    if (message.includes('Invalid') || message.includes('already enabled')) {
+      return res.status(400).json({ error: message });
+    }
+    
+    res.status(500).json({ error: message });
+  }
+});
+
+// POST /api/auth/disable-2fa
+router.post('/disable-2fa', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { password } = req.body;
+    const userId = req.user!.userId;
+
+    if (!password || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Password is required to disable 2FA' });
+    }
+
+    const result = await authService.disable2FA(userId, password);
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to disable 2FA';
+    
+    if (message.includes('Invalid password') || message.includes('not enabled')) {
+      return res.status(400).json({ error: message });
+    }
+    
+    res.status(500).json({ error: message });
+  }
+});
+
+// POST /api/auth/complete-2fa-login
+router.post('/complete-2fa-login', async (req: Request, res: Response) => {
+  try {
+    const { tempToken, twoFactorCode } = req.body;
+    const ipAddress = req.ip || req.socket.remoteAddress || undefined;
+    const userAgent = req.headers['user-agent'];
+
+    if (!tempToken || typeof tempToken !== 'string') {
+      return res.status(400).json({ error: 'Temporary token is required' });
+    }
+
+    if (!twoFactorCode || typeof twoFactorCode !== 'string') {
+      return res.status(400).json({ error: '2FA code is required' });
+    }
+
+    const result = await authService.complete2FALogin(
+      { tempToken, twoFactorCode },
+      ipAddress,
+      userAgent
+    );
+
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to complete 2FA login';
+    
+    if (message.includes('Invalid') || message.includes('expired')) {
       return res.status(400).json({ error: message });
     }
     

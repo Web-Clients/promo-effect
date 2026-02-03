@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -8,6 +8,7 @@ import { Badge } from './ui/Badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/Tabs';
 import { Switch } from './ui/Switch';
 import { useToast } from './ui/Toast';
+import authService from '../services/auth';
 
 const UserProfile = ({ user }: { user: User }) => {
     const { addToast } = useToast();
@@ -24,6 +25,21 @@ const UserProfile = ({ user }: { user: User }) => {
         newsletter: true
     });
 
+    // 2FA states
+    const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+    const [twoFactorLoading, setTwoFactorLoading] = useState(false);
+    const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+    const [backupCodes, setBackupCodes] = useState<string[]>([]);
+    const [verificationCode, setVerificationCode] = useState('');
+    const [showQrCode, setShowQrCode] = useState(false);
+    const [disablePassword, setDisablePassword] = useState('');
+
+    // Check 2FA status on mount
+    useEffect(() => {
+        // TODO: Fetch actual 2FA status from backend
+        // For now, we'll check when user tries to enable
+    }, []);
+
     const handleProfileSave = (e: React.FormEvent) => {
         e.preventDefault();
         addToast('Profilul a fost actualizat cu succes!', 'success');
@@ -37,6 +53,62 @@ const UserProfile = ({ user }: { user: User }) => {
     const handleNotificationsSave = (e: React.FormEvent) => {
         e.preventDefault();
         addToast('Preferințele de notificare au fost salvate!', 'success');
+    };
+
+    const handleEnable2FA = async () => {
+        setTwoFactorLoading(true);
+        try {
+            const result = await authService.enable2FA();
+            setQrCodeUrl(result.qrCodeUrl);
+            setBackupCodes(result.backupCodes);
+            setShowQrCode(true);
+            addToast('QR cod generat! Scanează-l cu aplicația de autentificare.', 'success');
+        } catch (error: any) {
+            addToast(error.message || 'Eroare la activarea 2FA', 'error');
+        } finally {
+            setTwoFactorLoading(false);
+        }
+    };
+
+    const handleVerify2FA = async () => {
+        if (verificationCode.length !== 6) {
+            addToast('Introdu un cod valid de 6 cifre', 'error');
+            return;
+        }
+
+        setTwoFactorLoading(true);
+        try {
+            await authService.verify2FA(verificationCode);
+            setTwoFactorEnabled(true);
+            setShowQrCode(false);
+            setVerificationCode('');
+            addToast('2FA activat cu succes!', 'success');
+        } catch (error: any) {
+            addToast(error.message || 'Cod invalid. Încearcă din nou.', 'error');
+        } finally {
+            setTwoFactorLoading(false);
+        }
+    };
+
+    const handleDisable2FA = async () => {
+        if (!disablePassword) {
+            addToast('Introdu parola pentru a dezactiva 2FA', 'error');
+            return;
+        }
+
+        setTwoFactorLoading(true);
+        try {
+            await authService.disable2FA(disablePassword);
+            setTwoFactorEnabled(false);
+            setDisablePassword('');
+            setQrCodeUrl(null);
+            setBackupCodes([]);
+            addToast('2FA dezactivat cu succes', 'success');
+        } catch (error: any) {
+            addToast(error.message || 'Eroare la dezactivarea 2FA', 'error');
+        } finally {
+            setTwoFactorLoading(false);
+        }
     };
 
     return (
@@ -123,15 +195,139 @@ const UserProfile = ({ user }: { user: User }) => {
                                     </div>
                                 </form>
                                 <div className="border-t my-6"></div>
-                                <div>
+                                <div className="space-y-4">
                                     <h4 className="text-base font-semibold mb-2">Autentificare cu 2 Factori (2FA)</h4>
-                                    <div className="flex items-center justify-between p-3 bg-neutral-50 dark:bg-neutral-700/50 rounded-lg">
-                                        <div>
-                                            <p className="font-medium text-sm">Activează 2FA</p>
-                                            <p className="text-xs text-neutral-500">Adaugă un strat suplimentar de securitate contului tău.</p>
+                                    
+                                    {!twoFactorEnabled && !showQrCode && (
+                                        <div className="flex items-center justify-between p-3 bg-neutral-50 dark:bg-neutral-700/50 rounded-lg">
+                                            <div>
+                                                <p className="font-medium text-sm">Activează 2FA</p>
+                                                <p className="text-xs text-neutral-500">Adaugă un strat suplimentar de securitate contului tău.</p>
+                                            </div>
+                                            <Button
+                                                variant="primary"
+                                                size="sm"
+                                                onClick={handleEnable2FA}
+                                                disabled={twoFactorLoading}
+                                                loading={twoFactorLoading}
+                                            >
+                                                Activează
+                                            </Button>
                                         </div>
-                                        <Switch checked={false} onCheckedChange={() => addToast('Funcționalitate neimplementată.')} />
-                                    </div>
+                                    )}
+
+                                    {showQrCode && !twoFactorEnabled && (
+                                        <Card className="p-6 space-y-4">
+                                            <div>
+                                                <h5 className="font-semibold mb-2">Pasul 1: Scanează QR codul</h5>
+                                                <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
+                                                    Deschide aplicația de autentificare (Google Authenticator, Microsoft Authenticator, etc.) și scanează acest QR cod:
+                                                </p>
+                                                {qrCodeUrl && (
+                                                    <div className="flex justify-center mb-4">
+                                                        <img src={qrCodeUrl} alt="2FA QR Code" className="w-48 h-48 border rounded-lg" />
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div>
+                                                <h5 className="font-semibold mb-2">Pasul 2: Verifică codul</h5>
+                                                <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
+                                                    Introdu codul de 6 cifre din aplicația de autentificare pentru a activa 2FA:
+                                                </p>
+                                                <div className="flex gap-2">
+                                                    <Input
+                                                        type="text"
+                                                        inputMode="numeric"
+                                                        pattern="[0-9]{6}"
+                                                        maxLength={6}
+                                                        placeholder="123456"
+                                                        value={verificationCode}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                                                            setVerificationCode(value);
+                                                        }}
+                                                        className="text-center text-xl tracking-widest font-mono"
+                                                    />
+                                                    <Button
+                                                        variant="primary"
+                                                        onClick={handleVerify2FA}
+                                                        disabled={verificationCode.length !== 6 || twoFactorLoading}
+                                                        loading={twoFactorLoading}
+                                                    >
+                                                        Verifică
+                                                    </Button>
+                                                </div>
+                                            </div>
+
+                                            {backupCodes.length > 0 && (
+                                                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                                                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-2">
+                                                        ⚠️ Salvează aceste coduri de backup într-un loc sigur!
+                                                    </p>
+                                                    <p className="text-xs text-amber-700 dark:text-amber-400 mb-3">
+                                                        Poți folosi aceste coduri pentru a te autentifica dacă pierzi accesul la aplicația de autentificare.
+                                                    </p>
+                                                    <div className="grid grid-cols-2 gap-2 font-mono text-sm">
+                                                        {backupCodes.map((code, idx) => (
+                                                            <div key={idx} className="bg-white dark:bg-neutral-800 p-2 rounded text-center">
+                                                                {code}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setShowQrCode(false);
+                                                    setQrCodeUrl(null);
+                                                    setBackupCodes([]);
+                                                    setVerificationCode('');
+                                                }}
+                                            >
+                                                Anulează
+                                            </Button>
+                                        </Card>
+                                    )}
+
+                                    {twoFactorEnabled && (
+                                        <div className="space-y-4">
+                                            <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                                                <div>
+                                                    <p className="font-medium text-sm text-green-800 dark:text-green-300">2FA este activat</p>
+                                                    <p className="text-xs text-green-600 dark:text-green-400">Contul tău este protejat cu autentificare cu doi factori.</p>
+                                                </div>
+                                                <Badge variant="green">Activ</Badge>
+                                            </div>
+
+                                            <Card className="p-4">
+                                                <h5 className="font-semibold mb-3">Dezactivează 2FA</h5>
+                                                <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
+                                                    Pentru a dezactiva 2FA, introdu parola ta actuală:
+                                                </p>
+                                                <div className="flex gap-2">
+                                                    <Input
+                                                        type="password"
+                                                        placeholder="Parola ta actuală"
+                                                        value={disablePassword}
+                                                        onChange={(e) => setDisablePassword(e.target.value)}
+                                                        className="flex-1"
+                                                    />
+                                                    <Button
+                                                        variant="danger"
+                                                        onClick={handleDisable2FA}
+                                                        disabled={!disablePassword || twoFactorLoading}
+                                                        loading={twoFactorLoading}
+                                                    >
+                                                        Dezactivează
+                                                    </Button>
+                                                </div>
+                                            </Card>
+                                        </div>
+                                    )}
                                 </div>
                             </Card>
                         </TabsContent>

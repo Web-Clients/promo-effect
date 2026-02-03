@@ -5,6 +5,7 @@
  * This runs on the backend to keep API keys secure
  */
 
+// @ts-ignore - Package types may not be available immediately after install
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;

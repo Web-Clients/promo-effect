@@ -14,6 +14,10 @@ export interface CreateClientDTO {
   address?: string;
   taxId?: string;
   bankAccount?: string;
+  paymentTerms?: number;
+  creditLimit?: number;
+  discount?: number;
+  rating?: number;
 }
 
 export interface UpdateClientDTO {
@@ -25,6 +29,10 @@ export interface UpdateClientDTO {
   taxId?: string;
   bankAccount?: string;
   status?: string;
+  paymentTerms?: number;
+  creditLimit?: number;
+  discount?: number;
+  rating?: number;
 }
 
 export interface ClientFilters {
@@ -171,8 +179,13 @@ export class ClientsService {
         address: data.address,
         taxId: data.taxId,
         bankAccount: data.bankAccount,
+        paymentTerms: data.paymentTerms || 30,
+        creditLimit: data.creditLimit || 0,
+        discount: data.discount || 0,
+        rating: data.rating || 5.0,
+        currentBalance: 0,
         status: 'ACTIVE',
-      },
+      } as any,
     });
 
     // Audit log
@@ -223,18 +236,26 @@ export class ClientsService {
     }
 
     // Update client
+    const updateData: any = {
+      companyName: data.companyName,
+      contactPerson: data.contactPerson,
+      email: data.email,
+      phone: data.phone,
+      address: data.address,
+      taxId: data.taxId,
+      bankAccount: data.bankAccount,
+      status: data.status,
+    };
+
+    // Add new fields if provided
+    if (data.paymentTerms !== undefined) updateData.paymentTerms = data.paymentTerms;
+    if (data.creditLimit !== undefined) updateData.creditLimit = data.creditLimit;
+    if (data.discount !== undefined) updateData.discount = data.discount;
+    if (data.rating !== undefined) updateData.rating = data.rating;
+
     const client = await prisma.client.update({
       where: { id },
-      data: {
-        companyName: data.companyName,
-        contactPerson: data.contactPerson,
-        email: data.email,
-        phone: data.phone,
-        address: data.address,
-        taxId: data.taxId,
-        bankAccount: data.bankAccount,
-        status: data.status,
-      },
+      data: updateData,
     });
 
     // Audit log

@@ -258,6 +258,113 @@ router.get('/queue', requireRole(['SUPER_ADMIN', 'ADMIN']), async (req: Request,
 });
 
 /**
+ * POST /api/v1/email/forward-setup
+ *
+ * Setup forwarding address for automatic email processing
+ * Generates unique forward address and returns configuration instructions
+ * @access ADMIN, SUPER_ADMIN
+ */
+router.post('/forward-setup', authMiddleware, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Request, res: Response) => {
+  try {
+    // Generate unique forward address
+    const forwardAddress = `containers@${process.env.DOMAIN || 'promo-efect.app'}`;
+    const forwardToken = Buffer.from(`${Date.now()}-${Math.random().toString(36).substring(7)}`).toString('base64').replace(/[^a-zA-Z0-9]/g, '').substring(0, 16);
+    const fullForwardAddress = `${forwardToken}@${process.env.DOMAIN || 'promo-efect.app'}`;
+
+    // Save forward configuration to settings
+    const prisma = (await import('../../lib/prisma')).default;
+    
+    // Check if forward address already exists
+    const existing = await (prisma as any).setting.findUnique({
+      where: {
+        category_key: {
+          category: 'EMAIL',
+          key: 'FORWARD_ADDRESS',
+        },
+      },
+    });
+
+    if (existing) {
+      // Update existing
+      await (prisma as any).setting.update({
+        where: {
+          category_key: {
+            category: 'EMAIL',
+            key: 'FORWARD_ADDRESS',
+          },
+        },
+        data: {
+          value: JSON.stringify({
+            address: fullForwardAddress,
+            token: forwardToken,
+            createdAt: new Date().toISOString(),
+          }),
+          updatedAt: new Date(),
+        },
+      });
+    } else {
+      // Create new
+      await (prisma as any).setting.create({
+        data: {
+          category: 'EMAIL',
+          key: 'FORWARD_ADDRESS',
+          value: JSON.stringify({
+            address: fullForwardAddress,
+            token: forwardToken,
+            createdAt: new Date().toISOString(),
+          }),
+          type: 'JSON',
+          description: 'Email forwarding address for automatic container processing',
+        },
+      });
+    }
+
+    // Return setup instructions
+    return res.json({
+      success: true,
+      data: {
+        forwardAddress: fullForwardAddress,
+        instructions: {
+          gmail: [
+            '1. Deschideți Gmail Settings (Setări)',
+            '2. Mergeți la "Forwarding and POP/IMAP"',
+            `3. Adăugați adresa de forward: ${fullForwardAddress}`,
+            '4. Selectați "Forward a copy of incoming mail"',
+            '5. Salvați modificările',
+          ],
+          outlook: [
+            '1. Deschideți Outlook Settings',
+            '2. Mergeți la "Mail" > "Forwarding"',
+            `3. Adăugați adresa: ${fullForwardAddress}`,
+            '4. Activați forwarding',
+            '5. Salvați modificările',
+          ],
+          generic: [
+            `Configurați email forwarding către: ${fullForwardAddress}`,
+            'Toate emailurile primite vor fi procesate automat',
+            'Sistemul va extrage automat datele despre containere',
+          ],
+        },
+        webhookUrl: `${process.env.BASE_URL || 'http://localhost:3001'}/api/v1/tracking/webhook`,
+        autoProcessing: {
+          enabled: true,
+          minConfidence: 80,
+          autoCreateContainers: true,
+        },
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error('Forward setup error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to setup email forwarding',
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+/**
  * POST /api/admin/emails/process-queue
  *
  * Process all pending emails in queue

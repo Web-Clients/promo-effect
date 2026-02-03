@@ -1,0 +1,378 @@
+ntrebări de clarificare
+
+ Prețuri și costuri
+Cum se stabilește prețul unui container: este un preț fix? Depinde de tipul containerului (20ft / 40ft / reefer)?
+Pretul contaienrului se este variabil, se schimba la fiecare saptamina si depinde de tipul constanturlui, greutate, tip marfa si costul navlului maritim, la fel si portul de incarcare.
+Prețul depinde de rută (port → port) sau este același pentru toate cursele?
+Fiecare port are ratele stabilite doar pentur acest port 
+Pot exista prețuri diferite pentru clienți diferiți?
+ La moment costul se discuta cu fiecare client in parte, pe viitor o sa stabilim un prec cu comision maxim de unde deja o sa facem reducere pentur fiecare client in parte 
+Există diferențe de preț între porturi?
+Care port este, în general:
+-cel mai scump? 
+-cel mai ieftin?
+Care este diferența procentuală aproximativă între porturi?
+De exemplu porturile NINGBO, SHANGHAI, SHENZHEN sunt porturile de baza si daca navlu pina in constanta este de 3000 usd per 40hq atunci pentur porturile Qingdao, Xiamen, Tianjin +100+150 usd, sim ai sunt porturile situate pe riu car epot avea un adaus de 200-800 usd per container, 
+
+AICI MA GHINDESC ca trebue sa incarcam porturile, si deja sa pot sa ajustez, de indica pretul la porturile principale, de exemplu ajustez doar SHENZHEN unde automat el va fi ehal cu Ningbo si shanghia si deja la celalate porturi doar o sa le indic pe fiecare in parte diferenta cu chit este mai mare deghit porturile principale
+
+alfel, trebue sa avem taxele portuare in constanta, Odessa… in dependenta d elinia maritima care la fel sa le pot ajusta chind se modifica, 
+taxele de transit
+transport
+verificare – poate fi poate s anu fie
+pastrade si demurage la fel poate sa fie poate sa nu fie si difera pentur fiecare linie maritima
+Costul transportului terestru in dependenta de destinatie. 
+Si comisionul companiei d eexpeditie, adica al nostrum. 
+Sunt cazuri chind in chiona poate sa fie incluse si taxele locale, daca cliuentul selectoaza sa preia marfa de la uzina producatorului, EXW
+Facturi și plăți
+Factura se creează automat sau manual de către operator?
+Un container are o singură factură sau o factură poate include mai multe containere?
+În ce valută se emit facturile? (o singură valută sau mai multe)
+La plasarea comenzilor se creaza de noi acuma  contract comanda, unde se specifica, ruta, tipul contianerului, greutatea,marfa, pretul, data plecarii, datele partier.. – asta vrem sa se genereze automat in Sistema
+
+Chind containerul ajunge la constanta, sau se preia din constantan oi facem cont de plata in valuta  cu suma stabilita, suma poate fi impartita in 2 parti, navlu + china- un cont, constanta-chisinau + taxele locale  - al doilea cont.  – asta la fel vrem sa generam automat
+
+Efactura face contabilitatea, dar iarasi, daca am putea cumva sa implementam, ca la introducerea datei devamarii de catre cliuent sa se selecteze cursul stability de bnm in ziua data si sa se genereze efactrua in lei 
+
+Metoda de plată:
+Cum efectuează clienții plata:
+-transfer bancar?
+-numerar?
+-online (card / sistem de plată)?
+Este necesară integrarea unui sistem de plată online în platformă?
+Plata este:
+-integrală sau parțială?
+-înainte sau după livrare?
+Platile se efecturiaza de obicei prin transfer bancar dupa livrarea marfii la beneficiar in termenul stability in constract, cineva mai multe zile are, cineva mai putine, sunt cazuri chind se cere si plata in avans.
+Achitari cu cardul nu avem, doar transfer catre iban. 
+
+Roluri și acces
+Agentul este un partener extern?
+Cine atribuie agentul unui container: administratorul sau operatorul?
+Da, agentul esteun partener extern, si este selectat si atribuit de catre noi, adica, fiecarecomapnda, noi verificam cu 4-5 agenti ratele la navlu si in dependenta de nivelul oferit de ei- noi vindem clientului rata si dup ace este agreata rata- transmitem datele acestui agent catre furniozor pentur a procesa incarcarea
+
+Porturi de plecare (China)
+Din ce porturi din China oferiți servicii?
+-Shanghai
+-Ningbo
+-Qingdao
+-Shenzhen
+-Guangzhou
+-Tianjin
+-Dalian
+-Xiamen
+-Fuzhou
+-Yantian
+-Alte porturi?
+Astea sunt porturile din china si oferim servicii la solicitarea clientilor, in 10 ani am avut incarcaturi numai vin 10% cam din aceste porturi, de asta si am spus ca de lasat posibilitatea de a selecta portul din Sistema dar totodata daca portul nu exista sa fie posibil la solicitare de catre beneficiar de il adaugat in lista de porturi, ca ulterior sa fie posibil de incarcat de acolo 
+La fel aici mai lucram si cu multe alte tari cum ar fi unele JAPONIA, INDIA, SUA, EGIPT, TURCIA, MALAESIA, TAIWAN, TAILAND…
+
+    • Anqing
+    • Anshan
+    • Bahe
+    • Baimajing
+    • Bao'An
+    • Baotou
+    • Basou
+    • Bayuquan
+    • Beihai
+    • Beijiao
+    • Beijing
+    • Beipei
+    • Bengbu
+    • Binhai
+    • Buji
+    • Caofeidian Pt
+    • Changde
+    • Changsha
+    • Changshu
+    • Changzhi
+    • Changzhou
+    • Chengdu
+    • Chenglingji
+    • Chiwan
+    • Chizhou
+    • Chongming
+    • Chongqing
+    • Chuansha
+    • Da Chan Bay
+    • Dafeng
+    • Dagang
+    • Dalian
+    • Dandong
+    • Daqing
+    • Dazhong
+    • Deqing
+    • Dezhou
+    • Dianbai
+    • DIGANG
+    • Dongguan
+    • Dongshan
+    • Dongtai
+    • Dongwan
+    • Doumen
+    • Ezhou
+    • Fangcheng
+    • Fangcun
+    • Fengjie
+    • Foshan
+    • Fujin
+    • Fuling
+    • Fushun
+    • Fuyang
+    • Fuzhou
+    • Ganzhou
+    • Gaogang
+    • Gaolan
+    • Gaoming
+    • Gaoxiong
+    • Gongyi
+    • Guangzhou
+    • Guigang
+    • Guishan
+    • Haerbin
+    • Haian
+    • Haikou
+    • Haimen
+    • Hangzhou
+    • Hechi
+    • Hechuan
+    • Hefei
+    • Heihe
+    • Hengyang
+    • Heshan
+    • Hongwan
+    • Huadu
+    • Huaian
+    • Huaibei
+    • Huainan
+    • Huaiyin
+    • Huanghua
+    • Huangpu
+    • Huangshi
+    • Huizhou
+    • Huzhou
+    • Jiading
+    • Jiamusi
+    • Jiande
+    • Jiangmen
+    • Jiangyin
+    • Jianhu
+    • Jiao Xin
+    • Jiaxing
+    • Jinan
+    • Jingdezhen
+    • Jingtang
+    • Jinhua
+    • Jinshan
+    • Jinshi
+    • Jinzhou
+    • Jiujiang
+    • Kaifeng
+    • Kaiping
+    • Kunming
+    • Kunshan
+    • Laizhou
+    • Langfang
+    • Lanshan
+    • Lanshi
+    • Lanxi
+    • Lanzhou
+    • Leliu
+    • Lian Hua Shan
+    • Lianyungang
+    • Liaoyang
+    • Lihekou
+    • Lijiaxiang
+    • Linjiang
+    • Linyi
+    • Lishui
+    • Liuzhou
+    • Longkou
+    • Longyan
+    • Luzhou
+    • Maanshan
+    • Macau
+    • Machong
+    • Macun
+    • Mafang
+    • Maocaojie
+    • Maoming
+    • Mawan
+    • Mawei
+    • Meizhouwan
+    • Mianyang
+    • Nanchang
+    • Nangang
+    • Nanhai
+    • Nanhui
+    • Nanjing
+    • Nanning
+    • Nansha
+    • Nantong
+    • Ningbo
+    • Ningde
+    • Panyu
+    • Pinghu
+    • Pizhou
+    • Putian
+    • Qingdao
+    • Qingpu
+    • Qingxi
+    • Qingyuan
+    • Qinhuangdao
+    • Qinzhou
+    • Quanzhou
+    • Ranlishan
+    • Rizhao
+    • Rongcheng
+    • Rongqi
+    • Rugao
+    • Ruili
+    • Saiqi
+    • Sanbing
+    • Sanshan
+    • Sanshui
+    • Sanya
+    • Shahezi
+    • Shanghai
+    • Shantou
+    • Shanwei
+    • Shaoxing
+    • Shashi
+    • Shatian
+    • Shekou
+    • Shenwan
+    • Shenyang
+    • Shenzhen
+    • Sheyang
+    • Shidao
+    • Shipu
+    • Shiqiao
+    • Shuidong
+    • Shunde
+    • Sian
+    • Simao
+    • Siping
+    • Songjiang
+    • Suzhou
+    • Taian
+    • Taicang
+    • Taicheng
+    • Taiping
+    • Taixing
+    • Taiyuan
+    • Taizhoung
+    • Tanggu
+    • Tangshan
+    • Tianjin
+    • Tianzhen
+    • Tieling
+    • Tongjiang
+    • Tongling
+    • Tongshan
+    • Wanding
+    • Wanxuan
+    • Wanzai
+    • Weifang
+    • Weihai
+    • Weitang
+    • Weitou
+    • Weizhou Marine Terminal
+    • Wenzhou
+    • Wen Zhou
+    • Wuhan
+    • Wuhu
+    • Wutong
+    • Wuxi
+    • Wuxue
+    • Wuzhou
+    • Xiahai
+    • Xialong
+    • Xiamen
+    • Xian
+    • Xiangtan
+    • Xianyang
+    • Xiaogan
+    • Xiaolan
+    • Xiaopu
+    • Xiaoshan
+    • Xiashi
+    • Xichong
+    • Xidi
+    • Xijiang Marine Terminal
+    • Xinfeng
+    • Xingang
+    • Xinghua
+    • Xingyi
+    • Xinhui
+    • Xinsha
+    • Xinxiang
+    • Xiuyu
+    • Xuzhou
+    • Yangjiang
+    • Yangpu
+    • Yangshan
+    • Yangzhou
+    • Yantai
+    • Yantian
+    • Yibin
+    • Yichang
+    • Yingkou
+    • Yining
+    • Yiyang
+    • Yizheng
+    • Yuanjiang
+    • Yueyang
+    • Yunfu
+    • Zaozhuang
+    • Zhangjiabu
+    • Zhangjiagang
+    • Zhangjiang
+    • Zhangwan
+    • Zhangzhou
+    • Zhanjiang
+    • Zhaoqing
+    • Zhapu
+    • Zhengzhou
+    • Zhenjiang
+    • Zhicheng
+    • Zhijiang
+    • Zhongshan
+    • Zhoushan
+    • Zhuhai
+    • Zhuji
+    • Zhuozhou
+
+Porturi de destinație
+Portul de destinație este întotdeauna Constanța?
+Oferiți servicii și către alte porturi (ex: Rotterdam, Hamburg, Piraeus etc.)?
+Dacă da, există liste de prețuri diferite pentru aceste rute?
+Porturile actuale sunt:
+constanta
+Odessa
+Chornomorsk
+Pivdenny 
+
+Vrem ulterior sa mai adaugam porturi si aici la fel avem nevoie de a avea posibilitate de a ajusta lista de porturi pe unde oferim servicii 
+
+
+
+Ce informații trebuie să fie stocate despre un agent în platformă (pentru introducere manuală)?
+De exemplu:
+-denumirea companiei / numele agentului;
+-țara și orașul;
+-porturile deservite;
+-date de contact (email, telefon, WeChat etc.);
+-tipurile de containere operate (20ft / 40ft / reefer etc.);
+-observații interne (note);
+-statut (activ / inactiv).
+
+raspuns:
+Denumire companie
+Adresa 
+Telefon
+Wechat
+E-mail 
+
+Toti agenții de.obicei au acces si ofera rate pentru toate porturile si toate tipurile de.contai ere

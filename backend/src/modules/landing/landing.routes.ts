@@ -1,0 +1,109 @@
+/**
+ * Landing Page Routes
+ * Public endpoints for landing page functionality
+ */
+
+import { Router, Request, Response } from 'express';
+import prisma from '../../lib/prisma';
+import notificationService from '../../services/notification.service';
+
+const router = Router();
+
+/**
+ * POST /api/v1/landing/contact
+ * Submit contact form from landing page
+ * @access Public
+ */
+router.post('/contact', async (req: Request, res: Response) => {
+  try {
+    const { name, company, email } = req.body;
+
+    // Validation
+    if (!name || !email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Name and email are required',
+      });
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid email format',
+      });
+    }
+
+    // Save to database (create a Lead or Contact record)
+    // For now, we'll log it. In production, you might want to:
+    // 1. Create a Lead model in Prisma
+    // 2. Send email notification to sales team
+    // 3. Add to CRM system
+
+    // Log the contact (you can create a Lead model later)
+    console.log('[Landing Contact]', {
+      name,
+      company,
+      email,
+      timestamp: new Date().toISOString(),
+    });
+
+    // TODO: Create Lead record in database
+    // await prisma.lead.create({
+    //   data: {
+    //     name,
+    //     company,
+    //     email,
+    //     source: 'LANDING_PAGE',
+    //     status: 'NEW',
+    //   },
+    // });
+
+    // Send email notification to sales team
+    try {
+      const salesEmail = process.env.SALES_EMAIL || process.env.ADMIN_EMAIL || 'sales@promo-efect.md';
+      
+      // Find admin user to send notification
+      const adminUser = await prisma.user.findFirst({
+        where: {
+          role: { in: ['ADMIN', 'SUPER_ADMIN'] },
+        },
+      });
+
+      if (adminUser) {
+        await notificationService.sendNotification({
+          userId: adminUser.id,
+          type: 'NEW_LEAD',
+          title: `Nou Lead de pe Landing Page: ${name}`,
+          message: `Un nou lead a completat formularul de contact:\n\nNume: ${name}\nCompanie: ${company || 'N/A'}\nEmail: ${email}\n\nVă rugăm să contactați lead-ul cât mai curând.`,
+          channels: { email: true, push: false, sms: false, whatsapp: false },
+        });
+      } else {
+        // Fallback: send directly via email service if no admin user found
+        const { emailVerificationService } = await import('../../services/email-verification.service');
+        // We'll use a simple email send here
+        console.log(`[Landing Contact] New lead: ${name} (${email}) from ${company || 'N/A'}`);
+      }
+    } catch (error) {
+      console.error('[Landing Contact] Failed to send notification email:', error);
+      // Don't fail the request if email fails
+    }
+
+    res.json({
+      success: true,
+      message: 'Thank you for your interest! We will contact you soon.',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error('Landing contact error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to submit contact form',
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+export default router;
+

@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Routes, Route, useNavigate, Navigate, Outlet, useLocation } from 'react-router-dom';
 import Login from './components/Login';
+import Register from './components/Register';
+import VerifyEmail from './components/VerifyEmail';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
 import LandingPage from './components/LandingPage';
@@ -16,7 +18,10 @@ import ClientsList from './components/ClientsList';
 import InvoicesList from './components/InvoicesList';
 import ReportsPage from './components/ReportsPage';
 import AdminSettingsPage from './components/AdminSettingsPage';
+import AdminPricingPanel from './components/AdminPricingPanel';
+import AgentsPanel from './components/AgentsPanel';
 import UserProfile from './components/UserProfile';
+import AdminDashboard from './components/AdminDashboard';
 import { User, Booking } from './types';
 import { ToastProvider } from './components/ui/Toast';
 import authService from './services/auth';
@@ -37,6 +42,9 @@ const RouteObserver = () => {
     else if (path.includes('/dashboard/invoices')) title = 'Facturi | Promo-Efect';
     else if (path.includes('/dashboard/reports')) title = 'Rapoarte | Promo-Efect';
     else if (path.includes('/dashboard/adminSettings')) title = 'Setări Admin | Promo-Efect';
+    else if (path.includes('/dashboard/admin-pricing')) title = 'Administrare Prețuri | Promo-Efect';
+    else if (path.includes('/dashboard/agents')) title = 'Agenți Chinezi | Promo-Efect';
+    else if (path.includes('/dashboard/admin-panel')) title = 'Panou Admin | Promo-Efect';
     else if (path.includes('/dashboard/userProfile')) title = 'Profil Utilizator | Promo-Efect';
     else if (path === '/dashboard') title = 'Panou de Control | Promo-Efect';
     else if (path === '/login') title = 'Autentificare | Promo-Efect';
@@ -129,6 +137,8 @@ const App = () => {
       <Routes>
         <Route path="/" element={<LandingPage onLoginRedirect={() => navigate('/login')} />} />
         <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />} />
+        <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <Register />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/forgot-password" element={user ? <Navigate to="/dashboard" /> : <ForgotPassword />} />
         <Route path="/reset-password" element={user ? <Navigate to="/dashboard" /> : <ResetPassword />} />
         
@@ -153,6 +163,9 @@ const App = () => {
           <Route path="invoices" element={<InvoicesList />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="adminSettings" element={<AdminSettingsPage />} />
+          <Route path="admin-pricing" element={<AdminPricingPanel />} />
+          <Route path="agents" element={<AgentsPanel />} />
+          <Route path="admin-panel" element={<AdminDashboard />} />
           <Route path="userProfile" element={<UserProfile user={user!} />} />
         </Route>
         

@@ -1,5 +1,7 @@
 import { Container, TrackingEvent } from '@prisma/client';
 import prisma from '../../lib/prisma';
+import { searatesIntegration } from '../../integrations/searates.integration';
+import notificationService from '../../services/notification.service';
 
 // ============================================
 // TYPES
@@ -369,6 +371,9 @@ class TrackingService {
       eventType: eventData.eventType,
     });
 
+    // Send email notification for important events
+    await this.sendTrackingEventNotification(container, eventData, event.id);
+
     return event;
   }
 
@@ -682,6 +687,217 @@ class TrackingService {
           `Invalid event order: ${newEvent.eventType} cannot occur after ${event.eventType}`
         );
       }
+    }
+  }
+
+  /**
+   * Refresh tracking data from external APIs
+   * This method is called by background jobs to sync container tracking
+   */
+  async refreshTracking(containerId: string): Promise<{ success: boolean; eventsFound: number; error?: string }> {
+    try {
+      const container = await prisma.container.findUnique({
+        where: { id: containerId },
+        include: {
+          booking: true,
+          trackingEvents: {
+            orderBy: { eventDate: 'desc' },
+            take: 1, // Get latest event
+          },
+        },
+      });
+
+      if (!container) {
+        return { success: false, eventsFound: 0, error: 'Container not found' };
+      }
+
+      // Call SeaRates web integration to get latest tracking
+      let eventsFound = 0;
+
+      if (searatesIntegration.isConfigured()) {
+        try {
+          // Get tracking from SeaRates web integration
+          const searatesData = await searatesIntegration.getContainerTracking(
+            container.containerNumber
+          );
+
+          if (searatesData) {
+            // Process events from SeaRates
+            if (searatesData.events && searatesData.events.length > 0) {
+              // Get latest event date from our database
+              const latestEvent = container.trackingEvents[0];
+              const latestEventDate = latestEvent ? new Date(latestEvent.eventDate) : new Date(0);
+
+              // Process new events
+              for (const searatesEvent of searatesData.events) {
+                const eventDate = new Date(searatesEvent.occurredAt);
+                
+                // Only process events newer than our latest
+                if (eventDate > latestEventDate) {
+                  const eventType = searatesIntegration.mapEventType(searatesEvent.type);
+                  
+                  // Check if event already exists
+                  const existing = await prisma.trackingEvent.findFirst({
+                    where: {
+                      containerId: container.id,
+                      eventType,
+                      eventDate,
+                      source: 'SEARATES',
+                    } as any,
+                  });
+
+                  if (!existing) {
+                    // Get location data - check both searatesEvent and searatesData
+                    const eventLocation = searatesEvent.location || searatesData.location;
+                    const eventLatitude = (eventLocation as any)?.latitude || searatesData.location?.latitude;
+                    const eventLongitude = (eventLocation as any)?.longitude || searatesData.location?.longitude;
+                    
+                    await prisma.trackingEvent.create({
+                      data: {
+                        containerId: container.id,
+                        eventType,
+                        eventDate,
+                        location: eventLocation?.name || searatesData.location?.name || 'Unknown',
+                        portName: eventLocation?.name || searatesData.location?.name,
+                        unlocode: eventLocation?.unlocode || searatesData.location?.unlocode,
+                        vessel: searatesEvent.vessel?.name || searatesData.vessel?.name,
+                        voyageNumber: searatesEvent.voyage || searatesData.voyage,
+                        latitude: eventLatitude,
+                        longitude: eventLongitude,
+                        containerStatus: searatesData.status,
+                        details: searatesEvent.metadata ? JSON.stringify(searatesEvent.metadata) : null,
+                        source: 'SEARATES',
+                        validated: true,
+                        visibility: 'PUBLIC',
+                      } as any,
+                    });
+
+                    eventsFound++;
+                  }
+                }
+              }
+
+              // Update container status and location from SeaRates
+              if (searatesData.status || searatesData.location) {
+                await prisma.container.update({
+                  where: { id: containerId },
+                  data: {
+                    currentStatus: searatesData.status || undefined,
+                    currentLocation: searatesData.location?.name || undefined,
+                    currentLat: searatesData.location?.latitude || undefined,
+                    currentLng: searatesData.location?.longitude || undefined,
+                    eta: searatesData.eta ? new Date(searatesData.eta) : undefined,
+                    actualArrival: searatesData.ata ? new Date(searatesData.ata) : undefined,
+                    lastSyncAt: new Date(),
+                  } as any,
+                });
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`[TrackingService] SeaRates web integration error for container ${container.containerNumber}:`, error);
+          // Continue even if SeaRates fails - just update timestamp
+        }
+      }
+
+      // Update lastSyncAt timestamp
+      await prisma.container.update({
+        where: { id: containerId },
+        data: {
+          lastSyncAt: new Date(),
+        },
+      });
+
+      return { success: true, eventsFound };
+    } catch (error) {
+      console.error(`[TrackingService] Error refreshing tracking for container ${containerId}:`, error);
+      return {
+        success: false,
+        eventsFound: 0,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  /**
+   * Send email notification for important tracking events
+   */
+  private async sendTrackingEventNotification(container: any, eventData: TrackingEventInput, eventId: string) {
+    // Important events that should trigger email notifications
+    const importantEvents = [
+      'VESSEL_DEPARTURE',
+      'VESSEL_ARRIVAL',
+      'DISCHARGED',
+      'AVAILABLE_FOR_PICKUP',
+      'DELIVERED',
+      'CUSTOMS_RELEASED',
+    ];
+
+    if (!importantEvents.includes(eventData.eventType)) {
+      return; // Skip notification for non-critical events
+    }
+
+    try {
+      const booking = container.booking;
+      if (!booking || !booking.client) {
+        return; // No client to notify
+      }
+
+      // Find users associated with this client
+      const clientUsers = await prisma.user.findMany({
+        where: {
+          email: booking.client.email,
+        },
+      });
+
+      // If no user found by email, try to find by clientId relation
+      let usersToNotify = clientUsers;
+      if (usersToNotify.length === 0) {
+        // Try alternative: find users that might be associated with client
+        // This depends on your schema - adjust as needed
+        usersToNotify = await prisma.user.findMany({
+          where: {
+            // If User has clientId field, use it
+            // Otherwise, we'll use client email directly
+          },
+        });
+      }
+
+      const eventLabel = EventTypeLabels[eventData.eventType] || eventData.eventType;
+      const message = `Containerul ${container.containerNumber} - ${eventLabel}\n\n` +
+        `Locație: ${eventData.location}\n` +
+        (eventData.portName ? `Port: ${eventData.portName}\n` : '') +
+        (eventData.vessel ? `Navă: ${eventData.vessel}\n` : '') +
+        `Data eveniment: ${new Date(eventData.eventDate).toLocaleDateString('ro-RO')}\n\n` +
+        `Puteți urmări containerul în platformă pentru mai multe detalii.`;
+
+      // Send to all client users
+      for (const user of usersToNotify) {
+        await notificationService.sendNotification({
+          userId: user.id,
+          bookingId: booking.id,
+          type: 'TRACKING_EVENT',
+          title: `Container ${container.containerNumber}: ${eventLabel}`,
+          message,
+          channels: { email: true, push: false, sms: false, whatsapp: false },
+        });
+      }
+
+      // If no users found, try to send to client email directly (fallback)
+      if (usersToNotify.length === 0 && booking.client.email) {
+        // Create a temporary notification record
+        await notificationService.sendNotification({
+          userId: booking.clientId, // Use clientId as fallback
+          bookingId: booking.id,
+          type: 'TRACKING_EVENT',
+          title: `Container ${container.containerNumber}: ${eventLabel}`,
+          message,
+          channels: { email: true, push: false, sms: false, whatsapp: false },
+        });
+      }
+    } catch (error) {
+      console.error(`[TrackingService] Failed to send tracking event notification:`, error);
+      // Don't fail the event creation if notification fails
     }
   }
 

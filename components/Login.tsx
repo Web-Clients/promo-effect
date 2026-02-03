@@ -1,25 +1,24 @@
-
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { User, UserRole } from '../types';
 import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 import authService from '../services/auth';
 
 interface LoginProps {
   onLogin: (user: User) => void;
 }
 
-const mockUsers: User[] = [
-  { id: 1, name: 'Alex (CEO)', email: 'alex@promo-efect.md', role: UserRole.SUPER_ADMIN },
-  { id: 2, name: 'Admin User', email: 'admin@promo-efect.md', role: UserRole.ADMIN },
-  { id: 3, name: 'Manager User', email: 'manager@promo-efect.md', role: UserRole.MANAGER },
-  { id: 4, name: 'Client User', email: 'client@example.com', role: UserRole.CLIENT },
-];
-
 const Login = ({ onLogin }: LoginProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [twoFactorCode, setTwoFactorCode] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // 2FA state
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [tempToken, setTempToken] = useState<string | null>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,8 +26,31 @@ const Login = ({ onLogin }: LoginProps) => {
     setIsLoading(true);
 
     try {
-      const user = await authService.login({ email, password });
-      onLogin(user);
+      // If we're in 2FA step, complete login with 2FA code
+      if (requires2FA && tempToken) {
+        if (!twoFactorCode || twoFactorCode.length !== 6) {
+          setError('Introdu un cod 2FA valid (6 cifre)');
+          setIsLoading(false);
+          return;
+        }
+
+        const user = await authService.complete2FALogin(tempToken, twoFactorCode);
+        onLogin(user);
+        return;
+      }
+
+      // Initial login attempt
+      const result = await authService.login({ email, password });
+
+      // Check if 2FA is required
+      if ('requires2FA' in result && result.requires2FA) {
+        setRequires2FA(true);
+        setTempToken(result.tempToken);
+        setError('');
+      } else if ('id' in result) {
+        // Normal login success
+        onLogin(result);
+      }
     } catch (err: any) {
       setError(err.message || 'Email sau parolă invalidă');
     } finally {
@@ -36,8 +58,11 @@ const Login = ({ onLogin }: LoginProps) => {
     }
   };
 
-  const quickLogin = (user: User) => {
-    onLogin(user);
+  const handleBackToPassword = () => {
+    setRequires2FA(false);
+    setTempToken(null);
+    setTwoFactorCode('');
+    setError('');
   };
 
   return (
@@ -105,56 +130,105 @@ const Login = ({ onLogin }: LoginProps) => {
           {/* Form Header */}
           <div>
             <h2 className="text-2xl font-bold text-primary-800 dark:text-white font-heading">
-              Bine ai revenit!
+              {requires2FA ? 'Verificare 2FA' : 'Bine ai revenit!'}
             </h2>
             <p className="text-neutral-500 dark:text-neutral-400 mt-2">
-              Autentifică-te pentru a accesa platforma
+              {requires2FA 
+                ? 'Introdu codul din aplicația ta de autentificare' 
+                : 'Autentifică-te pentru a accesa platforma'}
             </p>
           </div>
 
           {/* Login Form */}
           <form className="space-y-5" onSubmit={handleLogin}>
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-primary-800 dark:text-neutral-200">
-                Email
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                placeholder="nume@companie.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all"
-              />
-            </div>
+            {!requires2FA ? (
+              <>
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-primary-800 dark:text-neutral-200">
+                    Email
+                  </label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    placeholder="nume@companie.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
 
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
-                <label className="block text-sm font-medium text-primary-800 dark:text-neutral-200">
-                  Parolă
-                </label>
-                <a
-                  href="/forgot-password"
-                  className="text-xs text-accent-600 dark:text-accent-400 hover:underline"
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <label className="block text-sm font-medium text-primary-800 dark:text-neutral-200">
+                      Parolă
+                    </label>
+                    <Link
+                      to="/forgot-password"
+                      className="text-xs text-accent-600 dark:text-accent-400 hover:underline"
+                    >
+                      Ai uitat parola?
+                    </Link>
+                  </div>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-blue-800 dark:text-blue-300">
+                    <strong>Email:</strong> {email}
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-primary-800 dark:text-neutral-200">
+                    Cod 2FA (6 cifre)
+                  </label>
+                  <Input
+                    id="twoFactorCode"
+                    name="twoFactorCode"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]{6}"
+                    maxLength={6}
+                    required
+                    placeholder="123456"
+                    value={twoFactorCode}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      setTwoFactorCode(value);
+                    }}
+                    disabled={isLoading}
+                    autoFocus
+                    className="text-center text-2xl tracking-widest font-mono"
+                  />
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+                    Deschide aplicația de autentificare (Google Authenticator, Microsoft Authenticator, etc.) și introdu codul de 6 cifre.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleBackToPassword}
+                  className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
                 >
-                  Ai uitat parola?
-                </a>
-              </div>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all"
-              />
-            </div>
+                  ← Înapoi la parolă
+                </button>
+              </>
+            )}
 
             {error && (
               <div className="p-3 bg-error-50 dark:bg-error-500/20 border border-error-200 dark:border-error-500/30 rounded-lg">
@@ -170,38 +244,35 @@ const Login = ({ onLogin }: LoginProps) => {
               disabled={isLoading}
               loading={isLoading}
             >
-              {isLoading ? 'Se autentifică...' : 'Autentificare'}
+              {isLoading 
+                ? (requires2FA ? 'Se verifică...' : 'Se autentifică...') 
+                : (requires2FA ? 'Verifică codul' : 'Autentificare')}
             </Button>
           </form>
 
-          {/* Divider */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-neutral-200 dark:border-neutral-700"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white dark:bg-neutral-900 text-neutral-500">sau demo rapid</span>
-            </div>
-          </div>
+          {!requires2FA && (
+            <>
+              {/* Divider */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-neutral-200 dark:border-neutral-700"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-4 bg-white dark:bg-neutral-900 text-neutral-500">Nu ai cont?</span>
+                </div>
+              </div>
 
-          {/* Quick Login Buttons */}
-          <div>
-            <div className="grid grid-cols-2 gap-3">
-              {mockUsers.map(user => (
-                <button
-                  key={user.id}
-                  onClick={() => quickLogin(user)}
-                  className="px-4 py-3 text-sm font-medium text-primary-800 dark:text-white bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition-all border border-neutral-200 dark:border-neutral-700 text-left"
+              {/* Register Link */}
+              <div className="text-center">
+                <Link
+                  to="/register"
+                  className="text-sm text-primary-600 dark:text-primary-400 hover:underline font-medium"
                 >
-                  <span className="block font-semibold">{user.name}</span>
-                  <span className="text-xs text-neutral-500">{user.role.replace('_', ' ')}</span>
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-3 text-center">
-              Demo: parola este "password"
-            </p>
-          </div>
+                  Creează un cont nou
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

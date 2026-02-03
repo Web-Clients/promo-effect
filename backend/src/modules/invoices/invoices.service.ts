@@ -2,6 +2,9 @@ import { Invoice, Payment } from '@prisma/client';
 import prisma from '../../lib/prisma';
 import { generateInvoiceNumber } from '../../utils/invoiceNumber';
 import { generateInvoicePDF } from '../../services/pdf.service';
+import notificationService from '../../services/notification.service';
+import { storageService } from '../../services/storage.service';
+import nodemailer from 'nodemailer';
 
 // VAT rate for Moldova
 const VAT_RATE = 0.19;
@@ -255,9 +258,24 @@ class InvoicesService {
     let amount = booking.totalPrice;
 
     // Apply discount if provided
+    let discountAmount = 0;
     if (data.discount && data.discount > 0) {
-      amount = amount * (1 - data.discount / 100);
+      discountAmount = amount * (data.discount / 100);
+      amount = amount - discountAmount;
     }
+
+    // Calculate VAT (19% for Moldova)
+    const vatAmount = amount * VAT_RATE;
+    const totalAmount = amount + vatAmount;
+
+    // Get client payment terms for due date calculation if not provided
+    const clientWithExtras = client as any;
+    const dueDate = data.dueDate || (() => {
+      const days = clientWithExtras.paymentTerms || 30;
+      const date = new Date();
+      date.setDate(date.getDate() + days);
+      return date;
+    })();
 
     // Create invoice
     const invoice = await prisma.invoice.create({
@@ -265,13 +283,19 @@ class InvoicesService {
         invoiceNumber,
         bookingId: data.bookingId,
         clientId: data.clientId,
-        amount,
+        amount, // Amount without VAT
+        vatPercent: VAT_RATE * 100, // 19%
+        vatAmount,
+        totalAmount, // Amount + VAT
         currency: 'USD',
         issueDate: new Date(),
-        dueDate: new Date(data.dueDate),
+        dueDate: new Date(dueDate),
         status: 'DRAFT',
+        discount: data.discount || 0,
+        discountAmount,
         notes: data.notes,
-      },
+        remindersSent: JSON.stringify([]), // Initialize empty reminders array
+      } as any,
       include: {
         client: true,
         booking: true,
@@ -345,17 +369,38 @@ class InvoicesService {
     // Generate PDF
     const pdfBuffer = await generateInvoicePDF(invoice as any);
 
-    // TODO: Save PDF to storage and get URL
-    // const pdfUrl = await uploadPdfToStorage(pdfBuffer, `invoices/${invoice.invoiceNumber}.pdf`);
+    // Save PDF to storage and get URL
+    let pdfUrl: string | null = null;
+    try {
+      pdfUrl = await storageService.uploadFile(
+        pdfBuffer,
+        `${invoice.invoiceNumber}.pdf`,
+        'invoices'
+      );
+    } catch (error) {
+      console.error('Failed to save PDF to storage:', error);
+      // Continue even if storage fails
+    }
 
-    // Update invoice status
+    // Update invoice status (DRAFT -> ISSUED -> SENT)
+    const newStatus = invoice.status === 'DRAFT' ? 'ISSUED' : 'SENT';
+    
+    // Update reminders sent (add current timestamp)
+    const invoiceWithExtras = invoice as any;
+    const reminders = invoiceWithExtras.remindersSent ? JSON.parse(invoiceWithExtras.remindersSent) : [];
+    reminders.push({
+      date: new Date().toISOString(),
+      type: 'INVOICE_SENT',
+    });
+    
     const updatedInvoice = await prisma.invoice.update({
       where: { id },
       data: {
-        status: 'UNPAID',
-        // pdfUrl,
+        status: newStatus,
+        remindersSent: JSON.stringify(reminders),
+        pdfUrl: pdfUrl || undefined,
         updatedAt: new Date(),
-      },
+      } as any,
       include: {
         client: true,
         booking: true,
@@ -363,8 +408,57 @@ class InvoicesService {
       },
     });
 
-    // TODO: Send email with PDF attachment
-    // await sendInvoiceEmail(updatedInvoice, pdfBuffer);
+    // Send email with PDF attachment via nodemailer (FREE SMTP)
+    try {
+      await this.sendInvoiceEmail(updatedInvoice, pdfBuffer, pdfUrl);
+    } catch (error) {
+      console.error('Failed to send invoice email:', error);
+      // Don't fail the whole operation if email fails
+    }
+
+    // Send notification to client
+    try {
+      // Find users associated with client
+      const clientUsers = await prisma.user.findMany({
+        where: {
+          role: 'CLIENT',
+          // TODO: Add proper clientId relation when available
+        },
+        take: 5,
+      });
+
+      // Send notification to each user
+      for (const user of clientUsers) {
+        try {
+          await notificationService.sendNotification({
+            userId: user.id,
+            bookingId: invoice.bookingId,
+            type: 'INVOICE_SENT',
+            title: `Factură ${invoice.invoiceNumber}`,
+            message: `Factura ${invoice.invoiceNumber} în valoare de ${(invoice as any).totalAmount || invoice.amount} ${invoice.currency} a fost emisă. Data scadență: ${new Date(invoice.dueDate).toLocaleDateString('ro-RO')}.`,
+            channels: {
+              email: true,
+              sms: false,
+              whatsapp: false,
+              push: true,
+            },
+            templateData: {
+              invoiceNumber: invoice.invoiceNumber,
+              amount: (invoice as any).totalAmount || invoice.amount,
+              currency: invoice.currency,
+              dueDate: new Date(invoice.dueDate).toLocaleDateString('ro-RO'),
+              clientName: invoice.client.companyName,
+              pdfUrl: pdfUrl || undefined,
+            },
+          });
+        } catch (error) {
+          console.error(`Failed to send notification to user ${user.id}:`, error);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to send invoice notifications:', error);
+      // Don't fail the whole operation if notification fails
+    }
 
     // Log audit
     await this.logAudit('INVOICE_SENT', id, sentBy, { clientEmail: invoice.client.email });
@@ -396,9 +490,11 @@ class InvoicesService {
       throw new Error('Invoice is already fully paid');
     }
 
-    // Validate payment amount
+    // Validate payment amount (use totalAmount which includes VAT)
+    const invoiceWithExtras = invoice as any;
     const currentPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0);
-    const remaining = invoice.amount - currentPaid;
+    const totalAmount = invoiceWithExtras.totalAmount || invoice.amount;
+    const remaining = totalAmount - currentPaid;
 
     if (paymentData.amount > remaining + 0.01) {
       throw new Error(`Payment amount exceeds remaining balance of $${remaining.toFixed(2)}`);
@@ -419,16 +515,17 @@ class InvoicesService {
 
     // Check if fully paid
     const totalPaid = currentPaid + paymentData.amount;
-    const isFullyPaid = totalPaid >= invoice.amount - 0.01;
+    const isFullyPaid = totalPaid >= totalAmount - 0.01; // Use totalAmount (with VAT)
 
-    // Update invoice status
+    // Update invoice status and payment method
     const updatedInvoice = await prisma.invoice.update({
       where: { id },
       data: {
         status: isFullyPaid ? 'PAID' : invoice.status,
         paidDate: isFullyPaid ? new Date(paymentData.paymentDate) : null,
+        paymentMethod: paymentData.paymentMethod,
         updatedAt: new Date(),
-      },
+      } as any,
       include: {
         client: true,
         booking: true,
@@ -452,11 +549,39 @@ class InvoicesService {
       isFullyPaid,
     });
 
+    // Send email notification to client about payment
+    try {
+      const clientEmail = updatedInvoice.client?.email;
+      if (clientEmail) {
+        const clientUser = await prisma.user.findFirst({
+          where: { email: clientEmail },
+        });
+
+        if (clientUser || updatedInvoice.clientId) {
+          await notificationService.sendNotification({
+            userId: clientUser?.id || updatedInvoice.clientId,
+            bookingId: updatedInvoice.bookingId || undefined,
+            type: isFullyPaid ? 'INVOICE_PAID' : 'PAYMENT_RECEIVED',
+            title: isFullyPaid 
+              ? `Factură ${updatedInvoice.invoiceNumber} - Plătită Complet`
+              : `Plată Primită pentru Factura ${updatedInvoice.invoiceNumber}`,
+            message: isFullyPaid
+              ? `Factura ${updatedInvoice.invoiceNumber} a fost plătită complet.\n\nSuma plătită: ${paymentData.amount.toFixed(2)} ${invoice.currency}\nMetodă de plată: ${paymentData.paymentMethod}\nData plății: ${new Date(paymentData.paymentDate).toLocaleDateString('ro-RO')}\n\nMulțumim pentru plată!`
+              : `Am primit o plată pentru factura ${updatedInvoice.invoiceNumber}.\n\nSuma plătită: ${paymentData.amount.toFixed(2)} ${invoice.currency}\nTotal plătit: ${totalPaid.toFixed(2)} ${invoice.currency}\nRest de plată: ${(totalAmount - totalPaid).toFixed(2)} ${invoice.currency}\nMetodă de plată: ${paymentData.paymentMethod}\nData plății: ${new Date(paymentData.paymentDate).toLocaleDateString('ro-RO')}`,
+            channels: { email: true, push: false, sms: false, whatsapp: false },
+          });
+        }
+      }
+    } catch (error) {
+      console.error('[InvoicesService] Failed to send payment notification email:', error);
+      // Don't fail the payment if email fails
+    }
+
     return {
       invoice: updatedInvoice,
       payment,
       amountPaid: totalPaid,
-      balance: invoice.amount - totalPaid,
+      balance: totalAmount - totalPaid,
     };
   }
 
@@ -499,6 +624,91 @@ class InvoicesService {
     await this.logAudit('INVOICE_CANCELLED', id, cancelledBy, { reason });
 
     return updatedInvoice;
+  }
+
+  /**
+   * Bulk generate invoices for multiple clients
+   */
+  async bulkGenerate(clientIds: string[], dateFrom: Date, dateTo: Date, createdBy: string) {
+    const invoices: any[] = [];
+    const errors: any[] = [];
+
+    for (const clientId of clientIds) {
+      try {
+        // Find client
+        const client = await prisma.client.findUnique({
+          where: { id: clientId },
+        });
+
+        if (!client) {
+          errors.push({ clientId, error: 'Client not found' });
+          continue;
+        }
+
+        // Find unpaid bookings in date range
+        const bookings = await prisma.booking.findMany({
+          where: {
+            clientId,
+            createdAt: {
+              gte: dateFrom,
+              lte: dateTo,
+            },
+            invoices: {
+              none: {
+                status: {
+                  notIn: ['CANCELLED'],
+                },
+              },
+            },
+          },
+          include: {
+            containers: true,
+          },
+        });
+
+        if (bookings.length === 0) {
+          continue; // No bookings to invoice
+        }
+
+        // Generate invoice for each booking
+        for (const booking of bookings) {
+          try {
+        // Calculate due date from client payment terms
+        const clientWithExtras = client as any;
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + (clientWithExtras.paymentTerms || 30));
+
+            // Create invoice
+            const invoice = await this.create(
+              {
+                bookingId: booking.id,
+                clientId: client.id,
+                dueDate,
+                discount: clientWithExtras.discount || 0,
+              },
+              createdBy
+            );
+
+            invoices.push(invoice);
+          } catch (error: any) {
+            errors.push({
+              clientId,
+              bookingId: booking.id,
+              error: error.message,
+            });
+          }
+        }
+      } catch (error: any) {
+        errors.push({ clientId, error: error.message });
+      }
+    }
+
+    return {
+      success: true,
+      generated: invoices.length,
+      invoices,
+      errors: errors.length > 0 ? errors : undefined,
+    };
   }
 
   /**
@@ -660,6 +870,152 @@ class InvoicesService {
     });
 
     return result.count;
+  }
+
+  /**
+   * Send invoice email with PDF attachment via nodemailer (FREE SMTP)
+   */
+  private async sendInvoiceEmail(invoice: any, pdfBuffer: Buffer, pdfUrl: string | null) {
+    try {
+      const client = invoice.client;
+      const totalAmount = (invoice as any).totalAmount || invoice.amount;
+      const dueDate = new Date(invoice.dueDate).toLocaleDateString('ro-RO');
+
+      // Get email transporter (same as notification service)
+      const transporter = this.getEmailTransporter();
+      const smtpFromEmail = process.env.SMTP_FROM_EMAIL || process.env.FROM_EMAIL || process.env.SMTP_USER || 'noreply@promo-efect.md';
+      const smtpFromName = process.env.SMTP_FROM_NAME || process.env.FROM_NAME || 'Promo-Efect';
+
+      if (!transporter) {
+        console.warn('[InvoicesService] SMTP not configured, invoice email not sent');
+        console.log(`[InvoicesService] Would send invoice ${invoice.invoiceNumber} to ${client.email}`);
+        return;
+      }
+
+      // Prepare email content
+      const emailContent = `
+Bună ziua ${client.companyName},
+
+Vă trimitem factura ${invoice.invoiceNumber} în valoare de ${totalAmount} ${invoice.currency}.
+
+Detalii factură:
+- Număr: ${invoice.invoiceNumber}
+- Data emiterii: ${new Date(invoice.issueDate).toLocaleDateString('ro-RO')}
+- Data scadență: ${dueDate}
+- Suma totală: ${totalAmount} ${invoice.currency}
+
+${pdfUrl ? `Factura PDF este disponibilă la: ${pdfUrl}` : 'Factura PDF este atașată acestui email.'}
+
+Vă rugăm să efectuați plata până la data scadență.
+
+Mulțumim,
+Echipa Promo-Efect SRL
+      `.trim();
+
+      // Prepare email message
+      const mailOptions: nodemailer.SendMailOptions = {
+        from: `"${smtpFromName}" <${smtpFromEmail}>`,
+        to: client.email,
+        subject: `Factură ${invoice.invoiceNumber} - Promo-Efect SRL`,
+        text: emailContent,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Factură ${invoice.invoiceNumber}</h2>
+            <p>Bună ziua ${client.companyName},</p>
+            <p>Vă trimitem factura <strong>${invoice.invoiceNumber}</strong> în valoare de <strong>${totalAmount} ${invoice.currency}</strong>.</p>
+            
+            <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <h3>Detalii factură:</h3>
+              <ul>
+                <li><strong>Număr:</strong> ${invoice.invoiceNumber}</li>
+                <li><strong>Data emiterii:</strong> ${new Date(invoice.issueDate).toLocaleDateString('ro-RO')}</li>
+                <li><strong>Data scadență:</strong> ${dueDate}</li>
+                <li><strong>Suma totală:</strong> ${totalAmount} ${invoice.currency}</li>
+              </ul>
+            </div>
+
+            ${pdfUrl 
+              ? `<p>Factura PDF este disponibilă la: <a href="${pdfUrl}">${pdfUrl}</a></p>`
+              : '<p>Factura PDF este atașată acestui email.</p>'
+            }
+
+            <p>Vă rugăm să efectuați plata până la data scadență.</p>
+            
+            <p>Mulțumim,<br>Echipa Promo-Efect SRL</p>
+          </div>
+        `,
+        attachments: pdfUrl ? undefined : [
+          {
+            filename: `${invoice.invoiceNumber}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf',
+          },
+        ],
+      };
+
+      // Send email
+      await transporter.sendMail(mailOptions);
+      console.log(`[InvoicesService] ✅ Invoice email sent to ${client.email} for invoice ${invoice.invoiceNumber}`);
+    } catch (error: any) {
+      console.error('[InvoicesService] ❌ Failed to send invoice email:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get email transporter (reuses same logic as email-verification service)
+   */
+  private getEmailTransporter(): nodemailer.Transporter | null {
+    const emailProvider = process.env.EMAIL_PROVIDER || 'SMTP';
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpPort = parseInt(process.env.SMTP_PORT || '587');
+    const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USER;
+    const smtpPassword = process.env.SMTP_PASSWORD || process.env.EMAIL_PASSWORD;
+
+    if (!smtpHost && !smtpUser) {
+      return null;
+    }
+
+    // Auto-detect Gmail
+    if (emailProvider === 'GMAIL' || smtpUser?.endsWith('@gmail.com')) {
+      return nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: smtpUser,
+          pass: smtpPassword,
+        },
+      });
+    }
+
+    // Auto-detect Outlook
+    if (emailProvider === 'OUTLOOK' || smtpUser?.match(/@(outlook|hotmail|live)\.(com|ru)/)) {
+      return nodemailer.createTransport({
+        host: 'smtp-mail.outlook.com',
+        port: 587,
+        secure: false,
+        auth: {
+          user: smtpUser,
+          pass: smtpPassword,
+        },
+        tls: {
+          ciphers: 'SSLv3',
+        },
+      });
+    }
+
+    // Custom SMTP
+    return nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      auth: smtpUser && smtpPassword ? {
+        user: smtpUser,
+        pass: smtpPassword,
+      } : undefined,
+      tls: {
+        rejectUnauthorized: process.env.NODE_ENV === 'production' ? true : false,
+      },
+    });
   }
 
   /**

@@ -229,7 +229,7 @@ export class SettingsService {
   }
 
   /**
-   * Test integration (Gmail, Terminal49, etc.)
+   * Test integration (Gmail, SeaRates, etc.)
    */
   async testIntegration(integrationType: string) {
     switch (integrationType.toLowerCase()) {
@@ -239,11 +239,11 @@ export class SettingsService {
           success: true,
           message: 'Gmail integration test - to be implemented',
         };
-      case 'terminal49':
-        // TODO: Test Terminal49 API connection
+      case 'searates':
+        // TODO: Test SeaRates API connection
         return {
           success: true,
-          message: 'Terminal49 integration test - to be implemented',
+          message: 'SeaRates integration test - to be implemented',
         };
       default:
         throw new Error(`Integration type ${integrationType} not supported`);

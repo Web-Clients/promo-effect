@@ -1,9 +1,9 @@
 /**
  * Container Sync Background Job
- * 
- * Syncs container tracking data from external APIs (Terminal49, Maersk, etc.)
+ *
+ * Syncs container tracking data from external APIs (SeaRates, etc.)
  * every 30 minutes
- * 
+ *
  * Schedule: Every 30 minutes
  */
 

@@ -463,7 +463,7 @@ model Container {
   insuranceDetails String? @map("insurance_details") @db.Text
 
   // API source
-  apiSource  String?   @map("api_source") // MAERSK_API, TERMINAL49, MANUAL_ENTRY, EMAIL_PARSING
+  apiSource  String?   @map("api_source") // SEARATES, MAERSK_API, MANUAL_ENTRY, EMAIL_PARSING
   lastSyncAt DateTime? @map("last_sync_at")
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -501,7 +501,7 @@ model TrackingEvent {
   details String? @db.Text // JSON with additional metadata
 
   // Source and validation
-  source     String? @default("MANUAL_ENTRY") // MAERSK_API, TERMINAL49, MANUAL_ENTRY, EMAIL_PARSING
+  source     String? @default("MANUAL_ENTRY") // SEARATES, MAERSK_API, MANUAL_ENTRY, EMAIL_PARSING
   validated  Boolean @default(false) // For manual entries
   visibility String? @default("PUBLIC") // PUBLIC or INTERNAL
 

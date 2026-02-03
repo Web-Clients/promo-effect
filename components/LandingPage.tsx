@@ -497,7 +497,7 @@ const LandingPage = ({ onLoginRedirect }: LandingPageProps) => {
                   <span className="font-semibold text-lg">Maersk</span>
                   <span className="font-semibold text-lg">MSC</span>
                   <span className="font-semibold text-lg">ZIM</span>
-                  <span className="font-semibold text-lg">Terminal49</span>
+                  <span className="font-semibold text-lg">SeaRates</span>
                   <span className="font-semibold text-lg">1C</span>
                   <span className="font-semibold text-lg">Google</span>
                   <GlobeIcon className="h-10 w-10 text-primary-500" />

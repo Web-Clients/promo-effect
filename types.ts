@@ -107,9 +107,8 @@ export interface SystemSettings {
   
   // Container Tracking
   trackingSettings: {
-    provider: 'TERMINAL49' | 'DIRECT_APIS';
-    terminal49ApiKey: string;
-    terminal49WebhookSecret: string;
+    provider: 'SEARATES';
+    searatesApiKey: string;
     enabled: boolean;
     syncInterval: number;
   };

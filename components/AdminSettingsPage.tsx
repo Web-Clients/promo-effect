@@ -21,9 +21,8 @@ const mockSettings: SystemSettings = {
     syncInterval: 5,
   },
   trackingSettings: {
-    provider: 'TERMINAL49',
-    terminal49ApiKey: 'terminal49-api-key',
-    terminal49WebhookSecret: 'webhook-secret-string',
+    provider: 'SEARATES',
+    searatesApiKey: '',
     enabled: true,
     syncInterval: 60,
   },
@@ -202,27 +201,26 @@ const AdminSettingsPage = () => {
               <h2 className="text-xl font-semibold">Urmărire Containere</h2>
               <Switch checked={settings.trackingSettings.enabled} onCheckedChange={(checked) => updateSettings('trackingSettings.enabled', checked)}/>
             </div>
-            
+
             <div className="space-y-4">
                 <label className="text-sm font-medium">Furnizor Urmărire</label>
                 <Select value={settings.trackingSettings.provider} onChange={(e) => updateSettings('trackingSettings.provider', e.target.value)}>
-                  <option value="TERMINAL49">Terminal49 (Recomandat)</option>
-                  <option value="DIRECT_APIS">API-uri Directe (Avansat)</option>
+                  <option value="SEARATES">SeaRates (Recomandat)</option>
                 </Select>
-              
-                <label className="text-sm font-medium">Cheie API Terminal49</label>
-                <Input type="password" value={settings.trackingSettings.terminal49ApiKey} onChange={(e) => updateSettings('trackingSettings.terminal49ApiKey', e.target.value)}/>
-              
+
+                <label className="text-sm font-medium">Cheie API SeaRates</label>
+                <Input type="password" value={settings.trackingSettings.searatesApiKey} onChange={(e) => updateSettings('trackingSettings.searatesApiKey', e.target.value)}/>
+
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                    <h4 className="font-medium mb-2 text-sm text-blue-800 dark:text-blue-300">URL Webhook (Configurați în Terminal49):</h4>
+                    <h4 className="font-medium mb-2 text-sm text-blue-800 dark:text-blue-300">URL Webhook (Configurați în SeaRates):</h4>
                     <div className="flex items-center gap-2">
-                        <code className="bg-white dark:bg-neutral-800 px-2 py-1 rounded text-sm text-neutral-700 dark:text-neutral-200 line-clamp-1">{`${window.location.origin}/webhooks/terminal49`}</code>
-                        <Button onClick={() => copyToClipboard(`${window.location.origin}/webhooks/terminal49`)} variant="ghost" size="icon">
+                        <code className="bg-white dark:bg-neutral-800 px-2 py-1 rounded text-sm text-neutral-700 dark:text-neutral-200 line-clamp-1">{`${window.location.origin}/api/v1/tracking/webhook`}</code>
+                        <Button onClick={() => copyToClipboard(`${window.location.origin}/api/v1/tracking/webhook`)} variant="ghost" size="icon">
                             <CopyIcon className="h-4 w-4" />
                         </Button>
                     </div>
                 </div>
-              
+
               <div className="flex gap-2">
                 <Button onClick={() => testConnection('tracking')} disabled={testResults.tracking === 'pending'} loading={testResults.tracking === 'pending'}>
                     Testează Conexiunea

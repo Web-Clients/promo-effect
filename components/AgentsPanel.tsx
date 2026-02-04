@@ -15,6 +15,9 @@ import {
   UpdateAgentInput,
   AgentStats,
 } from '../services/agents';
+import { AgentPriceManager } from './AgentPriceManager';
+
+import { EyeIcon, EyeOffIcon } from './icons'; // Ensure lucide-react is installed or check existing imports
 
 export function AgentsPanel() {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -25,7 +28,9 @@ export function AgentsPanel() {
 
   // Form state
   const [showForm, setShowForm] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
+  const [managingPricesFor, setManagingPricesFor] = useState<Agent | null>(null);
   const [formData, setFormData] = useState<CreateAgentInput>({
     email: '',
     password: '',
@@ -305,14 +310,24 @@ export function AgentsPanel() {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Parolă *
                       </label>
-                      <input
-                        type="password"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        required={!editingAgent}
-                        minLength={6}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
+
+                      <div className="relative">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          value={formData.password}
+                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                          required={!editingAgent}
+                          minLength={6}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                        </button>
+                      </div>
                     </div>
                   )}
 
@@ -407,8 +422,9 @@ export function AgentsPanel() {
               </form>
             </div>
           </div>
-        </div>
-      )}
+        </div >
+      )
+      }
 
       {/* Agents Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -472,6 +488,12 @@ export function AgentsPanel() {
                         Editează
                       </button>
                       <button
+                        onClick={() => setManagingPricesFor(agent)}
+                        className="text-indigo-600 hover:text-indigo-800 mr-3"
+                      >
+                        Prețuri
+                      </button>
+                      <button
                         onClick={() => handleDelete(agent)}
                         className="text-red-600 hover:text-red-800"
                       >
@@ -485,7 +507,16 @@ export function AgentsPanel() {
           </table>
         </div>
       </div>
-    </div>
+      {/* Price Manager Modal */}
+      {
+        managingPricesFor && (
+          <AgentPriceManager
+            agent={managingPricesFor}
+            onClose={() => setManagingPricesFor(null)}
+          />
+        )
+      }
+    </div >
   );
 }
 

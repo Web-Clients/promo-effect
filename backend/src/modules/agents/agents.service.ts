@@ -410,6 +410,87 @@ export class AgentsService {
       orderBy: { createdAt: 'desc' },
     });
   }
+  /**
+   * Create price for agent (Admin action - auto approved)
+   */
+  async createAgentPrice(agentId: string, data: any) {
+    const agent = await prisma.agent.findUnique({
+      where: { id: agentId },
+    });
+
+    if (!agent) {
+      throw new Error('Agent negăsit');
+    }
+
+    return prisma.agentPrice.create({
+      data: {
+        agentId,
+        freightPrice: data.freightPrice,
+        shippingLine: data.shippingLine,
+        portOrigin: data.portOrigin,
+        containerType: data.containerType,
+        weightRange: data.weightRange,
+        validFrom: new Date(data.validFrom),
+        validUntil: new Date(data.validUntil),
+        departureDate: new Date(data.departureDate),
+        reason: data.reason,
+        approvalStatus: 'APPROVED', // Admin created prices are auto-approved
+        approvedAt: new Date(),
+      },
+    });
+  }
+
+  /**
+   * Update agent price (Admin action)
+   */
+  async updateAgentPrice(agentId: string, priceId: string, data: any) {
+    const price = await prisma.agentPrice.findFirst({
+      where: { id: priceId, agentId },
+    });
+
+    if (!price) {
+      throw new Error('Prețul nu a fost găsit');
+    }
+
+    const updateData: any = {};
+    if (data.freightPrice !== undefined) updateData.freightPrice = data.freightPrice;
+    if (data.shippingLine) updateData.shippingLine = data.shippingLine;
+    if (data.portOrigin) updateData.portOrigin = data.portOrigin;
+    if (data.containerType) updateData.containerType = data.containerType;
+    if (data.weightRange) updateData.weightRange = data.weightRange;
+    if (data.validFrom) updateData.validFrom = new Date(data.validFrom);
+    if (data.validUntil) updateData.validUntil = new Date(data.validUntil);
+    if (data.departureDate) updateData.departureDate = new Date(data.departureDate);
+    if (data.reason !== undefined) updateData.reason = data.reason;
+    if (data.status) updateData.approvalStatus = data.status; // Allow changing status back to PENDING etc.
+
+    // If setting to APPROVED, update timestamp
+    if (data.status === 'APPROVED' && price.approvalStatus !== 'APPROVED') {
+      updateData.approvedAt = new Date();
+    }
+
+    return prisma.agentPrice.update({
+      where: { id: priceId },
+      data: updateData,
+    });
+  }
+
+  /**
+   * Delete agent price (Admin action)
+   */
+  async deleteAgentPrice(agentId: string, priceId: string) {
+    const price = await prisma.agentPrice.findFirst({
+      where: { id: priceId, agentId },
+    });
+
+    if (!price) {
+      throw new Error('Prețul nu a fost găsit');
+    }
+
+    await prisma.agentPrice.delete({
+      where: { id: priceId },
+    });
+  }
 }
 
 export const agentsService = new AgentsService();

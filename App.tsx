@@ -22,6 +22,8 @@ import AdminPricingPanel from './components/AdminPricingPanel';
 import AgentsPanel from './components/AgentsPanel';
 import UserProfile from './components/UserProfile';
 import AdminDashboard from './components/AdminDashboard';
+import AgentPricesDashboard from './components/AgentPricesDashboard';
+import AdminPriceApproval from './components/AdminPriceApproval';
 import { User, Booking } from './types';
 import { ToastProvider } from './components/ui/Toast';
 import authService from './services/auth';
@@ -166,6 +168,8 @@ const App = () => {
           <Route path="admin-pricing" element={<AdminPricingPanel />} />
           <Route path="agents" element={<AgentsPanel />} />
           <Route path="admin-panel" element={<AdminDashboard />} />
+          <Route path="my-prices" element={<AgentPricesDashboard />} />
+          <Route path="price-approval" element={<AdminPriceApproval />} />
           <Route path="userProfile" element={<UserProfile user={user!} />} />
         </Route>
         

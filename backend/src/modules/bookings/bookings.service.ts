@@ -2,6 +2,7 @@ import prisma from '../../lib/prisma';
 import { generateBookingId } from '../../utils/booking-id.util';
 import { CreateBookingDTO, UpdateBookingDTO, BookingFilters } from '../../types/booking.types';
 import notificationService from '../../services/notification.service';
+import { storageService } from '../../services/storage.service';
 
 export class BookingsService {
   /**
@@ -119,8 +120,8 @@ export class BookingsService {
         supplierEmail: data.supplierEmail,
         supplierAddress: data.supplierAddress,
 
-        // Status
-        status: 'CONFIRMED',
+        // Status - starts as PENDING, admin confirms later
+        status: 'PENDING',
 
         // Notes
         internalNotes: data.internalNotes,
@@ -156,22 +157,40 @@ export class BookingsService {
       // Get client email from booking
       const clientEmail = booking.client?.email;
       if (clientEmail) {
-          // Find user associated with client
-          const clientUser = await prisma.user.findFirst({
-            where: {
-              // Try to find user by client email or clientId relation
-              email: clientEmail,
-            },
-          });
+        // Find user associated with client
+        const clientUser = await prisma.user.findFirst({
+          where: {
+            // Try to find user by client email or clientId relation
+            email: clientEmail,
+          },
+        });
 
-          await notificationService.sendNotification({
-            userId: clientUser?.id || booking.clientId, // Use user ID if found, otherwise clientId
+        // Send notification in background (don't await - may timeout)
+        if (clientUser) {
+          notificationService.sendNotification({
+            userId: clientUser.id, // Use actual User ID
             bookingId: booking.id,
-            type: 'BOOKING_CONFIRMED',
-            title: `Rezervare Confirmată: ${booking.id}`,
-            message: `Rezervarea dumneavoastră ${booking.id} a fost confirmată.\n\nDetalii:\n- Port origine: ${booking.portOrigin}\n- Port destinație: ${booking.portDestination}\n- Tip container: ${booking.containerType}\n- Preț total: ${booking.totalPrice} USD\n\nVă vom anunța când containerul va fi disponibil pentru tracking.`,
-            channels: { email: true, push: false, sms: false, whatsapp: false },
-          });
+            type: 'BOOKING_CREATED',
+            title: `Cerere Nouă: ${booking.id}`,
+            message: `Cererea dumneavoastră ${booking.id} a fost înregistrată și este în așteptare pentru confirmare.\n\nDetalii:\n- Port origine: ${booking.portOrigin}\n- Port destinație: ${booking.portDestination}\n- Tip container: ${booking.containerType}\n- Preț estimat: ${booking.totalPrice} USD\n\nVă vom notifica când cererea va fi confirmată.`,
+            channels: { email: true, sms: true, push: false, whatsapp: false },
+          }).catch(err => console.error('[BookingsService] Background notification failed:', err));
+        }
+      }
+
+      // Notify Agent if assigned
+      if (booking.agentId) {
+        const agent = await prisma.agent.findUnique({ where: { id: booking.agentId } });
+        if (agent) {
+          notificationService.sendNotification({
+            userId: agent.userId,
+            bookingId: booking.id,
+            type: 'BOOKING_ASSIGNED',
+            title: `Rezervare Nouă Atribuită: ${booking.id}`,
+            message: `V-a fost atribuită o nouă rezervare.\n\nDetalii:\n- Booking ID: ${booking.id}\n- Port Origine: ${booking.portOrigin}\n- Tip Container: ${booking.containerType}\n\nVă rugăm să verificați detaliile în platformă.`,
+            channels: { email: true, sms: true, push: false, whatsapp: false },
+          }).catch(err => console.error('[BookingsService] Agent notification failed:', err));
+        }
       }
     } catch (error) {
       console.error('[BookingsService] Failed to send booking confirmation email:', error);
@@ -199,6 +218,19 @@ export class BookingsService {
           // User has no client record, return empty result
           where.clientId = 'no-client-record';
         }
+      }
+    } else if (userRole === 'AGENT') {
+      // Agents see only their assigned bookings
+      const agent = await prisma.agent.findUnique({ where: { userId } });
+      if (agent) {
+        where.agentId = agent.id;
+
+        // Allow agents to filter by client within their bookings
+        if (filters.clientId) {
+          where.clientId = filters.clientId;
+        }
+      } else {
+        where.agentId = 'no-agent-record';
       }
     } else if (filters.clientId) {
       where.clientId = filters.clientId;
@@ -324,6 +356,12 @@ export class BookingsService {
       if (!client || booking.clientId !== client.id) {
         throw new Error('Forbidden: You can only view your own bookings');
       }
+    } else if (userRole === 'AGENT') {
+      // Authorization check for AGENT role
+      const agent = await prisma.agent.findUnique({ where: { userId } });
+      if (!agent || booking.agentId !== agent.id) {
+        throw new Error('Forbidden: You can only view bookings assigned to you');
+      }
     }
 
     return booking;
@@ -348,9 +386,9 @@ export class BookingsService {
       }
     }
 
-    // Only admins/managers can update status
-    if (data.status && !['ADMIN', 'MANAGER', 'SUPER_ADMIN'].includes(userRole)) {
-      throw new Error('Forbidden: Only admins can update booking status');
+    // Only admins/managers/agents can update status
+    if (data.status && !['ADMIN', 'MANAGER', 'SUPER_ADMIN', 'AGENT'].includes(userRole)) {
+      throw new Error('Forbidden: Only admins or agents can update booking status');
     }
 
     // Update booking
@@ -377,31 +415,43 @@ export class BookingsService {
       },
     });
 
-    // Send email notification if status changed
+    // Send notification if status changed
     if (data.status && data.status !== existing.status) {
       try {
         const clientEmail = updated.client?.email;
         if (clientEmail) {
-          const statusLabels: Record<string, string> = {
-            'CONFIRMED': 'Confirmată',
-            'IN_TRANSIT': 'În Tranzit',
-            'ARRIVED': 'Sosită',
-            'DELIVERED': 'Livrată',
-            'CANCELLED': 'Anulată',
-          };
-          
-          await notificationService.sendNotification({
-            userId: updated.clientId,
-            bookingId: updated.id,
-            type: 'BOOKING_STATUS_CHANGED',
-            title: `Status Rezervare Actualizat: ${updated.id}`,
-            message: `Statusul rezervării ${updated.id} a fost actualizat la: ${statusLabels[data.status] || data.status}.\n\nDetalii rezervare:\n- Port origine: ${updated.portOrigin}\n- Port destinație: ${updated.portDestination}\n- Tip container: ${updated.containerType}`,
-            channels: { email: true, push: false, sms: false, whatsapp: false },
+          // Find the User associated with this Client's email
+          const clientUser = await prisma.user.findFirst({
+            where: { email: clientEmail },
           });
+
+          if (clientUser) {
+            const statusLabels: Record<string, string> = {
+              'PENDING': 'În Așteptare',
+              'CONFIRMED': 'Confirmată',
+              'IN_TRANSIT': 'În Tranzit',
+              'ARRIVED': 'Sosită',
+              'DELIVERED': 'Livrată',
+              'CANCELLED': 'Anulată',
+            };
+
+            await notificationService.sendNotification({
+              userId: clientUser.id, // Use actual User ID, not Client ID
+              bookingId: updated.id,
+              type: 'BOOKING_STATUS_CHANGED',
+              title: `Status Rezervare Actualizat: ${updated.id}`,
+              message: `Statusul rezervării ${updated.id} a fost actualizat la: ${statusLabels[data.status] || data.status}.\n\nDetalii rezervare:\n- Port origine: ${updated.portOrigin}\n- Port destinație: ${updated.portDestination}\n- Tip container: ${updated.containerType}`,
+              channels: { email: true, sms: true, push: false, whatsapp: false },
+            });
+
+            console.log(`[BookingsService] Status change notification sent to ${clientEmail} for booking ${updated.id}`);
+          } else {
+            console.warn(`[BookingsService] No user found for client email ${clientEmail}`);
+          }
         }
       } catch (error) {
-        console.error('[BookingsService] Failed to send status change email:', error);
-        // Don't fail the update if email fails
+        console.error('[BookingsService] Failed to send status change notification:', error);
+        // Don't fail the update if notification fails
       }
     }
 
@@ -443,26 +493,33 @@ export class BookingsService {
       },
     });
 
-    // Send email notification to client
+    // Send notification to client
     try {
       const cancelledBooking = await prisma.booking.findUnique({
         where: { id },
         include: { client: true },
       });
-      
+
       if (cancelledBooking?.client?.email) {
-        await notificationService.sendNotification({
-          userId: cancelledBooking.clientId,
-          bookingId: cancelledBooking.id,
-          type: 'BOOKING_CANCELLED',
-          title: `Rezervare Anulată: ${cancelledBooking.id}`,
-          message: `Rezervarea ${cancelledBooking.id} a fost anulată.\n\nDacă aveți întrebări, vă rugăm să ne contactați.\n\nEchipa Promo-Efect`,
-          channels: { email: true, push: false, sms: false, whatsapp: false },
+        // Find the User associated with this Client's email
+        const clientUser = await prisma.user.findFirst({
+          where: { email: cancelledBooking.client.email },
         });
+
+        if (clientUser) {
+          await notificationService.sendNotification({
+            userId: clientUser.id, // Use actual User ID, not Client ID
+            bookingId: cancelledBooking.id,
+            type: 'BOOKING_CANCELLED',
+            title: `Rezervare Anulată: ${cancelledBooking.id}`,
+            message: `Rezervarea ${cancelledBooking.id} a fost anulată.\n\nDacă aveți întrebări, vă rugăm să ne contactați.\n\nEchipa Promo-Efect`,
+            channels: { email: true, sms: true, push: false, whatsapp: false },
+          });
+        }
       }
     } catch (error) {
-      console.error('[BookingsService] Failed to send cancellation email:', error);
-      // Don't fail the cancellation if email fails
+      console.error('[BookingsService] Failed to send cancellation notification:', error);
+      // Don't fail the cancellation if notification fails
     }
 
     return { message: 'Booking cancelled successfully' };
@@ -489,6 +546,19 @@ export class BookingsService {
           };
         }
       }
+    } else if (userRole === 'AGENT') {
+      // Get the Agent ID associated with this User
+      const agent = await prisma.agent.findUnique({ where: { userId } });
+      if (agent) {
+        where.agentId = agent.id;
+      } else {
+        // No agent record, return zeros
+        return {
+          total: 0,
+          byStatus: { CONFIRMED: 0, IN_TRANSIT: 0, DELIVERED: 0, CANCELLED: 0 },
+          totalRevenue: 0,
+        };
+      }
     }
 
     const [total, confirmed, inTransit, delivered, cancelled] = await Promise.all([
@@ -514,5 +584,43 @@ export class BookingsService {
       },
       totalRevenue: totalRevenue._sum.totalPrice || 0,
     };
+  }
+
+  /**
+   * Add document to booking
+   */
+  async addDocument(bookingId: string, file: Express.Multer.File, userId: string, userRole: string) {
+    // 1. Check access
+    const booking = await this.findOne(bookingId, userId, userRole);
+
+    // 2. Upload file
+    const fileUrl = await storageService.uploadFile(file.buffer, file.originalname, 'documents');
+
+    // 3. Create document record
+    const document = await prisma.document.create({
+      data: {
+        bookingId,
+        fileName: file.originalname,
+        fileType: 'DOCUMENT', // Default type
+        mimeType: file.mimetype,
+        fileSize: file.size,
+        storageKey: fileUrl, // Using URL as key for now
+        url: fileUrl,
+        uploadedBy: userId,
+      },
+    });
+
+    // 4. Audit log
+    await prisma.auditLog.create({
+      data: {
+        userId,
+        action: 'DOCUMENT_UPLOADED',
+        entityType: 'Booking',
+        entityId: bookingId,
+        changes: JSON.stringify({ documentId: document.id, fileName: document.fileName }),
+      },
+    });
+
+    return document;
   }
 }

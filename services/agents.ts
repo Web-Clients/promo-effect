@@ -123,6 +123,20 @@ export async function getAgentPrices(agentId: string): Promise<AgentPrice[]> {
   return response.data.prices;
 }
 
+export async function createAgentPrice(agentId: string, data: any): Promise<AgentPrice> {
+  const response = await api.post(`/agents/${agentId}/prices`, data);
+  return response.data;
+}
+
+export async function updateAgentPrice(agentId: string, priceId: string, data: any): Promise<AgentPrice> {
+  const response = await api.put(`/agents/${agentId}/prices/${priceId}`, data);
+  return response.data;
+}
+
+export async function deleteAgentPrice(agentId: string, priceId: string): Promise<void> {
+  await api.delete(`/agents/${agentId}/prices/${priceId}`);
+}
+
 export async function getAgentBookings(agentId: string): Promise<any[]> {
   const response = await api.get(`/agents/${agentId}/bookings`);
   return response.data.bookings;

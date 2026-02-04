@@ -239,6 +239,12 @@ model AgentPrice {
   validUntil    DateTime @map("valid_until")
   departureDate DateTime @map("departure_date")
 
+  // Approval workflow
+  approvalStatus   String    @default("APPROVED") @map("approval_status") // PENDING, APPROVED, REJECTED
+  approvedBy       String?   @map("approved_by") // Admin user ID who approved
+  approvedAt       DateTime? @map("approved_at")
+  rejectionReason  String?   @map("rejection_reason")
+
   // Admin override info
   reason String?
 
@@ -251,6 +257,7 @@ model AgentPrice {
 
   @@index([portOrigin, containerType, weightRange])
   @@index([agentId])
+  @@index([approvalStatus])
   @@map("agent_prices")
 }
 
@@ -387,6 +394,15 @@ model Booking {
   terrestrialTransport Float  @map("terrestrial_transport")
   commission           Float  @map("commission")
   totalPrice           Float  @map("total_price")
+
+  // Additional charges (for detailed invoice)
+  portTransit        String? @map("port_transit")          // Transit port (e.g., Constanta)
+  forwardingFees     Float?  @default(0) @map("forwarding_fees")     // Expediere, formalități portuare
+  verificationFees   Float?  @default(0) @map("verification_fees")   // Taxe de verificare în port
+  storageFees        Float?  @default(0) @map("storage_fees")        // Storage/conectare fees
+  storageDays        Int?    @default(0) @map("storage_days")        // Storage days
+  demurrageFees      Float?  @default(0) @map("demurrage_fees")      // Demurrage fees
+  demurrageDays      Int?    @default(0) @map("demurrage_days")      // Demurrage days
 
   // Supplier info
   supplierName    String? @map("supplier_name")

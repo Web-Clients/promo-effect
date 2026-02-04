@@ -8,7 +8,7 @@ import { Card } from './ui/Card';
 import bookingsService, { BookingStatsResponse } from '../services/bookings';
 
 interface MainDashboardProps {
-    user: User;
+  user: User;
 }
 
 const generateSparkline = () => Array.from({ length: 10 }, () => ({ value: Math.floor(Math.random() * 100) }));
@@ -43,7 +43,16 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
     };
 
     loadStats();
+
+    loadStats();
   }, []);
+
+  // Redirect Agents to their dashboard
+  useEffect(() => {
+    if (user.role === UserRole.AGENT) {
+      navigate('/dashboard/my-prices');
+    }
+  }, [user, navigate]);
 
   // Calculate KPIs from real stats
   const kpis: KpiData[] = isLoading || !stats ? [
@@ -93,10 +102,10 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
   })) : [];
 
   const weeklyRevenue = [
-      { name: 'S1', revenue: stats ? stats.totalRevenue * 0.2 : 0 },
-      { name: 'S2', revenue: stats ? stats.totalRevenue * 0.25 : 0 },
-      { name: 'S3', revenue: stats ? stats.totalRevenue * 0.27 : 0 },
-      { name: 'S4', revenue: stats ? stats.totalRevenue * 0.28 : 0 },
+    { name: 'S1', revenue: stats ? stats.totalRevenue * 0.2 : 0 },
+    { name: 'S2', revenue: stats ? stats.totalRevenue * 0.25 : 0 },
+    { name: 'S3', revenue: stats ? stats.totalRevenue * 0.27 : 0 },
+    { name: 'S4', revenue: stats ? stats.totalRevenue * 0.28 : 0 },
   ];
 
   return (
@@ -131,73 +140,73 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
 
       {/* Charts Section */}
       {isAdminOrManager && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              {/* Weekly Revenue Chart */}
-              <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-base font-semibold text-primary-800 dark:text-white">Venit Săptămânal</h4>
-                  <span className="text-xs text-neutral-400 bg-neutral-100 dark:bg-neutral-700 px-2 py-1 rounded-md">Ultimele 4 săptămâni</span>
-                </div>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={weeklyRevenue} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                          <defs>
-                            <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#0A2540" stopOpacity={0.2} />
-                              <stop offset="100%" stopColor="#0A2540" stopOpacity={0} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" opacity={0.5} />
-                          <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
-                          <YAxis stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: '#0A2540',
-                              border: 'none',
-                              borderRadius: '8px',
-                              color: 'white',
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                            }}
-                          />
-                          <Line type="monotone" dataKey="revenue" name="Venit" stroke="#0A2540" strokeWidth={3} dot={{ fill: '#0A2540', strokeWidth: 2, r: 4 }} activeDot={{ r: 6, fill: '#00C29A' }} />
-                      </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Status Distribution Chart */}
-              <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-base font-semibold text-primary-800 dark:text-white">Status Rezervări</h4>
-                  <span className="text-xs text-neutral-400 bg-neutral-100 dark:bg-neutral-700 px-2 py-1 rounded-md">Distribuție</span>
-                </div>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={containersByLine} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                          <defs>
-                            <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#00C29A" />
-                              <stop offset="100%" stopColor="#008F6F" />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" opacity={0.5} />
-                          <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={10} tickLine={false} axisLine={false} angle={-20} textAnchor="end" height={60} />
-                          <YAxis stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: '#0A2540',
-                              border: 'none',
-                              borderRadius: '8px',
-                              color: 'white',
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                            }}
-                          />
-                          <Bar dataKey="count" fill="url(#barGradient)" name="Număr" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* Weekly Revenue Chart */}
+          <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-base font-semibold text-primary-800 dark:text-white">Venit Săptămânal</h4>
+              <span className="text-xs text-neutral-400 bg-neutral-100 dark:bg-neutral-700 px-2 py-1 rounded-md">Ultimele 4 săptămâni</span>
+            </div>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={weeklyRevenue} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#0A2540" stopOpacity={0.2} />
+                      <stop offset="100%" stopColor="#0A2540" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" opacity={0.5} />
+                  <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#0A2540',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'white',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                    }}
+                  />
+                  <Line type="monotone" dataKey="revenue" name="Venit" stroke="#0A2540" strokeWidth={3} dot={{ fill: '#0A2540', strokeWidth: 2, r: 4 }} activeDot={{ r: 6, fill: '#00C29A' }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
+
+          {/* Status Distribution Chart */}
+          <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-base font-semibold text-primary-800 dark:text-white">Status Rezervări</h4>
+              <span className="text-xs text-neutral-400 bg-neutral-100 dark:bg-neutral-700 px-2 py-1 rounded-md">Distribuție</span>
+            </div>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={containersByLine} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#00C29A" />
+                      <stop offset="100%" stopColor="#008F6F" />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" opacity={0.5} />
+                  <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={10} tickLine={false} axisLine={false} angle={-20} textAnchor="end" height={60} />
+                  <YAxis stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#0A2540',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'white',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                    }}
+                  />
+                  <Bar dataKey="count" fill="url(#barGradient)" name="Număr" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

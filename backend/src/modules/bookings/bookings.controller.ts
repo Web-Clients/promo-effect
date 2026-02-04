@@ -1,6 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { BookingsService } from './bookings.service';
 import { authMiddleware, requireRole } from '../../middleware/auth.middleware';
+import multer from 'multer';
+
+// Configure multer for memory storage
+const upload = multer({ storage: multer.memoryStorage() });
 
 const router = Router();
 const bookingsService = new BookingsService();
@@ -122,6 +126,37 @@ router.delete('/:id', authMiddleware, requireRole(['ADMIN', 'SUPER_ADMIN']), asy
     res.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to delete booking';
+    if (message.includes('Forbidden')) {
+      res.status(403).json({ error: message });
+    } else if (message.includes('not found')) {
+      res.status(404).json({ error: message });
+    } else {
+      res.status(500).json({ error: message });
+    }
+  }
+});
+
+/**
+ * POST /api/bookings/:id/documents - Upload document
+ * Auth: Required
+ * Role: ADMIN, AGENT, CLIENT (for own boookings)
+ */
+router.post('/:id/documents', authMiddleware, upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const document = await bookingsService.addDocument(
+      req.params.id,
+      req.file,
+      req.user!.userId,
+      req.user!.role
+    );
+
+    res.status(201).json(document);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to upload document';
     if (message.includes('Forbidden')) {
       res.status(403).json({ error: message });
     } else if (message.includes('not found')) {

@@ -12,15 +12,15 @@ interface DashboardLayoutProps {
 }
 
 const Avatar = ({ children, className }: React.PropsWithChildren<{ className?: string }>) => (
-    <div className={cn("relative flex h-9 w-9 shrink-0 overflow-hidden rounded-full", className)}>
-        {children}
-    </div>
+  <div className={cn("relative flex h-9 w-9 shrink-0 overflow-hidden rounded-full", className)}>
+    {children}
+  </div>
 );
 const AvatarImage = ({ src }: { src?: string }) => <img className="aspect-square h-full w-full" src={src} />;
 const AvatarFallback = ({ children }: React.PropsWithChildren<{}>) => (
-    <span className="flex h-full w-full items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-700 text-neutral-500 dark:text-neutral-400">
-        {children}
-    </span>
+  <span className="flex h-full w-full items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-700 text-neutral-500 dark:text-neutral-400">
+    {children}
+  </span>
 );
 
 interface NavItem {
@@ -65,6 +65,7 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
     { name: 'Agenți Chinezi', path: 'agents', icon: GlobeIcon, visible: isAdmin },
     { name: 'Panou Admin', path: 'admin-panel', icon: UserCheckIcon, visible: isAdmin },
     { name: 'Setări Admin', path: 'adminSettings', icon: SettingsIcon, visible: isAdmin },
+    { name: 'Prețurile Mele', path: 'my-prices', icon: DollarSignIcon, visible: user.role === UserRole.AGENT },
   ];
 
   return (
@@ -72,9 +73,9 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
       {/* Flexport-style Dark Navy Sidebar */}
       <aside
         className={cn(
-            "fixed left-0 top-0 h-screen z-40 transition-all duration-300 hidden md:flex md:flex-col",
-            "bg-[#0A2540] text-white shadow-xl",
-            sidebarOpen ? "w-64" : "w-[72px]"
+          "fixed left-0 top-0 h-screen z-40 transition-all duration-300 hidden md:flex md:flex-col",
+          "bg-[#0A2540] text-white shadow-xl",
+          sidebarOpen ? "w-64" : "w-[72px]"
         )}
       >
         {/* Logo Section */}
@@ -171,7 +172,7 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
           </div>
         </div>
       </aside>
-      
+
       {/* Main Content */}
       <div className={cn('transition-all duration-300', sidebarOpen ? 'md:ml-64' : 'md:ml-[72px]')}>
         <header className="sticky top-0 z-30 bg-white/95 dark:bg-neutral-800/95 backdrop-blur-md border-b border-neutral-200 dark:border-neutral-700">
@@ -194,7 +195,7 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
               </button>
 
               <button onClick={toggleTheme} className="p-2.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
-                 {theme === 'dark' ? <SunIcon className="h-5 w-5 text-neutral-600 dark:text-neutral-300" /> : <MoonIcon className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />}
+                {theme === 'dark' ? <SunIcon className="h-5 w-5 text-neutral-600 dark:text-neutral-300" /> : <MoonIcon className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />}
               </button>
 
               <button
@@ -205,13 +206,13 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
                 Rezervare Nouă
               </button>
 
-               <button onClick={onLogout} className="p-2.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors" title="Deconectare">
+              <button onClick={onLogout} className="p-2.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors" title="Deconectare">
                 <LogOutIcon className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
               </button>
             </div>
           </div>
         </header>
-        
+
         <main className="p-4 sm:p-6 pb-24 md:pb-6 animate-fade-in">
           {children}
         </main>
@@ -220,36 +221,36 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
       {/* Floating Action Button for Mobile */}
       <div className="md:hidden fixed bottom-20 right-4 z-40">
         <button
-            onClick={() => onNewBooking()}
-            className="bg-accent-500 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:bg-accent-600 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent-500 hover:scale-105"
-            aria-label="Rezervare Nouă"
+          onClick={() => onNewBooking()}
+          className="bg-accent-500 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:bg-accent-600 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent-500 hover:scale-105"
+          aria-label="Rezervare Nouă"
         >
-            <PlusIcon className="h-7 w-7" />
+          <PlusIcon className="h-7 w-7" />
         </button>
       </div>
 
       {/* Mobile Bottom Navigation - Flexport Style */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0A2540] border-t border-white/10 z-50 safe-area-pb">
         <div className="grid grid-cols-5 gap-1 p-2">
-            {navigation.filter(n => n.visible).slice(0, 5).map(item => {
-                const Icon = item.icon;
-                return (
-                    <NavLink
-                      key={item.path}
-                      to={item.path}
-                      end={item.end}
-                      className={({isActive}) => cn(
-                        'flex flex-col items-center justify-center py-2 px-1 rounded-lg text-center transition-all',
-                        isActive
-                          ? 'bg-white/15 text-white'
-                          : 'text-white/60'
-                      )}
-                    >
-                        <Icon className="h-5 w-5" />
-                        <span className="text-[10px] leading-tight mt-1 line-clamp-1 font-medium">{item.name}</span>
-                    </NavLink>
-                )
-            })}
+          {navigation.filter(n => n.visible).slice(0, 5).map(item => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                end={item.end}
+                className={({ isActive }) => cn(
+                  'flex flex-col items-center justify-center py-2 px-1 rounded-lg text-center transition-all',
+                  isActive
+                    ? 'bg-white/15 text-white'
+                    : 'text-white/60'
+                )}
+              >
+                <Icon className="h-5 w-5" />
+                <span className="text-[10px] leading-tight mt-1 line-clamp-1 font-medium">{item.name}</span>
+              </NavLink>
+            )
+          })}
         </div>
       </nav>
     </div>

@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card } from './ui/Card';
 import { Input } from './ui/Input';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
-import { 
-  SearchIcon, PackageIcon, TruckIcon, CheckCircleIcon, 
+import {
+  SearchIcon, PackageIcon, TruckIcon, CheckCircleIcon,
   ClockIcon, AlertCircleIcon, PlusIcon, MapPinIcon,
   RefreshCwIcon
 } from './icons';
@@ -17,7 +17,13 @@ import trackingService, {
   EventType,
   TrackingEventInput,
   getStatusLabel,
+  RouteData,
+  VesselInfo,
+  ContainerLocation,
 } from '../services/tracking';
+
+// Lazy load map component to avoid issues with SSR
+const ContainerMap = lazy(() => import('./ContainerMap'));
 
 // ============================================
 // TYPES
@@ -425,6 +431,12 @@ const TrackingView: React.FC = () => {
   const [eventTypes, setEventTypes] = useState<EventType[]>([]);
   const [showAddEventModal, setShowAddEventModal] = useState(false);
 
+  // Map state
+  const [showMap, setShowMap] = useState(true);
+  const [routeData, setRouteData] = useState<RouteData | null>(null);
+  const [vesselInfo, setVesselInfo] = useState<VesselInfo | null>(null);
+  const [locationInfo, setLocationInfo] = useState<ContainerLocation | null>(null);
+
   // Load initial data
   const loadInitialData = useCallback(async () => {
     try {
@@ -462,10 +474,197 @@ const TrackingView: React.FC = () => {
     setIsLoading(true);
     setError('');
     setTrackingData(null);
+    setRouteData(null);
+    setVesselInfo(null);
+    setLocationInfo(null);
 
     try {
       const data = await trackingService.searchContainer(number.trim().toUpperCase());
       setTrackingData(data);
+
+      // Extract extended data from SeaRates if available
+      if (data._route) {
+        setRouteData(data._route);
+      }
+      if (data._vessel) {
+        setVesselInfo(data._vessel);
+      }
+      if (data._location) {
+        setLocationInfo(data._location);
+      }
+
+      // Also try to fetch route data from public tracking endpoint
+      try {
+        const publicData = await trackingService.trackPublic(number.trim().toUpperCase(), { route: true });
+        console.log('[TrackingView] Public tracking data received:', {
+          success: publicData.success,
+          hasEvents: !!publicData.data?.events?.length,
+          eventsCount: publicData.data?.events?.length || 0,
+          hasRoute: !!publicData.data?.route,
+          routePathLength: publicData.data?.route?.path?.length || 0,
+          routePinsLength: publicData.data?.route?.pins?.length || 0,
+          location: publicData.data?.location,
+          vessel: publicData.data?.vessel,
+        });
+
+        if (publicData.success && publicData.data) {
+          // Set vessel info
+          if (publicData.data.vessel) {
+            setVesselInfo(publicData.data.vessel);
+          }
+
+          // Build route from events if route.path is empty
+          let finalRoute = publicData.data.route;
+          const events = publicData.data.events;
+
+          if (events && events.length > 0) {
+            // Sort events by date (oldest first for building route)
+            const sortedEvents = [...events].sort(
+              (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+            );
+
+            // Build path from events with coordinates
+            const routePoints: Array<[number, number]> = [];
+            const pins: Array<{ coordinates: [number, number]; location?: string; type?: string }> = [];
+
+            for (const event of sortedEvents) {
+              if (event.location?.latitude && event.location?.longitude) {
+                const coords: [number, number] = [event.location.longitude, event.location.latitude];
+
+                // Add to path if not duplicate
+                const lastPoint = routePoints[routePoints.length - 1];
+                if (!lastPoint || lastPoint[0] !== coords[0] || lastPoint[1] !== coords[1]) {
+                  routePoints.push(coords);
+                }
+
+                // Add pin for significant events
+                if (event.type?.includes('LOAD') || event.type?.includes('DISCHARGE') ||
+                    event.type?.includes('DEPARTURE') || event.type?.includes('ARRIVAL') ||
+                    event.type?.includes('GATE')) {
+                  const existingPin = pins.find(p =>
+                    p.coordinates[0] === coords[0] && p.coordinates[1] === coords[1]
+                  );
+                  if (!existingPin) {
+                    pins.push({
+                      coordinates: coords,
+                      location: event.location.name || event.location.city,
+                      type: event.type?.includes('LOAD') || event.type?.includes('DEPARTURE') ? 'POL' :
+                            event.type?.includes('DISCHARGE') || event.type?.includes('ARRIVAL') ? 'POD' :
+                            'TRANSSHIPMENT',
+                    });
+                  }
+                }
+              }
+            }
+
+            // Use built route if original is empty
+            if (!finalRoute?.path || finalRoute.path.length === 0) {
+              finalRoute = {
+                path: routePoints.length >= 2 ? routePoints : [],
+                pins: pins.length > 0 ? pins : finalRoute?.pins || [],
+              };
+            }
+
+            // Find current position from last ACTUAL event (not estimated)
+            // The last actual event with coordinates is the real current position
+            const actualEvents = sortedEvents
+              .filter(e => e.isActual && e.location?.latitude && e.location?.longitude)
+              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+            const lastActualEvent = actualEvents[0];
+
+            // Check if vessel is currently at sea (departed but not arrived)
+            const departureEvents = actualEvents.filter(e =>
+              e.type?.includes('DEPARTURE') || e.type?.includes('LOAD')
+            );
+            const arrivalEvents = actualEvents.filter(e =>
+              e.type?.includes('ARRIVAL') || e.type?.includes('DISCHARGE')
+            );
+
+            const lastDeparture = departureEvents[0];
+            const lastArrival = arrivalEvents[0];
+
+            // Vessel is at sea if last departure is more recent than last arrival
+            const isAtSea = lastDeparture && (!lastArrival ||
+              new Date(lastDeparture.date) > new Date(lastArrival.date));
+
+            if (isAtSea && lastDeparture?.location && publicData.data.eta) {
+              // Calculate estimated position between last departure and destination
+              const departureCoords = lastDeparture.location;
+              const destinationCoords = publicData.data.location;
+
+              if (departureCoords?.latitude && departureCoords?.longitude &&
+                  destinationCoords?.latitude && destinationCoords?.longitude) {
+                const departureTime = new Date(lastDeparture.date).getTime();
+                const etaTime = new Date(publicData.data.eta).getTime();
+                const nowTime = Date.now();
+
+                // Calculate progress (0 to 1)
+                const totalDuration = etaTime - departureTime;
+                const elapsed = nowTime - departureTime;
+                const progress = Math.min(Math.max(elapsed / totalDuration, 0), 0.95); // Max 95% until arrival
+
+                // Linear interpolation (simplified - doesn't account for actual shipping routes)
+                const estimatedLat = departureCoords.latitude +
+                  (destinationCoords.latitude - departureCoords.latitude) * progress;
+                const estimatedLng = departureCoords.longitude +
+                  (destinationCoords.longitude - departureCoords.longitude) * progress;
+
+                setLocationInfo({
+                  name: `În mare (aprox. ${Math.round(progress * 100)}% din traseu)`,
+                  city: undefined,
+                  country: undefined,
+                  latitude: estimatedLat,
+                  longitude: estimatedLng,
+                });
+
+                console.log('[TrackingView] Estimated at-sea position:', {
+                  progress: `${Math.round(progress * 100)}%`,
+                  from: departureCoords,
+                  to: destinationCoords,
+                  estimated: { lat: estimatedLat, lng: estimatedLng },
+                });
+              } else if (lastActualEvent?.location) {
+                setLocationInfo({
+                  name: lastActualEvent.location.name,
+                  city: lastActualEvent.location.city,
+                  country: lastActualEvent.location.country,
+                  unlocode: lastActualEvent.location.unlocode,
+                  latitude: lastActualEvent.location.latitude,
+                  longitude: lastActualEvent.location.longitude,
+                });
+              }
+            } else if (lastActualEvent?.location) {
+              // Use last actual event location as current position
+              setLocationInfo({
+                name: lastActualEvent.location.name,
+                city: lastActualEvent.location.city,
+                country: lastActualEvent.location.country,
+                unlocode: lastActualEvent.location.unlocode,
+                latitude: lastActualEvent.location.latitude,
+                longitude: lastActualEvent.location.longitude,
+              });
+            } else if (publicData.data.location) {
+              // Fallback to API location if no actual events with coords
+              setLocationInfo(publicData.data.location);
+            }
+          } else if (publicData.data.location) {
+            setLocationInfo(publicData.data.location);
+          }
+
+          if (finalRoute) {
+            console.log('[TrackingView] Setting final route data:', {
+              pathLength: finalRoute.path?.length || 0,
+              pinsCount: finalRoute.pins?.length || 0,
+              firstPoints: finalRoute.path?.slice(0, 3),
+            });
+            setRouteData(finalRoute);
+          }
+        }
+      } catch (publicErr) {
+        // Ignore errors from public tracking - we already have local data
+        console.log('[TrackingView] Public tracking fetch error (optional):', publicErr);
+      }
     } catch (err: any) {
       if (err.response?.status === 404) {
         setError(`Containerul "${number}" nu a fost găsit în baza de date.`);
@@ -649,10 +848,54 @@ const TrackingView: React.FC = () => {
                   <p className="text-xs text-neutral-500 dark:text-neutral-400">Locație Curentă</p>
                   <p className="font-medium text-neutral-800 dark:text-neutral-100 flex items-center gap-1">
                     <MapPinIcon className="h-4 w-4 text-red-500" />
-                    {trackingData.currentLocation || 'Necunoscută'}
+                    {trackingData.currentLocation || locationInfo?.name || 'Necunoscută'}
                   </p>
                 </div>
               </div>
+
+              {/* Map Section */}
+              {(trackingData.currentLat && trackingData.currentLng) || routeData || locationInfo ? (
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-lg font-semibold text-neutral-700 dark:text-neutral-200">
+                      Hartă Urmărire
+                    </h4>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowMap(!showMap)}
+                    >
+                      {showMap ? 'Ascunde Harta' : 'Afișează Harta'}
+                    </Button>
+                  </div>
+                  {showMap && (
+                    <Suspense fallback={
+                      <div className="h-[400px] bg-neutral-100 dark:bg-neutral-800 rounded-xl flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto mb-2"></div>
+                          <p className="text-sm text-neutral-500">Se încarcă harta...</p>
+                        </div>
+                      </div>
+                    }>
+                      <ContainerMap
+                        containerNumber={trackingData.containerNumber}
+                        currentLocation={locationInfo || (trackingData.currentLat && trackingData.currentLng ? {
+                          name: trackingData.currentLocation,
+                          latitude: trackingData.currentLat,
+                          longitude: trackingData.currentLng,
+                        } : undefined)}
+                        vessel={vesselInfo}
+                        route={routeData || undefined}
+                        originPort={trackingData.booking?.origin}
+                        destinationPort={trackingData.booking?.destination}
+                        status={trackingData.currentStatus}
+                        eta={trackingData.eta}
+                        height="400px"
+                      />
+                    </Suspense>
+                  )}
+                </div>
+              ) : null}
 
               {/* Timeline */}
               <div>

@@ -6,9 +6,11 @@ import { Button } from './ui/Button';
 import { PlusIcon, SearchIcon, DownloadIcon, RefreshCwIcon, FileTextIcon, TrashIcon, XIcon } from './icons';
 import { useToast } from './ui/Toast';
 import bookingsService, { BookingResponse } from '../services/bookings';
+import invoicesService from '../services/invoices';
 import { cn } from '../lib/utils';
 
 const statusVariantMap: { [key: string]: 'blue' | 'yellow' | 'green' | 'red' | 'purple' | 'default' } = {
+    'PENDING': 'yellow',
     'CONFIRMED': 'blue',
     'IN_TRANSIT': 'yellow',
     'DELIVERED': 'green',
@@ -19,6 +21,7 @@ const statusVariantMap: { [key: string]: 'blue' | 'yellow' | 'green' | 'red' | '
 
 const statusTextMap: { [key: string]: string } = {
     'DRAFT': 'Ciornă',
+    'PENDING': 'În Așteptare',
     'SUBMITTED': 'Trimisă',
     'CONFIRMED': 'Confirmată',
     'IN_TRANSIT': 'În Tranzit',
@@ -29,6 +32,7 @@ const statusTextMap: { [key: string]: string } = {
 // Status colors for new design
 const statusColors: { [key: string]: string } = {
     'DRAFT': 'bg-neutral-100 text-neutral-700 dark:bg-neutral-700 dark:text-neutral-300',
+    'PENDING': 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400',
     'SUBMITTED': 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400',
     'CONFIRMED': 'bg-info-100 text-info-700 dark:bg-info-500/20 dark:text-info-400',
     'IN_TRANSIT': 'bg-warning-100 text-warning-700 dark:bg-warning-500/20 dark:text-warning-400',
@@ -96,8 +100,40 @@ const BookingsList = ({ user }: { user: User; }) => {
     }
   };
 
-  const bulkAction = (action: string) => {
-    addToast(`Acțiunea '${action}' a fost declanșată pentru ${selectedRows.length} elemente.`);
+  const bulkAction = async (action: string) => {
+    if (action === 'generateInvoices') {
+      // Generate invoices for selected bookings
+      const selectedBookings = bookings.filter(b => selectedRows.includes(b.id));
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const booking of selectedBookings) {
+        try {
+          // Set due date to 30 days from now
+          const dueDate = new Date();
+          dueDate.setDate(dueDate.getDate() + 30);
+
+          await invoicesService.createInvoice({
+            bookingId: booking.id,
+            clientId: booking.clientId,
+            dueDate: dueDate.toISOString(),
+          });
+          successCount++;
+        } catch (err: any) {
+          console.error(`Failed to create invoice for ${booking.id}:`, err);
+          errorCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        addToast(`${successCount} facturi generate cu succes!`, 'success');
+      }
+      if (errorCount > 0) {
+        addToast(`${errorCount} facturi nu au putut fi generate (poate există deja)`, 'error');
+      }
+    } else {
+      addToast(`Acțiunea '${action}' nu este implementată încă.`, 'info');
+    }
     setSelectedRows([]);
   };
 
@@ -113,8 +149,7 @@ const BookingsList = ({ user }: { user: User; }) => {
   // Status filter tabs
   const statusTabs = [
     { value: 'ALL', label: 'Toate', count: bookings.length },
-    { value: 'DRAFT', label: 'Ciornă' },
-    { value: 'SUBMITTED', label: 'Trimise' },
+    { value: 'PENDING', label: 'În Așteptare' },
     { value: 'CONFIRMED', label: 'Confirmate' },
     { value: 'IN_TRANSIT', label: 'În Tranzit' },
     { value: 'DELIVERED', label: 'Livrate' },

@@ -365,14 +365,13 @@ const PriceCalculator = () => {
                                 </Select>
                             </FormField>
 
-                            <FormField label="Categorie Marfă (Cod HS)" hint="Căutați după cod sau descriere">
+                            <FormField label="Categorie Marfă (Cod HS)" hint="Opțional - căutați după cod sau descriere">
                                 <HsCodeSelector
                                     value={params.cargoCategory}
                                     onChange={(code: string, hsCode: HsCode | null) => {
                                         setParams({ ...params, cargoCategory: code });
                                     }}
                                     placeholder="Ex: 9403.30 sau mobilier"
-                                    required
                                 />
                             </FormField>
 

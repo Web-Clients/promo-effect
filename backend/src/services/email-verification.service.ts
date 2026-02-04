@@ -1,88 +1,11 @@
 /**
  * Email Verification Service
- * 
+ *
  * Handles sending email verification emails to users
- * Uses nodemailer with SMTP (supports Gmail, Outlook, custom SMTP - all FREE)
+ * Uses Infobip Email API for delivery
  */
 
-import nodemailer from 'nodemailer';
-
-// Create reusable transporter
-let transporter: nodemailer.Transporter | null = null;
-
-/**
- * Initialize email transporter based on environment variables
- * Supports: Gmail, Outlook, or custom SMTP
- */
-function getTransporter(): nodemailer.Transporter | null {
-  if (transporter) {
-    return transporter;
-  }
-
-  // Check which email provider is configured
-  const emailProvider = process.env.EMAIL_PROVIDER || 'SMTP';
-  const smtpHost = process.env.SMTP_HOST;
-  const smtpPort = parseInt(process.env.SMTP_PORT || '587');
-  const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USER;
-  const smtpPassword = process.env.SMTP_PASSWORD || process.env.EMAIL_PASSWORD;
-  const smtpFromEmail = process.env.SMTP_FROM_EMAIL || process.env.FROM_EMAIL || smtpUser;
-  const smtpFromName = process.env.SMTP_FROM_NAME || process.env.FROM_NAME || 'Promo-Efect';
-
-  // If no SMTP configured, return null (will log instead of sending)
-  if (!smtpHost && !smtpUser) {
-    console.warn('[EmailVerification] No SMTP configuration found. Emails will be logged to console.');
-    return null;
-  }
-
-  // Auto-detect Gmail
-  if (emailProvider === 'GMAIL' || smtpUser?.endsWith('@gmail.com')) {
-    transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: smtpUser,
-        pass: smtpPassword, // Use App Password for Gmail (not regular password)
-      },
-    });
-    console.log('[EmailVerification] Gmail SMTP configured');
-    return transporter;
-  }
-
-  // Auto-detect Outlook/Hotmail
-  if (emailProvider === 'OUTLOOK' || smtpUser?.match(/@(outlook|hotmail|live)\.(com|ru)/)) {
-    transporter = nodemailer.createTransport({
-      host: 'smtp-mail.outlook.com',
-      port: 587,
-      secure: false, // true for 465, false for other ports
-      auth: {
-        user: smtpUser,
-        pass: smtpPassword,
-      },
-      tls: {
-        ciphers: 'SSLv3',
-      },
-    });
-    console.log('[EmailVerification] Outlook SMTP configured');
-    return transporter;
-  }
-
-  // Custom SMTP
-  transporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpPort === 465, // true for 465, false for other ports
-    auth: smtpUser && smtpPassword ? {
-      user: smtpUser,
-      pass: smtpPassword,
-    } : undefined,
-    // For development/testing - accept self-signed certificates
-    tls: {
-      rejectUnauthorized: process.env.NODE_ENV === 'production' ? true : false,
-    },
-  });
-
-  console.log(`[EmailVerification] Custom SMTP configured: ${smtpHost}:${smtpPort}`);
-  return transporter;
-}
+import { infobipService } from './infobip.service';
 
 export interface VerificationEmailData {
   email: string;
@@ -182,35 +105,7 @@ function generateVerificationEmailTemplate(data: VerificationEmailData): string 
  * Send email verification email
  */
 export async function sendVerificationEmail(data: VerificationEmailData): Promise<void> {
-  const mailTransporter = getTransporter();
-  const smtpFromEmail = process.env.SMTP_FROM_EMAIL || process.env.FROM_EMAIL || process.env.SMTP_USER || 'noreply@promo-efect.md';
-  const smtpFromName = process.env.SMTP_FROM_NAME || process.env.FROM_NAME || 'Promo-Efect';
-
-  // If no transporter configured, log to console (for development)
-  if (!mailTransporter) {
-    console.log('='.repeat(60));
-    console.log('📧 EMAIL VERIFICATION (SMTP not configured - logging to console)');
-    console.log('='.repeat(60));
-    console.log(`To: ${data.email}`);
-    console.log(`From: ${smtpFromName} <${smtpFromEmail}>`);
-    console.log(`Subject: Confirmă Adresa de Email - Promo-Efect`);
-    console.log(`Verification URL: ${data.verificationUrl}`);
-    console.log('='.repeat(60));
-    console.log('\nTo enable email sending, configure SMTP in .env:');
-    console.log('  - For Gmail: SMTP_USER=your@gmail.com, SMTP_PASSWORD=app_password');
-    console.log('  - For Outlook: SMTP_USER=your@outlook.com, SMTP_PASSWORD=password');
-    console.log('  - For custom: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD');
-    console.log('='.repeat(60));
-    return;
-  }
-
-  try {
-    const mailOptions = {
-      from: `"${smtpFromName}" <${smtpFromEmail}>`,
-      to: data.email,
-      subject: 'Confirmă Adresa de Email - Promo-Efect',
-      html: generateVerificationEmailTemplate(data),
-      text: `
+  const textContent = `
 Bună ziua, ${data.name}!
 
 Mulțumim că v-ați înregistrat pe platforma Promo-Efect!
@@ -225,60 +120,35 @@ Dacă nu ați solicitat acest email, vă rugăm să îl ignorați.
 
 Cu respect,
 Echipa Promo-Efect
-      `.trim(),
-    };
+  `.trim();
 
-    const info = await mailTransporter.sendMail(mailOptions);
-    console.log(`[EmailVerification] ✅ Verification email sent successfully to ${data.email}`);
-    console.log(`[EmailVerification] Message ID: ${info.messageId}`);
-  } catch (error: any) {
-    console.error('[EmailVerification] ❌ Failed to send verification email:', error);
-    
-    // Log detailed error
-    if (error.code) {
-      console.error(`[EmailVerification] Error code: ${error.code}`);
-    }
-    if (error.response) {
-      console.error('[EmailVerification] SMTP response:', error.response);
-    }
-    
-    // Don't throw error - allow registration to complete even if email fails
-    // Email can be resent later via resend endpoint
-    throw new Error(`Failed to send verification email: ${error.message}`);
+  const result = await infobipService.sendEmail({
+    to: data.email,
+    subject: 'Confirmă Adresa de Email - Promo-Efect',
+    html: generateVerificationEmailTemplate(data),
+    text: textContent,
+  });
+
+  if (!result.success) {
+    console.error('[EmailVerification] Failed to send verification email:', result.error);
+    throw new Error(`Failed to send verification email: ${result.error}`);
+  }
+
+  console.log(`[EmailVerification] Verification email sent successfully to ${data.email}`);
+  if (result.messageId) {
+    console.log(`[EmailVerification] Message ID: ${result.messageId}`);
   }
 }
 
 /**
- * Send password reset email (reuse same template structure)
+ * Send password reset email
  */
 export async function sendPasswordResetEmail(
   email: string,
   name: string,
   resetUrl: string
 ): Promise<void> {
-  const mailTransporter = getTransporter();
-  const smtpFromEmail = process.env.SMTP_FROM_EMAIL || process.env.FROM_EMAIL || process.env.SMTP_USER || 'noreply@promo-efect.md';
-  const smtpFromName = process.env.SMTP_FROM_NAME || process.env.FROM_NAME || 'Promo-Efect';
-
-  // If no transporter configured, log to console
-  if (!mailTransporter) {
-    console.log('='.repeat(60));
-    console.log('📧 PASSWORD RESET EMAIL (SMTP not configured - logging to console)');
-    console.log('='.repeat(60));
-    console.log(`To: ${email}`);
-    console.log(`From: ${smtpFromName} <${smtpFromEmail}>`);
-    console.log(`Subject: Resetare Parolă - Promo-Efect`);
-    console.log(`Reset URL: ${resetUrl}`);
-    console.log('='.repeat(60));
-    return;
-  }
-
-  try {
-    const mailOptions = {
-      from: `"${smtpFromName}" <${smtpFromEmail}>`,
-      to: email,
-      subject: 'Resetare Parolă - Promo-Efect',
-      html: `
+  const htmlContent = `
 <!DOCTYPE html>
 <html lang="ro">
 <head>
@@ -307,7 +177,7 @@ export async function sendPasswordResetEmail(
               <table role="presentation" style="width: 100%; margin: 30px 0;">
                 <tr>
                   <td style="text-align: center;">
-                    <a href="${resetUrl}" 
+                    <a href="${resetUrl}"
                        style="display: inline-block; padding: 16px 32px; background-color: #1e40af; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
                       Resetare Parolă
                     </a>
@@ -325,8 +195,9 @@ export async function sendPasswordResetEmail(
   </table>
 </body>
 </html>
-      `.trim(),
-      text: `
+  `.trim();
+
+  const textContent = `
 Bună ziua, ${name}!
 
 Ați solicitat resetarea parolei pentru contul dumneavoastră Promo-Efect.
@@ -341,15 +212,23 @@ Dacă nu ați solicitat resetarea parolei, vă rugăm să ignorați acest email.
 
 Cu respect,
 Echipa Promo-Efect
-      `.trim(),
-    };
+  `.trim();
 
-    const info = await mailTransporter.sendMail(mailOptions);
-    console.log(`[EmailVerification] ✅ Password reset email sent successfully to ${email}`);
-    console.log(`[EmailVerification] Message ID: ${info.messageId}`);
-  } catch (error: any) {
-    console.error('[EmailVerification] ❌ Failed to send password reset email:', error);
-    throw new Error(`Failed to send password reset email: ${error.message}`);
+  const result = await infobipService.sendEmail({
+    to: email,
+    subject: 'Resetare Parolă - Promo-Efect',
+    html: htmlContent,
+    text: textContent,
+  });
+
+  if (!result.success) {
+    console.error('[EmailVerification] Failed to send password reset email:', result.error);
+    throw new Error(`Failed to send password reset email: ${result.error}`);
+  }
+
+  console.log(`[EmailVerification] Password reset email sent successfully to ${email}`);
+  if (result.messageId) {
+    console.log(`[EmailVerification] Message ID: ${result.messageId}`);
   }
 }
 

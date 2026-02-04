@@ -137,7 +137,7 @@ const AdminDashboard = () => {
 
       {/* Quick Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Users Card */}
           <Card className="p-5">
             <div className="flex items-center gap-4">
@@ -201,6 +201,31 @@ const AdminDashboard = () => {
                 <p className="text-xs text-orange-600 dark:text-orange-400 flex items-center gap-1">
                   {stats.containers.inTransit} în tranzit
                 </p>
+              </div>
+            </div>
+          </Card>
+
+          {/* Pricing Card */}
+          <Card className="p-5">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-teal-100 dark:bg-teal-500/20 flex items-center justify-center text-teal-600 dark:text-teal-400">
+                <DollarIcon />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-neutral-500 dark:text-neutral-400">Configurare Prețuri</p>
+                <div className="flex gap-4 items-end mt-1">
+                  <div>
+                    <p className="text-xl font-bold text-primary-800 dark:text-white">{stats.pricing?.totalBasePrices || 0}</p>
+                    <p className="text-[10px] text-neutral-500 uppercase tracking-wide">Platformă</p>
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-primary-800 dark:text-white">{stats.pricing?.totalAgentPrices || 0}</p>
+                    <p className="text-[10px] text-neutral-500 uppercase tracking-wide">Agenți</p>
+                  </div>
+                </div>
+                <Link to="/dashboard/admin-pricing" className="text-xs text-teal-600 dark:text-teal-400 hover:underline mt-2 inline-block">
+                  Gestionează toate &rarr;
+                </Link>
               </div>
             </div>
           </Card>
@@ -392,8 +417,8 @@ const AdminDashboard = () => {
                     <span className={cn(
                       'px-2 py-0.5 text-xs font-medium rounded-full',
                       user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' ? 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400' :
-                      user.role === 'AGENT' ? 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400' :
-                      'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-400'
+                        user.role === 'AGENT' ? 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400' :
+                          'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-400'
                     )}>
                       {user.role}
                     </span>

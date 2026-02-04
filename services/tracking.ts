@@ -18,6 +18,33 @@ export interface TrackingEvent {
   createdAt: string;
 }
 
+export interface ContainerLocation {
+  name?: string;
+  city?: string;
+  country?: string;
+  unlocode?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export interface VesselInfo {
+  name?: string;
+  imo?: string;
+  mmsi?: string;
+  callSign?: string;
+}
+
+export interface RoutePin {
+  coordinates: [number, number]; // [lng, lat]
+  location?: string;
+  type?: string;
+}
+
+export interface RouteData {
+  path?: Array<[number, number]>; // Array of [lng, lat]
+  pins?: RoutePin[];
+}
+
 export interface Container {
   id: string;
   bookingId: string;
@@ -45,6 +72,16 @@ export interface Container {
     };
   };
   trackingEvents?: TrackingEvent[];
+  // SeaRates extended data
+  _source?: string;
+  _shippingLine?: {
+    code?: string;
+    name?: string;
+  };
+  _vessel?: VesselInfo;
+  _voyage?: string;
+  _location?: ContainerLocation;
+  _route?: RouteData;
 }
 
 export interface ContainerListResponse {

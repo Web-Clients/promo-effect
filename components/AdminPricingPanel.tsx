@@ -257,31 +257,28 @@ export function AdminPricingPanel() {
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab('base-prices')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'base-prices'
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'base-prices'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+              }`}
           >
             Prețuri de Bază
           </button>
           <button
             onClick={() => setActiveTab('port-adjustments')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'port-adjustments'
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'port-adjustments'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+              }`}
           >
             Ajustări Port Origine
           </button>
           <button
             onClick={() => setActiveTab('settings')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'settings'
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'settings'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+              }`}
           >
             Setări Generale
           </button>
@@ -631,11 +628,10 @@ function BasePricesTab({
                     <td className="px-4 py-3 text-sm text-right font-medium">${price.basePrice.toFixed(2)}</td>
                     <td className="px-4 py-3 text-sm text-center">{price.transitDays}</td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        price.isActive
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${price.isActive
                           ? 'bg-green-100 text-green-800'
                           : 'bg-gray-100 text-gray-800'
-                      }`}>
+                        }`}>
                         {price.isActive ? 'Activ' : 'Inactiv'}
                       </span>
                     </td>
@@ -873,6 +869,13 @@ interface SettingsTabProps {
   onSave: (data: AdminSettingsInput) => void;
 }
 
+interface WeightRange {
+  label: string;
+  min: number;
+  max: number;
+  enabled: boolean;
+}
+
 function SettingsTab({ settings, loading, onSave }: SettingsTabProps) {
   const [formData, setFormData] = useState<AdminSettingsInput>({
     portTaxesConstanta: 221.67,
@@ -883,7 +886,10 @@ function SettingsTab({ settings, loading, onSave }: SettingsTabProps) {
     commission: 200,
     insuranceCost: 50,
     profitMarginPercent: 10,
+    weightRanges: '[]',
   });
+
+  const [ranges, setRanges] = useState<WeightRange[]>([]);
 
   useEffect(() => {
     if (settings) {
@@ -896,19 +902,122 @@ function SettingsTab({ settings, loading, onSave }: SettingsTabProps) {
         commission: settings.commission,
         insuranceCost: settings.insuranceCost,
         profitMarginPercent: settings.profitMarginPercent,
+        weightRanges: settings.weightRanges || '[]',
       });
+
+      // Parse weight ranges
+      try {
+        const parsedRanges = JSON.parse(settings.weightRanges || '[]');
+        if (Array.isArray(parsedRanges)) {
+          setRanges(parsedRanges);
+        }
+      } catch (e) {
+        console.error('Failed to parse weight ranges', e);
+        setRanges([]);
+      }
     }
   }, [settings]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    // Include current ranges in submission
+    onSave({
+      ...formData,
+      weightRanges: JSON.stringify(ranges)
+    });
+  };
+
+  const addRange = () => {
+    setRanges([...ranges, { label: 'Range nou', min: 0, max: 0, enabled: true }]);
+  };
+
+  const removeRange = (index: number) => {
+    const newRanges = [...ranges];
+    newRanges.splice(index, 1);
+    setRanges(newRanges);
+  };
+
+  const updateRange = (index: number, field: keyof WeightRange, value: any) => {
+    const newRanges = [...ranges];
+    newRanges[index] = { ...newRanges[index], [field]: value };
+    setRanges(newRanges);
   };
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <h3 className="text-lg font-medium mb-6">Setări Generale de Preț</h3>
       <form onSubmit={handleSubmit} className="space-y-6">
+
+        {/* Weight Ranges Config */}
+        <div className="border-b pb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h4 className="text-md font-medium text-gray-900">Intervale de Greutate (Pentru Calculator)</h4>
+            <button
+              type="button"
+              onClick={addRange}
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              + Adaugă Interval
+            </button>
+          </div>
+
+          <div className="space-y-3 bg-gray-50 p-4 rounded-lg">
+            {ranges.length === 0 && <p className="text-sm text-gray-500 text-center py-2">Nu există intervale definite.</p>}
+
+            {ranges.map((range, index) => (
+              <div key={index} className="flex gap-3 items-center">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={range.label}
+                    onChange={(e) => updateRange(index, 'label', e.target.value)}
+                    placeholder="Etichetă (ex: 1-10 tone)"
+                    className="w-full text-sm border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div className="w-24">
+                  <input
+                    type="number"
+                    value={range.min}
+                    onChange={(e) => updateRange(index, 'min', parseFloat(e.target.value))}
+                    placeholder="Min"
+                    step="0.1"
+                    className="w-full text-sm border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div className="w-24">
+                  <input
+                    type="number"
+                    value={range.max}
+                    onChange={(e) => updateRange(index, 'max', parseFloat(e.target.value))}
+                    placeholder="Max"
+                    step="0.1"
+                    className="w-full text-sm border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={range.enabled}
+                    onChange={(e) => updateRange(index, 'enabled', e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeRange(index)}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  &times;
+                </button>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            Aceste intervale sunt folosite în calculatorul de pe site pentru a determina costurile. Asigurați-vă că nu se suprapun (prea mult).
+          </p>
+        </div>
+
         {/* Constanța Section */}
         <div className="border-b pb-6">
           <h4 className="text-md font-medium text-gray-900 mb-4">Constanța (România)</h4>

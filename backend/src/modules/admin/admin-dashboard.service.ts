@@ -36,6 +36,13 @@ export interface DashboardStats {
     inTransit: number;
     delayed: number;
   };
+  pricing: {
+    basePrices: number;
+    totalBasePrices: number;
+    agentPrices: number;
+    totalAgentPrices: number;
+    portAdjustments: number;
+  };
 }
 
 export interface RecentActivity {
@@ -154,6 +161,13 @@ export class AdminDashboardService {
         total: totalContainers,
         inTransit: inTransitContainers,
         delayed: delayedContainers,
+      },
+      pricing: {
+        basePrices: await prisma.basePrice.count({ where: { isActive: true } }),
+        totalBasePrices: await prisma.basePrice.count(),
+        agentPrices: await prisma.agentPrice.count({ where: { approvalStatus: 'APPROVED' } }),
+        totalAgentPrices: await prisma.agentPrice.count(),
+        portAdjustments: await prisma.portAdjustment.count(),
       },
     };
   }

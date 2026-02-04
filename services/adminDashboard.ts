@@ -36,6 +36,13 @@ export interface DashboardStats {
     inTransit: number;
     delayed: number;
   };
+  pricing: {
+    basePrices: number;
+    totalBasePrices: number;
+    agentPrices: number;
+    totalAgentPrices: number;
+    portAdjustments: number;
+  };
 }
 
 export interface RecentBooking {

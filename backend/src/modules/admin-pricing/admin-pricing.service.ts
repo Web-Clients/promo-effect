@@ -35,6 +35,7 @@ export interface AdminSettingsInput {
   commission?: number;
   insuranceCost?: number;
   profitMarginPercent?: number;
+  weightRanges?: string;
 }
 
 export class AdminPricingService {
@@ -269,6 +270,12 @@ export class AdminPricingService {
           commission: 200.0,
           insuranceCost: 50.0,
           profitMarginPercent: 10.0,
+          weightRanges: JSON.stringify([
+            { label: "1-10 tone", min: 1, max: 10, enabled: true },
+            { label: "10-20 tone", min: 10, max: 20, enabled: true },
+            { label: "20-23 tone", min: 20, max: 23, enabled: true },
+            { label: "23-24 tone", min: 23, max: 24, enabled: true }
+          ]),
         },
       });
     }
@@ -294,6 +301,7 @@ export class AdminPricingService {
         ...(data.commission !== undefined && { commission: data.commission }),
         ...(data.insuranceCost !== undefined && { insuranceCost: data.insuranceCost }),
         ...(data.profitMarginPercent !== undefined && { profitMarginPercent: data.profitMarginPercent }),
+        ...(data.weightRanges !== undefined && { weightRanges: data.weightRanges }),
         // Also update legacy fields for backward compatibility
         ...(data.portTaxesConstanta !== undefined && { portTaxes: data.portTaxesConstanta }),
         ...(data.terrestrialTransportConstanta !== undefined && { terrestrialTransport: data.terrestrialTransportConstanta }),

@@ -1,79 +1,11 @@
 /**
  * Notification Service
  * Handles sending notifications through multiple channels (Email, SMS, WhatsApp, Push)
- * Uses nodemailer for email (FREE via SMTP) - no paid services
+ * Uses Infobip for email and SMS delivery
  */
 
-import nodemailer from 'nodemailer';
 import prisma from '../lib/prisma';
-
-// Create reusable email transporter (uses same config as email-verification.service)
-let emailTransporter: nodemailer.Transporter | null = null;
-
-/**
- * Get email transporter (reuses same logic as email-verification service)
- */
-function getEmailTransporter(): nodemailer.Transporter | null {
-  if (emailTransporter) {
-    return emailTransporter;
-  }
-
-  const emailProvider = process.env.EMAIL_PROVIDER || 'SMTP';
-  const smtpHost = process.env.SMTP_HOST;
-  const smtpPort = parseInt(process.env.SMTP_PORT || '587');
-  const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USER;
-  const smtpPassword = process.env.SMTP_PASSWORD || process.env.EMAIL_PASSWORD;
-
-  if (!smtpHost && !smtpUser) {
-    console.warn('[NotificationService] No SMTP configuration found. Email notifications will be logged to console.');
-    return null;
-  }
-
-  // Auto-detect Gmail
-  if (emailProvider === 'GMAIL' || smtpUser?.endsWith('@gmail.com')) {
-    emailTransporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: smtpUser,
-        pass: smtpPassword,
-      },
-    });
-    return emailTransporter;
-  }
-
-  // Auto-detect Outlook
-  if (emailProvider === 'OUTLOOK' || smtpUser?.match(/@(outlook|hotmail|live)\.(com|ru)/)) {
-    emailTransporter = nodemailer.createTransport({
-      host: 'smtp-mail.outlook.com',
-      port: 587,
-      secure: false,
-      auth: {
-        user: smtpUser,
-        pass: smtpPassword,
-      },
-      tls: {
-        ciphers: 'SSLv3',
-      },
-    });
-    return emailTransporter;
-  }
-
-  // Custom SMTP
-  emailTransporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpPort === 465,
-    auth: smtpUser && smtpPassword ? {
-      user: smtpUser,
-      pass: smtpPassword,
-    } : undefined,
-    tls: {
-      rejectUnauthorized: process.env.NODE_ENV === 'production' ? true : false,
-    },
-  });
-
-  return emailTransporter;
-}
+import { infobipService } from './infobip.service';
 
 export interface NotificationChannel {
   email?: boolean;
@@ -113,9 +45,10 @@ export class NotificationService {
     }
 
     // Parse notification preferences if exists
+    // Default: SMS enabled for users with phone numbers
     let userPreferences: NotificationChannel = {
       email: true,
-      sms: false,
+      sms: true,  // SMS enabled by default
       whatsapp: false,
       push: true,
     };
@@ -129,7 +62,7 @@ export class NotificationService {
           : notificationPrefs;
         userPreferences = {
           email: prefs.email !== false,
-          sms: prefs.sms === true,
+          sms: prefs.sms !== false,  // SMS enabled unless explicitly disabled
           whatsapp: prefs.whatsapp === true,
           push: prefs.push !== false,
         };
@@ -224,7 +157,7 @@ export class NotificationService {
   }
 
   /**
-   * Send email notification via nodemailer (FREE SMTP)
+   * Send email notification via Infobip
    */
   private async sendEmail(
     to: string,
@@ -233,43 +166,34 @@ export class NotificationService {
     template?: string,
     templateData?: Record<string, any>
   ) {
-    const transporter = getEmailTransporter();
-    const smtpFromEmail = process.env.SMTP_FROM_EMAIL || process.env.FROM_EMAIL || process.env.SMTP_USER || 'noreply@promo-efect.md';
-    const smtpFromName = process.env.SMTP_FROM_NAME || process.env.FROM_NAME || 'Promo-Efect';
-
-    if (!transporter) {
-      // Log to console if SMTP not configured
-      console.log(`[NotificationService] 📧 Email notification (SMTP not configured):`);
-      console.log(`  To: ${to}`);
-      console.log(`  Subject: ${subject}`);
-      console.log(`  Message: ${message}`);
-      return;
-    }
-
-    const mailOptions = {
-      from: `"${smtpFromName}" <${smtpFromEmail}>`,
+    const result = await infobipService.sendEmail({
       to,
       subject,
       html: this.formatEmailMessage(message),
       text: message,
-    };
+    });
 
-    await transporter.sendMail(mailOptions);
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to send email');
+    }
+
     console.log(`[NotificationService] ✅ Email notification sent to ${to}`);
   }
 
   /**
-   * Send SMS notification
-   * NOTE: SMS requires paid service (Twilio, etc.). Currently disabled.
-   * For free alternative, consider email notifications or push notifications.
+   * Send SMS notification via Infobip
    */
   private async sendSMS(to: string, message: string) {
-    // SMS requires paid service - log instead
-    console.log(`[NotificationService] 📱 SMS notification (SMS service not configured - FREE alternative needed):`);
-    console.log(`  To: ${to}`);
-    console.log(`  Message: ${message}`);
-    console.log(`  Note: SMS requires paid service. Consider using email notifications instead.`);
-    throw new Error('SMS notifications require paid service. Please use email notifications instead.');
+    const result = await infobipService.sendSMS({
+      to,
+      text: message,
+    });
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to send SMS');
+    }
+
+    console.log(`[NotificationService] ✅ SMS notification sent to ${to}`);
   }
 
   /**

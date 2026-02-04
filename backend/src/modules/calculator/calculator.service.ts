@@ -9,7 +9,7 @@
  */
 
 import prisma from '../../lib/prisma';
-import nodemailer from 'nodemailer';
+import { infobipService } from '../../services/infobip.service';
 
 // Container entry for multiple containers
 export interface ContainerEntry {
@@ -734,22 +734,6 @@ export class CalculatorService {
     const containersSummary = containersList.map(c => `${c.quantity}× ${c.type}`).join(', ');
     const totalContainerCount = totalContainers || containersList.reduce((sum, c) => sum + c.quantity, 0);
 
-    const transporter = this.getEmailTransporter();
-    if (!transporter) {
-      console.log('[Calculator] Email transporter not configured, logging emails to console');
-      console.log('=== SUPPLIER EMAIL ===');
-      console.log(`To: ${supplierData.supplierEmail}`);
-      console.log(`Subject: Nouă comandă de export - ${booking.id}`);
-      console.log('=== AGENT EMAIL ===');
-      console.log(`Subject: Nouă rezervare pentru procesare - ${booking.id}`);
-      console.log('=== CUSTOMER EMAIL ===');
-      console.log(`To: ${user.email}`);
-      console.log(`Subject: Confirmarea comenzii - ${booking.id}`);
-      return;
-    }
-
-    const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || 'noreply@promo-efect.md';
-    const fromName = process.env.SMTP_FROM_NAME || 'Promo-Efect';
 
     // 1. Email to supplier (in English)
     const supplierEmailHtml = `
@@ -799,8 +783,7 @@ export class CalculatorService {
     `;
 
     try {
-      await transporter.sendMail({
-        from: `"${fromName}" <${fromEmail}>`,
+      await infobipService.sendEmail({
         to: supplierData.supplierEmail,
         subject: `New Export Order - ${booking.id}`,
         html: supplierEmailHtml,
@@ -868,8 +851,7 @@ export class CalculatorService {
       `;
 
       try {
-        await transporter.sendMail({
-          from: `"${fromName}" <${fromEmail}>`,
+        await infobipService.sendEmail({
           to: agent.user.email,
           subject: `新订单 / New Order - ${booking.id}`,
           html: agentEmailHtml,
@@ -956,8 +938,7 @@ export class CalculatorService {
     `;
 
     try {
-      await transporter.sendMail({
-        from: `"${fromName}" <${fromEmail}>`,
+      await infobipService.sendEmail({
         to: user.email,
         subject: `Confirmarea Comenzii - ${booking.id}`,
         html: customerEmailHtml,
@@ -966,45 +947,6 @@ export class CalculatorService {
     } catch (error) {
       console.error(`[Calculator] ❌ Failed to send customer email:`, error);
     }
-  }
-
-  /**
-   * Get email transporter for sending order emails
-   */
-  private getEmailTransporter(): nodemailer.Transporter | null {
-    const smtpHost = process.env.SMTP_HOST;
-    const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USER;
-    const smtpPassword = process.env.SMTP_PASSWORD || process.env.EMAIL_PASSWORD;
-
-    if (!smtpHost && !smtpUser) {
-      return null;
-    }
-
-    // Auto-detect Gmail
-    if (smtpUser?.endsWith('@gmail.com')) {
-      return nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: smtpUser,
-          pass: smtpPassword,
-        },
-      });
-    }
-
-    // Custom SMTP
-    const smtpPort = parseInt(process.env.SMTP_PORT || '587');
-    return nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465,
-      auth: smtpUser && smtpPassword ? {
-        user: smtpUser,
-        pass: smtpPassword,
-      } : undefined,
-      tls: {
-        rejectUnauthorized: false,
-      },
-    });
   }
 }
 

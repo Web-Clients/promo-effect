@@ -59,6 +59,7 @@ export interface AdminSettings {
   commission: number;
   insuranceCost: number;
   profitMarginPercent: number;
+  weightRanges: string; // JSON string
   updatedAt: string;
 }
 
@@ -71,6 +72,7 @@ export interface AdminSettingsInput {
   commission?: number;
   insuranceCost?: number;
   profitMarginPercent?: number;
+  weightRanges?: string;
 }
 
 export interface PricingStats {

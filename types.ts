@@ -5,6 +5,7 @@ export enum UserRole {
   CONTABIL = 'CONTABIL',
   MANAGER_TRANSPORT = 'MANAGER_TRANSPORT',
   AGENT_CONSTANTA = 'AGENT_CONSTANTA',
+  AGENT = 'AGENT',
   CLIENT = 'CLIENT',
 }
 
@@ -41,55 +42,55 @@ export interface Booking {
 }
 
 export enum TrackingStatus {
-    BOOKED = 'BOOKED',
-    GATE_IN = 'GATE_IN',
-    LOADED = 'LOADED',
-    DEPARTED = 'DEPARTED',
-    IN_TRANSIT = 'IN_TRANSIT',
-    ARRIVED = 'ARRIVED',
-    DISCHARGED = 'DISCHARGED',
-    GATE_OUT = 'GATE_OUT',
-    DELIVERED = 'DELIVERED'
+  BOOKED = 'BOOKED',
+  GATE_IN = 'GATE_IN',
+  LOADED = 'LOADED',
+  DEPARTED = 'DEPARTED',
+  IN_TRANSIT = 'IN_TRANSIT',
+  ARRIVED = 'ARRIVED',
+  DISCHARGED = 'DISCHARGED',
+  GATE_OUT = 'GATE_OUT',
+  DELIVERED = 'DELIVERED'
 }
 
 export interface TrackingEvent {
-    id: number;
-    title: string;
-    description: string;
-    location: string;
-    timestamp: string;
-    status: 'completed' | 'current' | 'pending';
+  id: number;
+  title: string;
+  description: string;
+  location: string;
+  timestamp: string;
+  status: 'completed' | 'current' | 'pending';
 }
 
 export interface Container {
-    id: number;
-    booking_id: number;
-    container_number: string;
-    shipping_line: string;
-    current_status: TrackingStatus;
-    current_location: string;
-    vessel_name?: string;
-    estimated_arrival_date: string;
-    is_refrigerated: boolean;
-    is_urgent: boolean;
-    priority_level: number;
-    tracking_history: TrackingEvent[];
+  id: number;
+  booking_id: number;
+  container_number: string;
+  shipping_line: string;
+  current_status: TrackingStatus;
+  current_location: string;
+  vessel_name?: string;
+  estimated_arrival_date: string;
+  is_refrigerated: boolean;
+  is_urgent: boolean;
+  priority_level: number;
+  tracking_history: TrackingEvent[];
 }
 
 export interface PriceCalculationParams {
-    origin_port: string;
-    destination_port: string;
-    container_type: string;
-    shipping_line: string;
+  origin_port: string;
+  destination_port: string;
+  container_type: string;
+  shipping_line: string;
 }
 
 export interface PriceBreakdown {
-    base_rate_maritim: number;
-    taxe_portuare_constanta: number;
-    vama_tranzit: number;
-    transport_terestru: number;
-    comision_promo_efect: number;
-    total: number;
+  base_rate_maritim: number;
+  taxe_portuare_constanta: number;
+  vama_tranzit: number;
+  transport_terestru: number;
+  comision_promo_efect: number;
+  total: number;
 }
 
 export interface SystemSettings {
@@ -104,7 +105,7 @@ export interface SystemSettings {
     lastSyncAt: string;
     syncInterval: number;
   };
-  
+
   // Container Tracking
   trackingSettings: {
     provider: 'SEARATES';
@@ -112,7 +113,7 @@ export interface SystemSettings {
     enabled: boolean;
     syncInterval: number;
   };
-  
+
   // Notifications - Email (uses FREE SMTP via nodemailer)
   emailNotificationSettings: {
     provider: 'SMTP' | 'GMAIL' | 'OUTLOOK' | 'CUSTOM_SMTP';
@@ -124,21 +125,21 @@ export interface SystemSettings {
     senderName: string;
     enabled: boolean;
   };
-  
+
   // Notifications - SMS (currently disabled - requires paid service)
   smsSettings: {
     provider: 'DISABLED' | 'FUTURE_FREE_SERVICE';
     enabled: boolean;
     note: string; // "SMS requires paid service. Use email notifications instead."
   };
-  
+
   // Notifications - WhatsApp (currently disabled - requires paid service)
   whatsappSettings: {
     provider: 'DISABLED' | 'FUTURE_FREE_SERVICE';
     enabled: boolean;
     note: string; // "WhatsApp requires paid service. Use email notifications instead."
   };
-  
+
   // Notifications - Viber
   viberSettings: {
     botToken: string;
@@ -146,7 +147,7 @@ export interface SystemSettings {
     botAvatar: string;
     enabled: boolean;
   };
-  
+
   // AI Parsing
   aiSettings: {
     provider: 'ANTHROPIC_CLAUDE' | 'OPENAI' | 'NONE';
@@ -156,7 +157,7 @@ export interface SystemSettings {
     enabled: boolean;
     confidenceThreshold: number;
   };
-  
+
   // Translation
   translationSettings: {
     provider: 'GOOGLE_TRANSLATE' | 'DEEPL' | 'NONE';
@@ -164,7 +165,7 @@ export interface SystemSettings {
     deeplApiKey: string;
     enabled: boolean;
   };
-  
+
   // OCR
   ocrSettings: {
     // FIX: Added 'NONE' as a valid provider option for ocrSettings.
@@ -174,7 +175,7 @@ export interface SystemSettings {
     awsTextractSecretKey: string;
     enabled: boolean;
   };
-  
+
   // 1C Integration
   oneC_Settings: {
     integrationType: 'FTP' | 'HTTP_API' | 'FILE_SHARE';
@@ -190,7 +191,7 @@ export interface SystemSettings {
     exportTime: string;
     enabled: boolean;
   };
-  
+
   // File Storage
   storageSettings: {
     provider: 'AWS_S3' | 'LOCAL_FILESYSTEM' | 'AZURE_BLOB' | 'GOOGLE_CLOUD_STORAGE';
@@ -205,7 +206,7 @@ export interface SystemSettings {
     gcpBucketName: string;
     maxFileSizeMB: number;
   };
-  
+
   // Payment Settings
   paymentSettings: {
     penaltyRateDaily: number;
@@ -219,7 +220,7 @@ export interface SystemSettings {
     };
     currency: 'USD' | 'EUR' | 'MDL';
   };
-  
+
   // System Settings
   systemSettings: {
     companyName: string;

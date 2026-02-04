@@ -158,4 +158,46 @@ router.get('/:id/bookings', authMiddleware, adminOnly, async (req: Request, res:
   }
 });
 
+/**
+ * POST /api/agents/:id/prices
+ * Create price for agent (Admin)
+ */
+router.post('/:id/prices', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const price = await agentsService.createAgentPrice(req.params.id, req.body);
+    res.status(201).json(price);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to create price';
+    res.status(400).json({ error: message });
+  }
+});
+
+/**
+ * PUT /api/agents/:id/prices/:priceId
+ * Update agent price (Admin)
+ */
+router.put('/:id/prices/:priceId', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const price = await agentsService.updateAgentPrice(req.params.id, req.params.priceId, req.body);
+    res.json(price);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to update price';
+    res.status(400).json({ error: message });
+  }
+});
+
+/**
+ * DELETE /api/agents/:id/prices/:priceId
+ * Delete agent price (Admin)
+ */
+router.delete('/:id/prices/:priceId', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+  try {
+    await agentsService.deleteAgentPrice(req.params.id, req.params.priceId);
+    res.json({ message: 'Price deleted successfully' });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to delete price';
+    res.status(400).json({ error: message });
+  }
+});
+
 export default router;

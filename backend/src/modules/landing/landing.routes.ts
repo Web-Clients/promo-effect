@@ -80,9 +80,7 @@ router.post('/contact', async (req: Request, res: Response) => {
           channels: { email: true, push: false, sms: false, whatsapp: false },
         });
       } else {
-        // Fallback: send directly via email service if no admin user found
-        const { emailVerificationService } = await import('../../services/email-verification.service');
-        // We'll use a simple email send here
+        // Fallback: log the lead if no admin user found
         console.log(`[Landing Contact] New lead: ${name} (${email}) from ${company || 'N/A'}`);
       }
     } catch (error) {

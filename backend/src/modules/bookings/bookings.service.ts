@@ -169,7 +169,7 @@ export class BookingsService {
             bookingId: booking.id,
             type: 'BOOKING_CONFIRMED',
             title: `Rezervare Confirmată: ${booking.id}`,
-            message: `Rezervarea dumneavoastră ${booking.id} a fost confirmată.\n\nDetalii:\n- Port origine: ${booking.portOrigin}\n- Port destinație: ${booking.portDestination}\n- Tip container: ${booking.containerType}\n- Preț total: ${booking.totalPrice} ${booking.currency || 'USD'}\n\nVă vom anunța când containerul va fi disponibil pentru tracking.`,
+            message: `Rezervarea dumneavoastră ${booking.id} a fost confirmată.\n\nDetalii:\n- Port origine: ${booking.portOrigin}\n- Port destinație: ${booking.portDestination}\n- Tip container: ${booking.containerType}\n- Preț total: ${booking.totalPrice} USD\n\nVă vom anunța când containerul va fi disponibil pentru tracking.`,
             channels: { email: true, push: false, sms: false, whatsapp: false },
           });
       }
@@ -394,7 +394,7 @@ export class BookingsService {
             userId: updated.clientId,
             bookingId: updated.id,
             type: 'BOOKING_STATUS_CHANGED',
-            title: `Status Rezervare Actualizat: ${booking.id}`,
+            title: `Status Rezervare Actualizat: ${updated.id}`,
             message: `Statusul rezervării ${updated.id} a fost actualizat la: ${statusLabels[data.status] || data.status}.\n\nDetalii rezervare:\n- Port origine: ${updated.portOrigin}\n- Port destinație: ${updated.portDestination}\n- Tip container: ${updated.containerType}`,
             channels: { email: true, push: false, sms: false, whatsapp: false },
           });

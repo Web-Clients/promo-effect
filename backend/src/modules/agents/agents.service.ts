@@ -168,7 +168,7 @@ export class AgentsService {
     }
 
     // Hash password
-    const bcrypt = await import('bcryptjs');
+    const bcrypt = await import('bcrypt');
     const passwordHash = await bcrypt.hash(data.password, 10);
 
     // Generate agent code

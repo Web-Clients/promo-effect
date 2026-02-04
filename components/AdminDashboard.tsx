@@ -270,7 +270,7 @@ const AdminDashboard = () => {
           <Card className="p-5">
             <h3 className="text-sm font-semibold text-primary-800 dark:text-white mb-4">Stare Sistem</h3>
             <div className="space-y-3">
-              {systemHealth && Object.entries(systemHealth).map(([key, value]) => (
+              {systemHealth && (Object.entries(systemHealth) as [string, { status: 'ok' | 'warning' | 'error'; message: string }][]).map(([key, value]) => (
                 <div key={key} className="flex items-center justify-between">
                   <span className="text-sm text-neutral-500 capitalize">{key}</span>
                   <span className={cn(

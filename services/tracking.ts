@@ -198,6 +198,206 @@ export async function deleteTrackingEvent(eventId: string): Promise<{ message: s
   return response.data;
 }
 
+/**
+ * Refresh container tracking from external API (SeaRates v3)
+ */
+export async function refreshTracking(containerId: string): Promise<{
+  success: boolean;
+  message: string;
+  eventsFound: number;
+  lastSyncAt: string;
+}> {
+  const response = await api.post(`/tracking/containers/${containerId}/refresh-tracking`);
+  return response.data;
+}
+
+/**
+ * Track container via external API (SeaRates v3) - public lookup
+ */
+export async function trackExternal(containerNumber: string): Promise<ExternalTrackingResult> {
+  const response = await api.get(`/tracking/external/${encodeURIComponent(containerNumber)}`);
+  return response.data;
+}
+
+/**
+ * Track container via public API (no auth required)
+ */
+export async function trackPublic(containerNumber: string, options?: {
+  sealine?: string;
+  route?: boolean;
+}): Promise<PublicTrackingResult> {
+  const params = new URLSearchParams();
+  if (options?.sealine) params.append('sealine', options.sealine);
+  if (options?.route !== undefined) params.append('route', String(options.route));
+
+  const response = await api.get(`/tracking/public/${encodeURIComponent(containerNumber)}?${params.toString()}`);
+  return response.data;
+}
+
+/**
+ * Get SeaRates API status
+ */
+export async function getApiStatus(): Promise<ApiStatusResponse> {
+  const response = await api.get('/tracking/api-status');
+  return response.data;
+}
+
+/**
+ * Test SeaRates API connection (admin only)
+ */
+export async function testConnection(): Promise<ApiTestResult> {
+  const response = await api.get('/tracking/test-connection');
+  return response.data;
+}
+
+/**
+ * Get supported shipping lines
+ */
+export async function getShippingLines(): Promise<{ code: string; name: string }[]> {
+  const response = await api.get('/tracking/shipping-lines');
+  return response.data.shippingLines;
+}
+
+// ============================================
+// EXTERNAL TRACKING TYPES
+// ============================================
+
+export interface ExternalTrackingResult {
+  source: string;
+  containerNumber: string;
+  blNumber?: string;
+  shippingLine?: string;
+  status?: string;
+  location?: {
+    name?: string;
+    city?: string;
+    country?: string;
+    latitude?: number;
+    longitude?: number;
+  };
+  vessel?: {
+    name?: string;
+    imo?: string;
+  };
+  voyage?: string;
+  eta?: string;
+  ata?: string;
+  events?: Array<{
+    type: string;
+    date: string;
+    location?: string;
+    vessel?: string;
+    description?: string;
+  }>;
+  fetchedAt: string;
+}
+
+export interface PublicTrackingResult {
+  success: boolean;
+  source: string;
+  data: {
+    containerNumber: string;
+    blNumber?: string;
+    bookingNumber?: string;
+    shippingLine: {
+      code?: string;
+      name?: string;
+    };
+    status?: string;
+    sizeType?: string;
+    isEmpty?: boolean;
+    location?: {
+      name?: string;
+      city?: string;
+      country?: string;
+      unlocode?: string;
+      latitude?: number;
+      longitude?: number;
+    };
+    vessel?: {
+      name?: string;
+      imo?: string;
+      mmsi?: string;
+      callSign?: string;
+    };
+    voyage?: string;
+    eta?: string;
+    predictedEta?: string;
+    ata?: string;
+    etd?: string;
+    atd?: string;
+    events?: Array<{
+      type: string;
+      eventCode?: string;
+      eventName?: string;
+      status?: string;
+      date: string;
+      isActual: boolean;
+      location?: {
+        name?: string;
+        city?: string;
+        country?: string;
+        unlocode?: string;
+        latitude?: number;
+        longitude?: number;
+      };
+      facility?: {
+        name?: string;
+        type?: string;
+        code?: string;
+      };
+      vessel?: {
+        name?: string;
+        imo?: string;
+      };
+      voyage?: string;
+    }>;
+    route?: {
+      path?: Array<[number, number]>;
+      pins?: Array<{
+        coordinates: [number, number];
+        location?: string;
+        type?: string;
+      }>;
+    };
+  };
+  fetchedAt: string;
+}
+
+export interface ApiStatusResponse {
+  provider: string;
+  version: string;
+  baseUrl: string;
+  configured: boolean;
+  status: 'active' | 'inactive' | 'error';
+  message: string;
+  features: {
+    containerTracking: boolean;
+    blTracking: boolean;
+    bookingTracking: boolean;
+    routeData: boolean;
+    aisData: boolean;
+    predictedEta: boolean;
+  };
+}
+
+export interface ApiTestResult {
+  service: string;
+  baseUrl: string;
+  configured: boolean;
+  apiKeyInfo: string;
+  connectionTest: {
+    success: boolean;
+    message: string;
+    apiCalls?: {
+      total: number;
+      used: number;
+      remaining: number;
+    };
+  };
+  timestamp: string;
+}
+
 // ============================================
 // HELPER FUNCTIONS
 // ============================================
@@ -273,6 +473,12 @@ export default {
   addTrackingEvent,
   updateTrackingEvent,
   deleteTrackingEvent,
+  refreshTracking,
+  trackExternal,
+  trackPublic,
+  getApiStatus,
+  testConnection,
+  getShippingLines,
   getStatusColor,
   getStatusLabel,
   getEventTypeLabel,

@@ -8,7 +8,8 @@ import { User, UserRole } from '../types';
 
 // API response interfaces
 interface LoginResponse {
-  user: {
+  success?: boolean;
+  user?: {
     id: string;
     email: string;
     name: string;
@@ -16,8 +17,11 @@ interface LoginResponse {
     phone?: string;
     company?: string;
   };
-  accessToken: string;
-  refreshToken: string;
+  accessToken?: string;
+  refreshToken?: string;
+  requires2FA?: boolean;
+  tempToken?: string;
+  message?: string;
 }
 
 interface RegisterData {
@@ -35,25 +39,18 @@ interface LoginData {
   twoFactorCode?: string;
 }
 
-interface LoginResponse {
-  success: boolean;
-  user?: {
-    id: string;
-    email: string;
-    name: string;
-    role: string;
-    phone?: string;
-    company?: string;
-  };
-  accessToken?: string;
-  refreshToken?: string;
-  requires2FA?: boolean;
-  tempToken?: string;
-  message?: string;
+// Backend user type
+interface BackendUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  phone?: string;
+  company?: string;
 }
 
 // Convert backend user to frontend User type
-const mapBackendUserToFrontend = (backendUser: LoginResponse['user']): User => {
+const mapBackendUserToFrontend = (backendUser: BackendUser): User => {
   return {
     id: parseInt(backendUser.id.replace(/\D/g, '')) || Math.floor(Math.random() * 1000000), // Convert UUID to number for frontend compatibility
     name: backendUser.name,

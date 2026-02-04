@@ -26,6 +26,9 @@ import { apiLimiter } from './middleware/rateLimit.middleware';
 
 const app = express();
 
+// Trust proxy (required when behind Nginx/reverse proxy for rate limiting)
+app.set('trust proxy', 1);
+
 // Middlewares
 app.use(helmet());
 app.use(cors({
@@ -43,6 +46,7 @@ app.use(cors({
       'http://127.0.0.1:3002',
       'http://54.38.137.230:3000', // User's laptop IP
       'http://54.38.137.230:5173',
+      'http://141.227.180.43', // Production server
     ].filter(Boolean) as string[];
 
     // Allow same-LAN/dev origins (e.g. http://192.168.x.x:3002)

@@ -765,7 +765,7 @@ class TrackingService {
                         latitude: eventLatitude,
                         longitude: eventLongitude,
                         containerStatus: searatesData.status,
-                        details: searatesEvent.metadata ? JSON.stringify(searatesEvent.metadata) : null,
+                        details: searatesEvent.description || null,
                         source: 'SEARATES',
                         validated: true,
                         visibility: 'PUBLIC',

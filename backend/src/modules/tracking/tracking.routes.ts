@@ -126,12 +126,70 @@ router.get('/search/:containerNumber', authMiddleware, async (req: Request, res:
     const { containerNumber } = req.params;
     const user = (req as any).user;
 
-    const container = await trackingService.getContainerByNumber(
-      containerNumber,
-      user.role,
-      user.clientId
-    );
-    res.json(container);
+    // First try to find in local database
+    try {
+      const container = await trackingService.getContainerByNumber(
+        containerNumber,
+        user.role,
+        user.clientId
+      );
+      return res.json(container);
+    } catch (localError: any) {
+      // If not found locally, try SeaRates API
+      if (localError.message === 'Container not found' && searatesIntegration.isConfigured()) {
+        console.log(`[Tracking] Container ${containerNumber} not found locally, trying SeaRates API...`);
+
+        const searatesData = await searatesIntegration.getContainerTracking(
+          containerNumber.toUpperCase(),
+          { sealine: 'auto', includeRoute: true, forceUpdate: false }
+        );
+
+        if (searatesData) {
+          // Return SeaRates data formatted as a container response
+          return res.json({
+            id: `searates-${containerNumber}`,
+            containerNumber: searatesData.containerNumber,
+            type: searatesData.sizeType,
+            currentStatus: searatesData.status || 'UNKNOWN',
+            currentLocation: searatesData.location?.name,
+            currentLat: searatesData.location?.latitude,
+            currentLng: searatesData.location?.longitude,
+            eta: searatesData.eta,
+            apiSource: 'SEARATES',
+            lastSyncAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            booking: {
+              id: 'external',
+              bookingNumber: searatesData.bookingNumber || containerNumber,
+              origin: searatesData.originPort || 'Unknown',
+              destination: searatesData.destinationPort || 'Unknown',
+            },
+            trackingEvents: searatesData.events?.map((event, index) => ({
+              id: `event-${index}`,
+              containerId: `searates-${containerNumber}`,
+              eventType: event.eventCode || event.type || 'UPDATE',
+              eventDate: event.occurredAt,
+              location: event.location?.name || 'Unknown',
+              portName: event.facility?.name,
+              vessel: event.vessel?.name,
+              notes: event.description,
+              createdAt: event.occurredAt,
+            })) || [],
+            _source: 'SEARATES_API',
+            _shippingLine: {
+              code: searatesData.shippingLine,
+              name: searatesData.shippingLineName,
+            },
+            _vessel: searatesData.vessel,
+            _voyage: searatesData.voyage,
+          });
+        }
+      }
+
+      // Re-throw the original error if SeaRates also didn't find it
+      throw localError;
+    }
   } catch (error: any) {
     console.error('Search container error:', error);
 
@@ -791,6 +849,202 @@ router.get('/bl/:blNumber', authMiddleware, async (req: Request, res: Response) 
     console.error('B/L lookup error:', error);
     res.status(500).json({
       error: error.message || 'Failed to fetch B/L tracking data',
+    });
+  }
+});
+
+/**
+ * GET /api/tracking/public/:containerNumber
+ * Public container tracking endpoint (no authentication required)
+ * For customers to track containers without logging in
+ * @access Public
+ */
+router.get('/public/:containerNumber', async (req: Request, res: Response) => {
+  try {
+    const { containerNumber } = req.params;
+    const { sealine, route = 'true' } = req.query;
+
+    // Validate container number format
+    const containerRegex = /^[A-Z]{4}\d{7}$/;
+    if (!containerRegex.test(containerNumber.toUpperCase())) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid container number format',
+        message: 'Expected format: 4 letters + 7 digits (e.g., MSCU1234567)',
+      });
+    }
+
+    // Check if SeaRates is configured
+    if (!searatesIntegration.isConfigured()) {
+      return res.status(503).json({
+        success: false,
+        error: 'Tracking service unavailable',
+        message: 'Container tracking service is not configured',
+      });
+    }
+
+    // Get tracking from SeaRates API v3
+    const trackingData = await searatesIntegration.getContainerTracking(
+      containerNumber.toUpperCase(),
+      {
+        sealine: sealine as string || 'auto',
+        includeRoute: route === 'true',
+        forceUpdate: false,
+      }
+    );
+
+    if (!trackingData) {
+      return res.status(404).json({
+        success: false,
+        error: 'Container not found',
+        message: `No tracking data found for container ${containerNumber}`,
+        containerNumber: containerNumber.toUpperCase(),
+      });
+    }
+
+    // Return structured response
+    res.json({
+      success: true,
+      source: 'SEARATES_V3',
+      data: {
+        containerNumber: trackingData.containerNumber,
+        blNumber: trackingData.blNumber,
+        bookingNumber: trackingData.bookingNumber,
+        shippingLine: {
+          code: trackingData.shippingLine,
+          name: trackingData.shippingLineName,
+        },
+        status: trackingData.status,
+        sizeType: trackingData.sizeType,
+        isEmpty: trackingData.isEmpty,
+        location: trackingData.location,
+        vessel: trackingData.vessel,
+        voyage: trackingData.voyage,
+        eta: trackingData.eta,
+        predictedEta: trackingData.predictedEta,
+        ata: trackingData.ata,
+        etd: trackingData.etd,
+        atd: trackingData.atd,
+        events: trackingData.events?.map(event => ({
+          type: event.type,
+          eventCode: event.eventCode,
+          eventName: event.eventName,
+          status: event.status,
+          date: event.occurredAt,
+          isActual: event.isActual,
+          location: event.location,
+          facility: event.facility,
+          vessel: event.vessel,
+          voyage: event.voyage,
+        })) || [],
+        route: trackingData.route,
+      },
+      fetchedAt: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error('Public tracking lookup error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Tracking lookup failed',
+      message: error.message || 'Failed to fetch tracking data',
+    });
+  }
+});
+
+/**
+ * GET /api/tracking/test-connection
+ * Test SeaRates API connection and show status
+ * @access ADMIN only
+ */
+router.get(
+  '/test-connection',
+  authMiddleware,
+  requireRole(['ADMIN', 'SUPER_ADMIN']),
+  async (req: Request, res: Response) => {
+    try {
+      const testResult = await searatesIntegration.testConnection();
+
+      res.json({
+        service: 'SeaRates API v3',
+        baseUrl: 'https://tracking.searates.com',
+        configured: searatesIntegration.isConfigured(),
+        apiKeyInfo: searatesIntegration.getApiKeyInfo(),
+        connectionTest: testResult,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      console.error('Test connection error:', error);
+      res.status(500).json({
+        service: 'SeaRates API v3',
+        configured: searatesIntegration.isConfigured(),
+        connectionTest: {
+          success: false,
+          message: error.message || 'Connection test failed',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/tracking/shipping-lines
+ * Get list of supported shipping lines
+ * @access Public
+ */
+router.get('/shipping-lines', async (req: Request, res: Response) => {
+  try {
+    const shippingLines = await searatesIntegration.getShippingLines();
+    res.json({
+      success: true,
+      shippingLines,
+    });
+  } catch (error: any) {
+    console.error('Get shipping lines error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to get shipping lines',
+    });
+  }
+});
+
+/**
+ * GET /api/tracking/api-status
+ * Get SeaRates API status and configuration
+ * @access All authenticated users
+ */
+router.get('/api-status', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const isConfigured = searatesIntegration.isConfigured();
+
+    let connectionStatus = { success: false, message: 'Not tested' };
+    if (isConfigured) {
+      connectionStatus = await searatesIntegration.testConnection();
+    }
+
+    res.json({
+      provider: 'SeaRates',
+      version: 'v3',
+      baseUrl: 'https://tracking.searates.com',
+      configured: isConfigured,
+      status: connectionStatus.success ? 'active' : 'inactive',
+      message: connectionStatus.message,
+      features: {
+        containerTracking: true,
+        blTracking: true,
+        bookingTracking: true,
+        routeData: true,
+        aisData: true,
+        predictedEta: true,
+      },
+    });
+  } catch (error: any) {
+    console.error('API status error:', error);
+    res.status(500).json({
+      provider: 'SeaRates',
+      configured: false,
+      status: 'error',
+      message: error.message,
     });
   }
 });

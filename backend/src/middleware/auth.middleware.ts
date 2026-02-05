@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../utils/jwt.util';
+import prisma from '../lib/prisma';
 
 // Extend Express Request type
 declare global {
@@ -9,6 +10,8 @@ declare global {
         userId: string;
         email: string;
         role: string;
+        clientId?: string;
+        agentId?: string;
       };
     }
   }
@@ -33,7 +36,31 @@ export const authMiddleware = async (
     const payload = verifyToken(token);
 
     // Attach user to request
-    req.user = payload;
+    req.user = {
+      ...payload,
+    };
+
+    // For CLIENT users, look up their clientId from the clients table
+    if (payload.role === 'CLIENT') {
+      const client = await prisma.client.findUnique({
+        where: { email: payload.email },
+        select: { id: true },
+      });
+      if (client) {
+        req.user.clientId = client.id;
+      }
+    }
+
+    // For AGENT users, look up their agentId
+    if (payload.role === 'AGENT') {
+      const agent = await prisma.agent.findFirst({
+        where: { userId: payload.userId },
+        select: { id: true },
+      });
+      if (agent) {
+        req.user.agentId = agent.id;
+      }
+    }
 
     next();
   } catch (error) {

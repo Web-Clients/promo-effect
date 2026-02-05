@@ -24,6 +24,8 @@ import UserProfile from './components/UserProfile';
 import AdminDashboard from './components/AdminDashboard';
 import AgentPricesDashboard from './components/AgentPricesDashboard';
 import AdminPriceApproval from './components/AdminPriceApproval';
+import AdminPortsManager from './components/AdminPortsManager';
+import UserManagement from './components/UserManagement';
 import { User, Booking } from './types';
 import { ToastProvider } from './components/ui/Toast';
 import authService from './services/auth';
@@ -47,12 +49,13 @@ const RouteObserver = () => {
     else if (path.includes('/dashboard/admin-pricing')) title = 'Administrare Prețuri | Promo-Efect';
     else if (path.includes('/dashboard/agents')) title = 'Agenți Chinezi | Promo-Efect';
     else if (path.includes('/dashboard/admin-panel')) title = 'Panou Admin | Promo-Efect';
+    else if (path.includes('/dashboard/user-management')) title = 'Gestionare Utilizatori | Promo-Efect';
     else if (path.includes('/dashboard/userProfile')) title = 'Profil Utilizator | Promo-Efect';
     else if (path === '/dashboard') title = 'Panou de Control | Promo-Efect';
     else if (path === '/login') title = 'Autentificare | Promo-Efect';
 
     document.title = title;
-    
+
     // Optional: Dispatch a custom event if the external script listens for it
     window.dispatchEvent(new Event('pushstate'));
     window.scrollTo(0, 0);
@@ -143,9 +146,9 @@ const App = () => {
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/forgot-password" element={user ? <Navigate to="/dashboard" /> : <ForgotPassword />} />
         <Route path="/reset-password" element={user ? <Navigate to="/dashboard" /> : <ResetPassword />} />
-        
-        <Route 
-          path="/dashboard" 
+
+        <Route
+          path="/dashboard"
           element={
             <ProtectedRoute user={user}>
               <DashboardLayout user={user!} onLogout={handleLogout} onNewBooking={handleNewBooking}>
@@ -170,9 +173,11 @@ const App = () => {
           <Route path="admin-panel" element={<AdminDashboard />} />
           <Route path="my-prices" element={<AgentPricesDashboard />} />
           <Route path="price-approval" element={<AdminPriceApproval />} />
+          <Route path="ports-manager" element={<AdminPortsManager />} />
+          <Route path="user-management" element={<UserManagement currentUser={user!} />} />
           <Route path="userProfile" element={<UserProfile user={user!} />} />
         </Route>
-        
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </ToastProvider>

@@ -222,6 +222,30 @@ router.put(
         delete updateData.role;
       }
 
+      // SUPER_ADMIN role protection
+      if (updateData.role) {
+        // Get the target user to check their current role
+        const targetUser = await usersService.findById(userId);
+
+        // Only SUPER_ADMIN can assign SUPER_ADMIN role
+        if (updateData.role === 'SUPER_ADMIN' && currentUser.role !== 'SUPER_ADMIN') {
+          return res.status(403).json({
+            success: false,
+            error: 'Only SUPER_ADMIN can assign SUPER_ADMIN role',
+            timestamp: new Date().toISOString(),
+          });
+        }
+
+        // Only SUPER_ADMIN can demote another SUPER_ADMIN
+        if (targetUser.role === 'SUPER_ADMIN' && updateData.role !== 'SUPER_ADMIN' && currentUser.role !== 'SUPER_ADMIN') {
+          return res.status(403).json({
+            success: false,
+            error: 'Only SUPER_ADMIN can change the role of another SUPER_ADMIN',
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }
+
       const user = await usersService.update(userId, updateData);
       res.json({
         success: true,

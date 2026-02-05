@@ -18,6 +18,7 @@ const notificationsService = new NotificationsService();
 router.get('/', authMiddleware, async (req: Request, res: Response) => {
   try {
     const currentUser = (req as any).user;
+    console.log('[Notifications] GET / - User:', currentUser.userId, currentUser.email, 'Role:', currentUser.role);
     const filters: any = {
       page: req.query.page ? parseInt(req.query.page as string) : 1,
       limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
@@ -28,12 +29,12 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
       dateTo: req.query.date_to ? new Date(req.query.date_to as string) : undefined,
     };
 
-    // CLIENT users can only see their own notifications
-    if (currentUser.role === 'CLIENT') {
-      filters.userId = currentUser.id;
-    } else if (req.query.user_id) {
-      // ADMIN can filter by user_id
+    // All users see their own notifications by default
+    // ADMIN can override with user_id query param to see other users' notifications
+    if (req.query.user_id && ['ADMIN', 'SUPER_ADMIN'].includes(currentUser.role)) {
       filters.userId = req.query.user_id as string;
+    } else {
+      filters.userId = currentUser.userId;
     }
 
     const result = await notificationsService.findAll(filters);
@@ -54,33 +55,48 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/v1/notifications/:id
- * Get notification details
- * Access: Own notification or ADMIN
+ * GET /api/v1/notifications/unread/count
+ * Get unread notifications count
+ * Access: Authenticated users
+ * NOTE: This route MUST be defined BEFORE /:id to avoid route conflicts
  */
-router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
+router.get('/unread/count', authMiddleware, async (req: Request, res: Response) => {
   try {
     const currentUser = (req as any).user;
-    const notification = await notificationsService.findById(req.params.id);
-
-    // Check access
-    if (notification.userId !== currentUser.id && !['ADMIN', 'SUPER_ADMIN'].includes(currentUser.role)) {
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied',
-        timestamp: new Date().toISOString(),
-      });
-    }
-
+    const count = await notificationsService.getUnreadCount(currentUser.userId);
     res.json({
       success: true,
-      data: notification,
+      data: { count },
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Notification not found';
-    const status = message === 'Notification not found' ? 404 : 500;
-    res.status(status).json({
+    const message = error instanceof Error ? error.message : 'Failed to get count';
+    res.status(500).json({
+      success: false,
+      error: message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+/**
+ * POST /api/v1/notifications/read-all
+ * Mark all notifications as read
+ * Access: Authenticated users
+ * NOTE: This route MUST be defined BEFORE /:id to avoid route conflicts
+ */
+router.post('/read-all', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req as any).user;
+    const result = await notificationsService.markAllAsRead(currentUser.userId);
+    res.json({
+      success: true,
+      ...result,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to mark all as read';
+    res.status(500).json({
       success: false,
       error: message,
       timestamp: new Date().toISOString(),
@@ -116,6 +132,41 @@ router.post(
 );
 
 /**
+ * GET /api/v1/notifications/:id
+ * Get notification details
+ * Access: Own notification or ADMIN
+ */
+router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req as any).user;
+    const notification = await notificationsService.findById(req.params.id);
+
+    // Check access
+    if (notification.userId !== currentUser.userId && !['ADMIN', 'SUPER_ADMIN'].includes(currentUser.role)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    res.json({
+      success: true,
+      data: notification,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Notification not found';
+    const status = message === 'Notification not found' ? 404 : 500;
+    res.status(status).json({
+      success: false,
+      error: message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+/**
  * PATCH /api/v1/notifications/:id/read
  * Mark notification as read
  * Access: Own notification
@@ -123,9 +174,13 @@ router.post(
 router.patch('/:id/read', authMiddleware, async (req: Request, res: Response) => {
   try {
     const currentUser = (req as any).user;
-    const notification = await notificationsService.findById(req.params.id);
+    console.log('[Notifications] PATCH /:id/read - User:', currentUser.userId, 'NotificationId:', req.params.id);
 
-    if (notification.userId !== currentUser.id) {
+    const notification = await notificationsService.findById(req.params.id);
+    console.log('[Notifications] Notification owner:', notification.userId, 'Current user:', currentUser.userId);
+
+    if (notification.userId !== currentUser.userId) {
+      console.log('[Notifications] Access denied - notification belongs to different user');
       return res.status(403).json({
         success: false,
         error: 'Access denied',
@@ -134,12 +189,14 @@ router.patch('/:id/read', authMiddleware, async (req: Request, res: Response) =>
     }
 
     const updated = await notificationsService.markAsRead(req.params.id);
+    console.log('[Notifications] Marked as read successfully:', updated.id, 'read:', updated.read);
     res.json({
       success: true,
       data: updated,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
+    console.log('[Notifications] Error marking as read:', error);
     const message = error instanceof Error ? error.message : 'Failed to mark as read';
     res.status(500).json({
       success: false,
@@ -149,53 +206,4 @@ router.patch('/:id/read', authMiddleware, async (req: Request, res: Response) =>
   }
 });
 
-/**
- * GET /api/v1/notifications/unread/count
- * Get unread notifications count
- * Access: Authenticated users
- */
-router.get('/unread/count', authMiddleware, async (req: Request, res: Response) => {
-  try {
-    const currentUser = (req as any).user;
-    const count = await notificationsService.getUnreadCount(currentUser.id);
-    res.json({
-      success: true,
-      data: { count },
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to get count';
-    res.status(500).json({
-      success: false,
-      error: message,
-      timestamp: new Date().toISOString(),
-    });
-  }
-});
-
-/**
- * POST /api/v1/notifications/read-all
- * Mark all notifications as read
- * Access: Authenticated users
- */
-router.post('/read-all', authMiddleware, async (req: Request, res: Response) => {
-  try {
-    const currentUser = (req as any).user;
-    const result = await notificationsService.markAllAsRead(currentUser.id);
-    res.json({
-      success: true,
-      ...result,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to mark all as read';
-    res.status(500).json({
-      success: false,
-      error: message,
-      timestamp: new Date().toISOString(),
-    });
-  }
-});
-
 export default router;
-

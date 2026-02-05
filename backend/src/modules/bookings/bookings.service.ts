@@ -204,7 +204,10 @@ export class BookingsService {
    * Find all bookings with filters and pagination
    */
   async findAll(filters: BookingFilters, userId: string, userRole: string) {
-    const where: any = {};
+    const where: any = {
+      // By default, don't show archived bookings
+      archived: false,
+    };
 
     // Authorization: Clients see only their bookings
     if (userRole === 'CLIENT') {
@@ -459,70 +462,87 @@ export class BookingsService {
   }
 
   /**
-   * Soft delete (cancel) booking
+   * Delete or archive booking based on status
+   * - DELIVERED/IN_TRANSIT: Archive (keeps in revenue stats)
+   * - CANCELLED/PENDING/DRAFT: Hard delete
    */
   async delete(id: string, userId: string, userRole: string) {
     // Find existing booking
-    const existing = await prisma.booking.findUnique({ where: { id } });
+    const existing = await prisma.booking.findUnique({
+      where: { id },
+      include: { client: true }
+    });
     if (!existing) {
       throw new Error('Booking not found');
     }
 
     // Only admins can delete
     if (!['ADMIN', 'SUPER_ADMIN'].includes(userRole)) {
-      throw new Error('Forbidden: Only admins can cancel bookings');
+      throw new Error('Forbidden: Only admins can delete bookings');
     }
 
-    // Soft delete: Set status to CANCELLED
-    const cancelled = await prisma.booking.update({
-      where: { id },
-      data: {
-        status: 'CANCELLED',
-        updatedAt: new Date(),
-      },
-    });
+    // Statuses that should be archived (to preserve revenue)
+    const archiveStatuses = ['DELIVERED', 'IN_TRANSIT', 'CONFIRMED'];
+
+    if (archiveStatuses.includes(existing.status)) {
+      // Archive instead of delete - booking stays in revenue stats
+      await prisma.booking.update({
+        where: { id },
+        data: { archived: true }
+      });
+
+      // Audit log
+      await prisma.auditLog.create({
+        data: {
+          userId,
+          action: 'BOOKING_ARCHIVED',
+          entityType: 'Booking',
+          entityId: id,
+          changes: JSON.stringify({
+            archivedBooking: {
+              id: existing.id,
+              clientId: existing.clientId,
+              status: existing.status,
+              totalPrice: existing.totalPrice
+            }
+          }),
+        },
+      });
+
+      return { message: 'Booking archived successfully', archived: true };
+    }
+
+    // Hard delete for CANCELLED/PENDING/DRAFT
+    // Delete related records first (to avoid foreign key constraints)
+    await prisma.notification.deleteMany({ where: { bookingId: id } });
+    await prisma.document.deleteMany({ where: { bookingId: id } });
+    await prisma.trackingEvent.deleteMany({ where: { container: { bookingId: id } } });
+    await prisma.container.deleteMany({ where: { bookingId: id } });
+    await prisma.payment.deleteMany({ where: { invoice: { bookingId: id } } });
+    await prisma.invoice.deleteMany({ where: { bookingId: id } });
+
+    // Hard delete the booking
+    await prisma.booking.delete({ where: { id } });
 
     // Audit log
     await prisma.auditLog.create({
       data: {
         userId,
-        action: 'BOOKING_CANCELLED',
+        action: 'BOOKING_DELETED',
         entityType: 'Booking',
         entityId: id,
-        changes: JSON.stringify({ reason: 'Admin cancelled' }),
+        changes: JSON.stringify({
+          deletedBooking: {
+            id: existing.id,
+            clientId: existing.clientId,
+            status: existing.status,
+            totalPrice: existing.totalPrice
+          }
+        }),
       },
     });
 
-    // Send notification to client
-    try {
-      const cancelledBooking = await prisma.booking.findUnique({
-        where: { id },
-        include: { client: true },
-      });
-
-      if (cancelledBooking?.client?.email) {
-        // Find the User associated with this Client's email
-        const clientUser = await prisma.user.findFirst({
-          where: { email: cancelledBooking.client.email },
-        });
-
-        if (clientUser) {
-          await notificationService.sendNotification({
-            userId: clientUser.id, // Use actual User ID, not Client ID
-            bookingId: cancelledBooking.id,
-            type: 'BOOKING_CANCELLED',
-            title: `Rezervare Anulată: ${cancelledBooking.id}`,
-            message: `Rezervarea ${cancelledBooking.id} a fost anulată.\n\nDacă aveți întrebări, vă rugăm să ne contactați.\n\nEchipa Promo-Efect`,
-            channels: { email: true, sms: true, push: false, whatsapp: false },
-          });
-        }
-      }
-    } catch (error) {
-      console.error('[BookingsService] Failed to send cancellation notification:', error);
-      // Don't fail the cancellation if notification fails
-    }
-
-    return { message: 'Booking cancelled successfully' };
+    return { message: 'Booking deleted successfully', archived: false };
   }
 
   /**

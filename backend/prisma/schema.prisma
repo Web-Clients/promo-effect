@@ -185,6 +185,24 @@ model PortAdjustment {
   @@map("port_adjustments")
 }
 
+// Ports reference table - managed by admin
+model Port {
+  id       String  @id @default(uuid())
+  name     String  // Port name: Shanghai, Ningbo, Constanta, etc.
+  code     String? // Port code: CNSHA, CNNGB, ROCON, etc.
+  country  String  // Country: China, Romania, Ukraine
+  type     String  // ORIGIN or DESTINATION
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([name, type])
+  @@index([type])
+  @@index([isActive])
+  @@map("ports")
+}
+
 // HS Codes - Harmonized System customs codes for cargo classification
 model HsCode {
   id          String  @id @default(uuid())
@@ -420,6 +438,18 @@ model Booking {
   internalNotes String? @map("internal_notes")
   clientNotes   String? @map("client_notes")
 
+  // Archive flag - archived bookings are hidden from list but counted in revenue
+  archived Boolean @default(false)
+
+  // GPS Tracking (TrackGPS integration)
+  trackingVehicleId   String?   @map("tracking_vehicle_id")   // Vehicle ID from TrackGPS
+  trackingVehicleName String?   @map("tracking_vehicle_name") // Vehicle name/plate
+  trackingStartedAt   DateTime? @map("tracking_started_at")   // When tracking started
+  lastGpsLat          Float?    @map("last_gps_lat")          // Last known latitude
+  lastGpsLng          Float?    @map("last_gps_lng")          // Last known longitude
+  lastGpsSpeed        Float?    @map("last_gps_speed")        // Last known speed (km/h)
+  lastGpsUpdate       DateTime? @map("last_gps_update")       // Last GPS update time
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -436,6 +466,7 @@ model Booking {
   @@index([clientId])
   @@index([agentId])
   @@index([status])
+  @@index([archived])
   @@map("bookings")
 }
 

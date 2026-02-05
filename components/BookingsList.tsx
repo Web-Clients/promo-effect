@@ -131,6 +131,41 @@ const BookingsList = ({ user }: { user: User; }) => {
       if (errorCount > 0) {
         addToast(`${errorCount} facturi nu au putut fi generate (poate există deja)`, 'error');
       }
+    } else if (action === 'delete') {
+      // Delete (cancel) selected bookings
+      const confirmDelete = window.confirm(
+        `Sigur doriți să ștergeți ${selectedRows.length} ${selectedRows.length === 1 ? 'rezervare' : 'rezervări'}?`
+      );
+
+      if (!confirmDelete) {
+        return;
+      }
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const bookingId of selectedRows) {
+        try {
+          await bookingsService.cancelBooking(bookingId);
+          successCount++;
+        } catch (err: any) {
+          console.error(`Failed to delete booking ${bookingId}:`, err);
+          errorCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        addToast(`${successCount} ${successCount === 1 ? 'rezervare ștearsă' : 'rezervări șterse'} cu succes!`, 'success');
+        // Refresh the bookings list
+        const filters: any = { limit: 100, offset: 0 };
+        if (filterStatus !== 'ALL') filters.status = filterStatus;
+        if (searchTerm) filters.search = searchTerm;
+        const response = await bookingsService.getBookings(filters);
+        setBookings(response.bookings);
+      }
+      if (errorCount > 0) {
+        addToast(`${errorCount} ${errorCount === 1 ? 'rezervare nu a putut fi ștearsă' : 'rezervări nu au putut fi șterse'}`, 'error');
+      }
     } else {
       addToast(`Acțiunea '${action}' nu este implementată încă.`, 'info');
     }

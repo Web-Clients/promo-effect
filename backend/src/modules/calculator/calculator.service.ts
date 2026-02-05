@@ -525,7 +525,18 @@ export class CalculatorService {
    * Get all available origin ports
    */
   async getAvailablePorts(): Promise<string[]> {
-    // First try BasePrice
+    // First try Port model (managed by admin)
+    const portModelPorts = await prisma.port.findMany({
+      where: { type: 'ORIGIN', isActive: true },
+      select: { name: true },
+      orderBy: { name: 'asc' },
+    });
+
+    if (portModelPorts.length > 0) {
+      return portModelPorts.map((p) => p.name);
+    }
+
+    // Fallback to BasePrice
     const basePricePorts = await prisma.basePrice.findMany({
       distinct: ['portOrigin'],
       where: { isActive: true },
@@ -549,6 +560,18 @@ export class CalculatorService {
    * Get all available destination ports
    */
   async getAvailableDestinations(): Promise<string[]> {
+    // First try Port model (managed by admin)
+    const portModelPorts = await prisma.port.findMany({
+      where: { type: 'DESTINATION', isActive: true },
+      select: { name: true },
+      orderBy: { name: 'asc' },
+    });
+
+    if (portModelPorts.length > 0) {
+      return portModelPorts.map((p) => p.name);
+    }
+
+    // Fallback to hardcoded destinations
     return ['Constanța', 'Odessa'];
   }
 

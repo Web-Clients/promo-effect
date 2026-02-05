@@ -12,6 +12,7 @@ import agentPortalService, {
   AgentPriceInput,
   AgentStats,
 } from '../services/agentPortal';
+import portsService, { Port } from '../services/ports';
 import { cn } from '../lib/utils';
 
 // Icons
@@ -71,9 +72,10 @@ const statusText: Record<string, string> = {
 
 // Available options
 const SHIPPING_LINES = ['MSC', 'Maersk', 'Hapag-Lloyd', 'CMA CGM', 'Cosco', 'Yangming'];
-const PORTS = ['Shanghai', 'Ningbo', 'Qingdao', 'Shenzhen', 'Guangzhou', 'Xiamen'];
 const CONTAINER_TYPES = ['20ft', '40ft', '40ft HC'];
 const WEIGHT_RANGES = ['1-5 tone', '5-10 tone', '10-15 tone', '15-20 tone', '20-24 tone'];
+// Fallback ports if API fails
+const FALLBACK_PORTS = ['Shanghai', 'Ningbo', 'Qingdao', 'Shenzhen', 'Guangzhou', 'Xiamen'];
 
 const AgentPricesDashboard: React.FC = () => {
   const [profile, setProfile] = useState<AgentProfile | null>(null);
@@ -82,6 +84,9 @@ const AgentPricesDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
+
+  // Ports loaded from API
+  const [originPorts, setOriginPorts] = useState<string[]>(FALLBACK_PORTS);
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -92,7 +97,7 @@ const AgentPricesDashboard: React.FC = () => {
   const [formData, setFormData] = useState<AgentPriceInput>({
     freightPrice: 0,
     shippingLine: SHIPPING_LINES[0],
-    portOrigin: PORTS[0],
+    portOrigin: FALLBACK_PORTS[0],
     containerType: CONTAINER_TYPES[0],
     weightRange: WEIGHT_RANGES[0],
     validFrom: new Date().toISOString().split('T')[0],
@@ -102,6 +107,22 @@ const AgentPricesDashboard: React.FC = () => {
   });
 
   const { addToast } = useToast();
+
+  // Load ports from API
+  useEffect(() => {
+    const loadPorts = async () => {
+      try {
+        const ports = await portsService.getOriginPorts();
+        if (ports.length > 0) {
+          const portNames = ports.map(p => p.name);
+          setOriginPorts(portNames);
+        }
+      } catch (err) {
+        console.warn('Failed to load ports, using fallback:', err);
+      }
+    };
+    loadPorts();
+  }, []);
 
   // Load data
   useEffect(() => {
@@ -148,7 +169,7 @@ const AgentPricesDashboard: React.FC = () => {
       setFormData({
         freightPrice: 0,
         shippingLine: SHIPPING_LINES[0],
-        portOrigin: PORTS[0],
+        portOrigin: originPorts[0] || FALLBACK_PORTS[0],
         containerType: CONTAINER_TYPES[0],
         weightRange: WEIGHT_RANGES[0],
         validFrom: new Date().toISOString().split('T')[0],
@@ -399,7 +420,7 @@ const AgentPricesDashboard: React.FC = () => {
                     className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 rounded-lg"
                     required
                   >
-                    {PORTS.map((port) => (
+                    {originPorts.map((port) => (
                       <option key={port} value={port}>{port}</option>
                     ))}
                   </select>

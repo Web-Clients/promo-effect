@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { User, UserRole, Booking } from '../types';
 import { cn } from '../lib/utils';
-import { LayoutDashboardIcon, PackageIcon, ShipIcon, UsersIcon, FileTextIcon, BarChartIcon, SettingsIcon, CalculatorIcon, MailIcon, SparklesIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon, BellIcon, SunIcon, MoonIcon, PlusIcon, LogOutIcon, MoreHorizontalIcon, UserIcon, DollarSignIcon, GlobeIcon, UserCheckIcon } from './icons';
+import { LayoutDashboardIcon, PackageIcon, ShipIcon, UsersIcon, FileTextIcon, BarChartIcon, SettingsIcon, CalculatorIcon, MailIcon, SparklesIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon, SunIcon, MoonIcon, PlusIcon, LogOutIcon, MoreHorizontalIcon, UserIcon, DollarSignIcon, GlobeIcon, UserCheckIcon, AnchorIcon } from './icons';
+import NotificationsDropdown from './NotificationsDropdown';
 
 interface DashboardLayoutProps {
   children?: React.ReactNode;
@@ -63,7 +64,9 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
     { name: 'Rapoarte', path: 'reports', icon: BarChartIcon, visible: isAdminOrManager },
     { name: 'Administrare Prețuri', path: 'admin-pricing', icon: DollarSignIcon, visible: isAdmin },
     { name: 'Agenți Chinezi', path: 'agents', icon: GlobeIcon, visible: isAdmin },
+    { name: 'Gestionare Porturi', path: 'ports-manager', icon: AnchorIcon, visible: isAdmin },
     { name: 'Panou Admin', path: 'admin-panel', icon: UserCheckIcon, visible: isAdmin },
+    { name: 'Utilizatori', path: 'user-management', icon: UsersIcon, visible: isAdmin },
     { name: 'Setări Admin', path: 'adminSettings', icon: SettingsIcon, visible: isAdmin },
     { name: 'Prețurile Mele', path: 'my-prices', icon: DollarSignIcon, visible: user.role === UserRole.AGENT },
   ];
@@ -189,10 +192,7 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
-              <button className="relative p-2.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
-                <BellIcon className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
-                <span className="absolute top-2 right-2 h-2 w-2 bg-error-500 rounded-full animate-pulse"></span>
-              </button>
+              <NotificationsDropdown />
 
               <button onClick={toggleTheme} className="p-2.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
                 {theme === 'dark' ? <SunIcon className="h-5 w-5 text-neutral-600 dark:text-neutral-300" /> : <MoonIcon className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />}

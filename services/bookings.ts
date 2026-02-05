@@ -98,6 +98,14 @@ export interface BookingResponse {
   documents?: any[];
   invoices?: any[];
   notifications?: any[];
+  // GPS Tracking fields
+  trackingVehicleId?: string | null;
+  trackingVehicleName?: string | null;
+  trackingStartedAt?: string | null;
+  lastGpsLat?: number | null;
+  lastGpsLng?: number | null;
+  lastGpsSpeed?: number | null;
+  lastGpsUpdate?: string | null;
 }
 
 export interface BookingListResponse {

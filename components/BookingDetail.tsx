@@ -7,6 +7,7 @@ import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { useToast } from './ui/Toast';
 import bookingsService, { CreateBookingData, UpdateBookingData, BookingResponse } from '../services/bookings';
+import GPSTrackingMap from './GPSTrackingMap';
 
 interface BookingDetailProps {
     user: User;
@@ -23,6 +24,10 @@ interface BookingFormState extends Partial<Booking> {
     supplierAddress?: string | null;
     clientNotes?: string | null;
     internalNotes?: string | null;
+    // GPS Tracking fields
+    trackingVehicleId?: string | null;
+    trackingVehicleName?: string | null;
+    trackingStartedAt?: string | null;
 }
 
 // Map API response to form state
@@ -50,6 +55,10 @@ const mapApiToFormState = (apiBooking: BookingResponse): BookingFormState => {
         supplierAddress: apiBooking.supplierAddress,
         clientNotes: apiBooking.clientNotes,
         internalNotes: apiBooking.internalNotes,
+        // GPS Tracking
+        trackingVehicleId: apiBooking.trackingVehicleId,
+        trackingVehicleName: apiBooking.trackingVehicleName,
+        trackingStartedAt: apiBooking.trackingStartedAt,
     };
 };
 
@@ -324,8 +333,8 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
                         <div className="flex justify-end pt-4">
                             <Button type="button" variant="secondary" onClick={onBack} className="mr-4">Anulează</Button>
                             <Button type="submit" disabled={isSubmitting} loading={isSubmitting}>
-                                {isSubmitting 
-                                    ? 'Se salvează...' 
+                                {isSubmitting
+                                    ? 'Se salvează...'
                                     : (isNew ? 'Trimite Cererea' : 'Salvează Modificările')
                                 }
                             </Button>
@@ -333,6 +342,41 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
                     )}
                 </Card>
             </form>
+
+            {/* GPS Tracking Map - show when booking exists and status is IN_TRANSIT or has vehicle assigned */}
+            {!isNew && bookingId && (bookingData.status === 'IN_TRANSIT' || bookingData.trackingVehicleId) && (
+                <GPSTrackingMap
+                    bookingId={bookingId}
+                    vehicleId={bookingData.trackingVehicleId}
+                    vehicleName={bookingData.trackingVehicleName}
+                    isAdmin={isAdmin}
+                    onVehicleAssigned={() => {
+                        // Reload booking to get updated tracking info
+                        if (bookingId) {
+                            bookingsService.getBookingById(bookingId).then(apiBooking => {
+                                setBookingData(mapApiToFormState(apiBooking));
+                            });
+                        }
+                    }}
+                />
+            )}
+
+            {/* Show GPS Tracking section for admin even if no vehicle - allow assignment */}
+            {!isNew && bookingId && isAdmin && !bookingData.trackingVehicleId && bookingData.status !== 'IN_TRANSIT' && (
+                <GPSTrackingMap
+                    bookingId={bookingId}
+                    vehicleId={null}
+                    vehicleName={null}
+                    isAdmin={isAdmin}
+                    onVehicleAssigned={() => {
+                        if (bookingId) {
+                            bookingsService.getBookingById(bookingId).then(apiBooking => {
+                                setBookingData(mapApiToFormState(apiBooking));
+                            });
+                        }
+                    }}
+                />
+            )}
         </div>
     );
 };

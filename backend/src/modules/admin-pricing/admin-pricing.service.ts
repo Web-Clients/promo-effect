@@ -16,6 +16,11 @@ export interface BasePriceInput {
   validFrom: Date;
   validUntil: Date;
   isActive?: boolean;
+  // Per-line cost overrides (null = use global admin_settings)
+  portTaxes?: number | null;
+  terrestrialTransport?: number | null;
+  customsTaxes?: number | null;
+  commission?: number | null;
 }
 
 // Port Adjustment types
@@ -95,6 +100,10 @@ export class AdminPricingService {
         validFrom: data.validFrom,
         validUntil: data.validUntil,
         isActive: data.isActive ?? true,
+        portTaxes: data.portTaxes ?? null,
+        terrestrialTransport: data.terrestrialTransport ?? null,
+        customsTaxes: data.customsTaxes ?? null,
+        commission: data.commission ?? null,
         createdBy,
       },
     });
@@ -116,6 +125,10 @@ export class AdminPricingService {
         ...(data.validFrom && { validFrom: data.validFrom }),
         ...(data.validUntil && { validUntil: data.validUntil }),
         ...(data.isActive !== undefined && { isActive: data.isActive }),
+        ...(data.portTaxes !== undefined && { portTaxes: data.portTaxes }),
+        ...(data.terrestrialTransport !== undefined && { terrestrialTransport: data.terrestrialTransport }),
+        ...(data.customsTaxes !== undefined && { customsTaxes: data.customsTaxes }),
+        ...(data.commission !== undefined && { commission: data.commission }),
       },
     });
   }

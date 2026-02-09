@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { User, UserRole, Booking } from '../types';
 import { cn } from '../lib/utils';
-import { LayoutDashboardIcon, PackageIcon, ShipIcon, UsersIcon, FileTextIcon, BarChartIcon, SettingsIcon, CalculatorIcon, MailIcon, SparklesIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon, SunIcon, MoonIcon, PlusIcon, LogOutIcon, MoreHorizontalIcon, UserIcon, DollarSignIcon, GlobeIcon, UserCheckIcon, AnchorIcon } from './icons';
+import { LayoutDashboardIcon, PackageIcon, ShipIcon, UsersIcon, FileTextIcon, BarChartIcon, SettingsIcon, CalculatorIcon, MailIcon, SparklesIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon, SunIcon, MoonIcon, PlusIcon, LogOutIcon, MoreHorizontalIcon, UserIcon, DollarSignIcon, GlobeIcon, UserCheckIcon, AnchorIcon, MapPinIcon } from './icons';
 import NotificationsDropdown from './NotificationsDropdown';
 
 interface DashboardLayoutProps {
@@ -56,6 +56,7 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
     { name: 'Panou de control', path: '/dashboard', icon: LayoutDashboardIcon, visible: true, end: true },
     { name: 'Rezervări', path: 'bookings', icon: PackageIcon, visible: true },
     { name: 'Urmărire', path: 'tracking', icon: ShipIcon, visible: true },
+    { name: 'Marfă în Drum', path: 'containers-transit', icon: MapPinIcon, visible: true },
     { name: 'Calculator Preț', path: 'calculator', icon: CalculatorIcon, visible: true },
     { name: 'Profilul Meu', path: 'userProfile', icon: UserIcon, visible: true },
     { name: 'Clienți', path: 'clients', icon: UsersIcon, visible: isAdminOrManager },

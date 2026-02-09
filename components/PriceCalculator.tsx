@@ -3,6 +3,7 @@ import { Button } from './ui/Button';
 import { HsCodeSelector } from './ui/HsCodeSelector';
 import calculatorService, { CalculatorResult, PriceOffer, SupplierData, ContainerEntry } from '../services/calculator';
 import { HsCode } from '../services/hscodes';
+import { User, UserRole } from '../types';
 import { cn } from '../lib/utils';
 
 const SpinnerIcon = ({ large, isTextWhite = true }: { large?: boolean, isTextWhite?: boolean }) => <svg className={`animate-spin ${large ? 'h-10 w-10' : 'h-5 w-5'} ${isTextWhite ? 'text-white' : 'text-primary-600 dark:text-primary-400'}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>;
@@ -17,7 +18,8 @@ const PlusCircleIcon = () => <svg className="w-5 h-5" fill="none" viewBox="0 0 2
 const TrashIcon = () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>;
 const PackageIcon = () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>;
 
-const PriceCalculator = () => {
+const PriceCalculator = ({ user }: { user?: User }) => {
+    const isAdmin = user && [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER].includes(user.role);
     // Form state
     const [params, setParams] = useState({
         portOrigin: '',
@@ -705,33 +707,95 @@ const PriceCalculator = () => {
                                         {/* Expanded Details */}
                                         {selectedOffer === index && (
                                             <div className="mt-5 pt-5 border-t border-neutral-200 dark:border-neutral-700 animate-fade-in">
-                                                <h5 className="text-sm font-semibold text-primary-800 dark:text-white mb-3">Defalcare Costuri</h5>
-                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                                    <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                                                        <p className="text-xs text-neutral-400 mb-1">Tarif Maritim</p>
-                                                        <p className="font-semibold text-primary-800 dark:text-white">${offer.freightPrice.toFixed(2)}</p>
+                                                {isAdmin ? (
+                                                    <>
+                                                        {/* Admin: detailed Rata 1 */}
+                                                        <div className="mb-4">
+                                                            <div className="flex items-center justify-between mb-2">
+                                                                <h5 className="text-sm font-semibold text-primary-800 dark:text-white">
+                                                                    Rata 1: {offer.portOrigin} → {offer.portIntermediate}
+                                                                </h5>
+                                                                <span className="text-sm font-bold text-accent-500">
+                                                                    ${(offer.freightPrice + offer.portAdjustment + offer.portTaxes).toFixed(2)}
+                                                                </span>
+                                                            </div>
+                                                            <div className="grid grid-cols-3 gap-3">
+                                                                <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
+                                                                    <p className="text-xs text-neutral-400 mb-1">Tarif Maritim</p>
+                                                                    <p className="font-semibold text-primary-800 dark:text-white">${offer.freightPrice.toFixed(2)}</p>
+                                                                </div>
+                                                                <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
+                                                                    <p className="text-xs text-neutral-400 mb-1">Ajustare Port</p>
+                                                                    <p className="font-semibold text-primary-800 dark:text-white">${offer.portAdjustment.toFixed(2)}</p>
+                                                                </div>
+                                                                <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
+                                                                    <p className="text-xs text-neutral-400 mb-1">Taxe Portuare</p>
+                                                                    <p className="font-semibold text-primary-800 dark:text-white">${offer.portTaxes.toFixed(2)}</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Admin: detailed Rata 2 */}
+                                                        <div className="mb-4">
+                                                            <div className="flex items-center justify-between mb-2">
+                                                                <h5 className="text-sm font-semibold text-primary-800 dark:text-white">
+                                                                    Rata 2: {offer.portIntermediate} → {offer.portFinal}
+                                                                </h5>
+                                                                <span className="text-sm font-bold text-accent-500">
+                                                                    ${(offer.terrestrialTransport + offer.customsTaxes + offer.commission + (offer.insurance || 0)).toFixed(2)}
+                                                                </span>
+                                                            </div>
+                                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                                                <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
+                                                                    <p className="text-xs text-neutral-400 mb-1">Transport Terestru</p>
+                                                                    <p className="font-semibold text-primary-800 dark:text-white">${offer.terrestrialTransport.toFixed(2)}</p>
+                                                                </div>
+                                                                <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
+                                                                    <p className="text-xs text-neutral-400 mb-1">Taxe Vamale</p>
+                                                                    <p className="font-semibold text-primary-800 dark:text-white">${offer.customsTaxes.toFixed(2)}</p>
+                                                                </div>
+                                                                <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
+                                                                    <p className="text-xs text-neutral-400 mb-1">Comision</p>
+                                                                    <p className="font-semibold text-primary-800 dark:text-white">${offer.commission.toFixed(2)}</p>
+                                                                </div>
+                                                                {(offer.insurance || 0) > 0 && (
+                                                                    <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
+                                                                        <p className="text-xs text-neutral-400 mb-1">Asigurare</p>
+                                                                        <p className="font-semibold text-primary-800 dark:text-white">${offer.insurance.toFixed(2)}</p>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    /* Client: simplified - only 2 blocks with subtotals */
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                                                        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-100 dark:border-blue-800/30">
+                                                            <div className="flex items-center gap-2 mb-3">
+                                                                <div className="w-7 h-7 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">1</div>
+                                                                <h5 className="text-sm font-semibold text-blue-800 dark:text-blue-300">
+                                                                    {offer.portOrigin} → {offer.portIntermediate}
+                                                                </h5>
+                                                            </div>
+                                                            <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">
+                                                                ${(offer.freightPrice + offer.portAdjustment + offer.portTaxes).toFixed(0)}
+                                                            </p>
+                                                            <p className="text-xs text-blue-500 mt-1">Transport maritim</p>
+                                                        </div>
+                                                        <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4 border border-green-100 dark:border-green-800/30">
+                                                            <div className="flex items-center gap-2 mb-3">
+                                                                <div className="w-7 h-7 rounded-full bg-green-500 text-white flex items-center justify-center text-xs font-bold">2</div>
+                                                                <h5 className="text-sm font-semibold text-green-800 dark:text-green-300">
+                                                                    {offer.portIntermediate} → {offer.portFinal}
+                                                                </h5>
+                                                            </div>
+                                                            <p className="text-2xl font-bold text-green-700 dark:text-green-400">
+                                                                ${(offer.terrestrialTransport + offer.customsTaxes + offer.commission + (offer.insurance || 0)).toFixed(0)}
+                                                            </p>
+                                                            <p className="text-xs text-green-500 mt-1">Transport terestru + vămuire</p>
+                                                        </div>
                                                     </div>
-                                                    <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                                                        <p className="text-xs text-neutral-400 mb-1">Ajustare Port</p>
-                                                        <p className="font-semibold text-primary-800 dark:text-white">${offer.portAdjustment.toFixed(2)}</p>
-                                                    </div>
-                                                    <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                                                        <p className="text-xs text-neutral-400 mb-1">Taxe Portuare</p>
-                                                        <p className="font-semibold text-primary-800 dark:text-white">${offer.portTaxes.toFixed(2)}</p>
-                                                    </div>
-                                                    <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                                                        <p className="text-xs text-neutral-400 mb-1">Taxe Vamale</p>
-                                                        <p className="font-semibold text-primary-800 dark:text-white">${offer.customsTaxes.toFixed(2)}</p>
-                                                    </div>
-                                                    <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                                                        <p className="text-xs text-neutral-400 mb-1">Transport Terestru</p>
-                                                        <p className="font-semibold text-primary-800 dark:text-white">${offer.terrestrialTransport.toFixed(2)}</p>
-                                                    </div>
-                                                    <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                                                        <p className="text-xs text-neutral-400 mb-1">Comision</p>
-                                                        <p className="font-semibold text-primary-800 dark:text-white">${offer.commission.toFixed(2)}</p>
-                                                    </div>
-                                                </div>
+                                                )}
                                                 <Button
                                                     variant="accent"
                                                     className="w-full mt-4"

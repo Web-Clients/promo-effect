@@ -17,6 +17,10 @@ export interface BasePrice {
   validFrom: string;
   validUntil: string;
   isActive: boolean;
+  portTaxes: number | null;
+  terrestrialTransport: number | null;
+  customsTaxes: number | null;
+  commission: number | null;
   createdBy?: string;
   createdAt: string;
   updatedAt: string;
@@ -32,6 +36,10 @@ export interface BasePriceInput {
   validFrom: string;
   validUntil: string;
   isActive?: boolean;
+  portTaxes?: number | null;
+  terrestrialTransport?: number | null;
+  customsTaxes?: number | null;
+  commission?: number | null;
 }
 
 export interface PortAdjustment {

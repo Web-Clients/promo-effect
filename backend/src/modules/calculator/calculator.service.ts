@@ -126,16 +126,39 @@ export class CalculatorService {
 
     const insurance = input.includeInsurance ? settings.insuranceCost : 0;
 
+    // 3b. Calculate weight surcharges from weight ranges
+    let freightSurcharge = 0;
+    let terrestrialSurcharge = 0;
+    try {
+      const weightRanges = JSON.parse(settings.weightRanges || '[]');
+      if (Array.isArray(weightRanges) && input.cargoWeight) {
+        const matchedRange = weightRanges.find((r: any) =>
+          r.enabled && r.label === input.cargoWeight
+        );
+        if (matchedRange) {
+          freightSurcharge = matchedRange.freightSurcharge || 0;
+          terrestrialSurcharge = matchedRange.terrestrialSurcharge || 0;
+        }
+      }
+    } catch (e) {
+      // Invalid weight ranges JSON, skip surcharges
+    }
+
     // 4. Query BasePrice for ALL container types
     const containerTypes = [...new Set(containers.map(c => c.type))];
 
     const basePrices = await prisma.basePrice.findMany({
       where: {
         portOrigin: input.portOrigin,
-        portDestination: {
-          contains: isConstanta ? 'Constanta' : 'Odessa',
-          mode: 'insensitive',
-        },
+        ...(isConstanta
+          ? {
+              OR: [
+                { portDestination: { contains: 'Constanta', mode: 'insensitive' } },
+                { portDestination: { contains: 'Constanța', mode: 'insensitive' } },
+              ],
+            }
+          : { portDestination: { contains: 'Odessa', mode: 'insensitive' } }
+        ),
         containerType: { in: containerTypes },
         isActive: true,
         validFrom: { lte: readyDate },
@@ -145,7 +168,7 @@ export class CalculatorService {
 
     // If no prices found in BasePrice, fall back to AgentPrice
     if (basePrices.length === 0) {
-      return this.calculateWithAgentPrices(input, settings, originAdjustment, portTaxes, terrestrialTransport, insurance, containers, totalContainerCount);
+      return this.calculateWithAgentPrices(input, settings, originAdjustment, portTaxes, terrestrialTransport, insurance, containers, totalContainerCount, freightSurcharge, terrestrialSurcharge);
     }
 
     // Group base prices by shipping line
@@ -199,11 +222,22 @@ export class CalculatorService {
         maxTransitDays = Math.max(maxTransitDays, price.transitDays);
       }
 
+      // Per-line cost overrides (fallback to global admin_settings)
+      const firstPrice = prices[0];
+      const linePortTaxes = firstPrice.portTaxes ?? portTaxes;
+      const lineTerrestrialTransport = firstPrice.terrestrialTransport ?? terrestrialTransport;
+      const lineCustomsTaxes = firstPrice.customsTaxes ?? settings.customsTaxes;
+      const lineCommission = firstPrice.commission ?? settings.commission;
+
+      // Apply weight surcharges
+      const adjustedTerrestrialTransport = lineTerrestrialTransport + terrestrialSurcharge;
+      const adjustedFreight = totalFreight + freightSurcharge;
+
       // Fixed costs are per shipment, not per container
-      const totalFixedCosts = portTaxes + settings.customsTaxes + terrestrialTransport + settings.commission + insurance;
+      const totalFixedCosts = linePortTaxes + lineCustomsTaxes + adjustedTerrestrialTransport + lineCommission + insurance;
 
       // Total price = container costs + fixed costs
-      const totalPriceUSD = totalFreight + totalPortAdjustment + totalFixedCosts;
+      const totalPriceUSD = adjustedFreight + totalPortAdjustment + totalFixedCosts;
 
       const portIntermediate = isConstanta ? 'Constanța' : 'Odessa';
       const route = `${input.portOrigin} → ${portIntermediate} → Chișinău`;
@@ -216,18 +250,18 @@ export class CalculatorService {
         portOrigin: input.portOrigin,
         portIntermediate,
         portFinal: 'Chișinău',
-        freightPrice: totalFreight,
+        freightPrice: adjustedFreight,
         portAdjustment: totalPortAdjustment,
-        portTaxes,
-        customsTaxes: settings.customsTaxes,
-        terrestrialTransport,
-        commission: settings.commission,
+        portTaxes: linePortTaxes,
+        customsTaxes: lineCustomsTaxes,
+        terrestrialTransport: adjustedTerrestrialTransport,
+        commission: lineCommission,
         insurance,
         totalPriceUSD,
         totalPriceMDL: 0,
         containerBreakdown,
         totalContainers: totalContainerCount,
-        estimatedTransitDays: maxTransitDays,
+        estimatedTransitDays: maxTransitDays > 0 ? maxTransitDays : this.estimateTransitDays(input.portOrigin, input.portDestination),
         availability: this.checkAvailability(readyDate),
       });
     }
@@ -280,7 +314,9 @@ export class CalculatorService {
     terrestrialTransport: number,
     insurance: number,
     containers?: ContainerEntry[],
-    totalContainerCount?: number
+    totalContainerCount?: number,
+    freightSurcharge: number = 0,
+    terrestrialSurcharge: number = 0
   ): Promise<CalculatorResult> {
     const readyDate = new Date(input.cargoReadyDate);
     const isConstanta = input.portDestination.toLowerCase().includes('constanta') ||
@@ -360,8 +396,10 @@ export class CalculatorService {
         }
       }
 
-      const totalFixedCosts = portTaxes + settings.customsTaxes + terrestrialTransport + settings.commission + insurance;
-      const totalPriceUSD = totalFreight + totalPortAdjustment + totalFixedCosts;
+      const adjustedTerrestrialTransportAP = terrestrialTransport + terrestrialSurcharge;
+      const adjustedFreightAP = totalFreight + freightSurcharge;
+      const totalFixedCosts = portTaxes + settings.customsTaxes + adjustedTerrestrialTransportAP + settings.commission + insurance;
+      const totalPriceUSD = adjustedFreightAP + totalPortAdjustment + totalFixedCosts;
 
       const portIntermediate = isConstanta ? 'Constanța' : 'Odessa';
       const route = `${input.portOrigin} → ${portIntermediate} → Chișinău`;
@@ -374,11 +412,11 @@ export class CalculatorService {
         portOrigin: input.portOrigin,
         portIntermediate,
         portFinal: 'Chișinău',
-        freightPrice: totalFreight,
+        freightPrice: adjustedFreightAP,
         portAdjustment: totalPortAdjustment,
         portTaxes,
         customsTaxes: settings.customsTaxes,
-        terrestrialTransport,
+        terrestrialTransport: adjustedTerrestrialTransportAP,
         commission: settings.commission,
         insurance,
         totalPriceUSD,

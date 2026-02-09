@@ -25,6 +25,7 @@ import AdminDashboard from './components/AdminDashboard';
 import AgentPricesDashboard from './components/AgentPricesDashboard';
 import AdminPriceApproval from './components/AdminPriceApproval';
 import AdminPortsManager from './components/AdminPortsManager';
+import ContainersInTransit from './components/ContainersInTransit';
 import UserManagement from './components/UserManagement';
 import { User, Booking } from './types';
 import { ToastProvider } from './components/ui/Toast';
@@ -39,7 +40,8 @@ const RouteObserver = () => {
     const path = location.pathname;
     let title = 'Promo-Efect Logistics';
 
-    if (path.includes('/dashboard/bookings')) title = 'Rezervări | Promo-Efect';
+    if (path.includes('/dashboard/containers-transit')) title = 'Marfă în Drum | Promo-Efect';
+    else if (path.includes('/dashboard/bookings')) title = 'Rezervări | Promo-Efect';
     else if (path.includes('/dashboard/tracking')) title = 'Urmărire Container | Promo-Efect';
     else if (path.includes('/dashboard/calculator')) title = 'Calculator Preț | Promo-Efect';
     else if (path.includes('/dashboard/clients')) title = 'Clienți | Promo-Efect';
@@ -161,7 +163,8 @@ const App = () => {
           <Route path="bookings" element={<BookingsList user={user!} />} />
           <Route path="bookings/:bookingId" element={<BookingDetail user={user!} />} />
           <Route path="tracking" element={<TrackingView />} />
-          <Route path="calculator" element={<PriceCalculator />} />
+          <Route path="containers-transit" element={<ContainersInTransit />} />
+          <Route path="calculator" element={<PriceCalculator user={user!} />} />
           <Route path="emailParser" element={<EmailParserAssistant onBookingCreate={handleNewBooking} />} />
           <Route path="ai-parser" element={<AIEmailParser />} />
           <Route path="clients" element={<ClientsList />} />

@@ -286,6 +286,9 @@ export class BookingsService {
           select: {
             id: true,
             containerNumber: true,
+            blNumber: true,
+            type: true,
+            weightGross: true,
             currentStatus: true,
             currentLocation: true,
             eta: true,

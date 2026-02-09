@@ -161,6 +161,12 @@ model BasePrice {
   validUntil      DateTime @map("valid_until")
   isActive        Boolean  @default(true) @map("is_active")
 
+  // Per-shipping-line cost overrides (null = use global admin_settings)
+  portTaxes              Float?  @map("port_taxes")
+  terrestrialTransport   Float?  @map("terrestrial_transport")
+  customsTaxes           Float?  @map("customs_taxes")
+  commission             Float?  @map("commission")
+
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
   createdBy       String?  @map("created_by")

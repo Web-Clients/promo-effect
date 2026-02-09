@@ -8,11 +8,11 @@ import { Request, Response } from 'express';
 
 /**
  * General API rate limiter
- * 100 requests per 15 minutes per IP
+ * 1000 requests per 15 minutes per IP
  */
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 1000, // Limit each IP to 1000 requests per windowMs
   message: {
     success: false,
     error: 'Too many requests from this IP, please try again later.',

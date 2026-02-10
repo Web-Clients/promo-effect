@@ -44,6 +44,9 @@ export interface UpdateBookingDTO {
   actualArrival?: string;
   internalNotes?: string;
   clientNotes?: string;
+  // Container fields (saved to Container relation)
+  containerNumber?: string;
+  blNumber?: string;
 }
 
 export interface BookingFilters {

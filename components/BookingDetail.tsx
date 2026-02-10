@@ -24,6 +24,7 @@ interface BookingFormState extends Partial<Booking> {
     supplierAddress?: string | null;
     clientNotes?: string | null;
     internalNotes?: string | null;
+    bl_number?: string;
     // GPS Tracking fields
     trackingVehicleId?: string | null;
     trackingVehicleName?: string | null;
@@ -43,6 +44,7 @@ const mapApiToFormState = (apiBooking: BookingResponse): BookingFormState => {
         shipping_line: apiBooking.shippingLine,
         container_type: apiBooking.containerType,
         container_number: apiBooking.containers?.[0]?.containerNumber || '',
+        bl_number: apiBooking.containers?.[0]?.blNumber || '',
         quoted_price_usd: apiBooking.totalPrice,
         estimated_arrival_date: apiBooking.eta || undefined,
         created_at: apiBooking.createdAt,
@@ -91,8 +93,17 @@ const mapToUpdateData = (formData: BookingFormState): UpdateBookingData => {
         clientNotes: formData.clientNotes || undefined,
         internalNotes: formData.internalNotes || undefined,
         eta: formData.estimated_arrival_date,
+        containerNumber: formData.container_number || undefined,
+        blNumber: formData.bl_number || undefined,
     };
 };
+
+const BookingSelect = ({ ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) => (
+    <select
+        {...props}
+        className="w-full mt-1 p-2 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-neutral-100 dark:disabled:bg-neutral-700"
+    />
+);
 
 const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
     const { bookingId } = useParams<{ bookingId: string }>();
@@ -195,12 +206,6 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
         }
     }, [isNew, bookingId, bookingData, isSubmitting, navigate, addToast]);
     
-    const Select = ({ ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-        <select 
-            {...props} 
-            className="w-full mt-1 p-2 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-neutral-100 dark:disabled:bg-neutral-700" 
-        />
-    );
 
     // Loading state
     if (isLoading) {
@@ -242,19 +247,19 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Port Origine</label>
-                                <Select 
+                                <BookingSelect
                                     disabled={isReadOnly} 
                                     value={bookingData.origin_port || ''} 
                                     onChange={e => setBookingData({...bookingData, origin_port: e.target.value})}
                                 >
                                     {ORIGIN_PORTS.map(p => <option key={p} value={p}>{p}</option>)}
-                                </Select>
+                                </BookingSelect>
                             </div>
                             <div>
                                 <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Port Destinație</label>
-                                <Select disabled value={bookingData.destination_port || ''}>
+                                <BookingSelect disabled value={bookingData.destination_port || ''}>
                                     {DESTINATION_PORTS.map(p => <option key={p} value={p}>{p}</option>)}
-                                </Select>
+                                </BookingSelect>
                             </div>
                         </div>
                     </div>
@@ -264,32 +269,44 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Tip Container</label>
-                                <Select 
+                                <BookingSelect
                                     disabled={isReadOnly} 
                                     value={bookingData.container_type || ''} 
                                     onChange={e => setBookingData({...bookingData, container_type: e.target.value})}
                                 >
                                     {CONTAINER_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                                </Select>
+                                </BookingSelect>
                             </div>
                             <div>
                                 <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Linie Maritimă Preferată</label>
-                                <Select 
+                                <BookingSelect
                                     disabled={isReadOnly} 
                                     value={bookingData.shipping_line || ''} 
                                     onChange={e => setBookingData({...bookingData, shipping_line: e.target.value})}
                                 >
                                     {SHIPPING_LINES.map(l => <option key={l} value={l}>{l}</option>)}
-                                </Select>
+                                </BookingSelect>
                             </div>
                             <div>
-                                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Număr Container (Opțional)</label>
-                                <Input 
-                                    type="text" 
-                                    value={bookingData.container_number || ''} 
-                                    onChange={e => setBookingData({...bookingData, container_number: e.target.value})} 
-                                    className="font-mono" 
-                                    disabled={isReadOnly} 
+                                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Număr Container</label>
+                                <Input
+                                    type="text"
+                                    value={bookingData.container_number || ''}
+                                    onChange={e => setBookingData({...bookingData, container_number: e.target.value})}
+                                    className="font-mono"
+                                    disabled={isReadOnly}
+                                    placeholder="Ex: MSCU1234567"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Număr BL (Bill of Lading)</label>
+                                <Input
+                                    type="text"
+                                    value={bookingData.bl_number || ''}
+                                    onChange={e => setBookingData({...bookingData, bl_number: e.target.value})}
+                                    className="font-mono"
+                                    disabled={isReadOnly}
+                                    placeholder="Ex: MEDU1234567"
                                 />
                             </div>
                         </div>
@@ -301,20 +318,31 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div>
                                     <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Stare Rezervare</label>
-                                    <Select 
+                                    <BookingSelect
                                         value={bookingData.status || ''} 
                                         onChange={e => setBookingData({...bookingData, status: e.target.value as BookingStatus})}
                                     >
                                         {Object.values(BookingStatus).map(s => <option key={s} value={s}>{s}</option>)}
-                                    </Select>
+                                    </BookingSelect>
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Număr Container</label>
-                                    <Input 
-                                        type="text" 
-                                        value={bookingData.container_number || ''} 
-                                        onChange={e => setBookingData({...bookingData, container_number: e.target.value})} 
-                                        className="font-mono" 
+                                    <Input
+                                        type="text"
+                                        value={bookingData.container_number || ''}
+                                        onChange={e => setBookingData({...bookingData, container_number: e.target.value})}
+                                        className="font-mono"
+                                        placeholder="Ex: MSCU1234567"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Număr BL</label>
+                                    <Input
+                                        type="text"
+                                        value={bookingData.bl_number || ''}
+                                        onChange={e => setBookingData({...bookingData, bl_number: e.target.value})}
+                                        className="font-mono"
+                                        placeholder="Ex: MEDU1234567"
                                     />
                                 </div>
                                 <div>

@@ -134,6 +134,29 @@ router.get('/search/:containerNumber', authMiddleware, async (req: Request, res:
         user.role,
         user.clientId
       );
+
+      // Auto-refresh from SeaRates if data is stale (no status or last sync > 4 hours ago)
+      const needsRefresh = !container.currentStatus ||
+        !container.lastSyncAt ||
+        (new Date().getTime() - new Date(container.lastSyncAt).getTime() > 4 * 60 * 60 * 1000);
+
+      if (needsRefresh && searatesIntegration.isConfigured()) {
+        console.log(`[Tracking] Auto-refreshing ${containerNumber} from SeaRates...`);
+        try {
+          await trackingService.refreshTracking(container.id);
+          // Re-fetch updated container
+          const updated = await trackingService.getContainerByNumber(
+            containerNumber,
+            user.role,
+            user.clientId
+          );
+          return res.json(updated);
+        } catch (refreshErr) {
+          console.error('[Tracking] Auto-refresh failed:', refreshErr);
+          // Return stale local data if refresh fails
+        }
+      }
+
       return res.json(container);
     } catch (localError: any) {
       // If not found locally, try SeaRates API

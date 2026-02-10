@@ -397,11 +397,14 @@ export class BookingsService {
       throw new Error('Forbidden: Only admins or agents can update booking status');
     }
 
+    // Extract container fields (not on Booking model)
+    const { containerNumber, blNumber, ...bookingData } = data;
+
     // Update booking
     const updated = await prisma.booking.update({
       where: { id },
       data: {
-        ...data,
+        ...bookingData,
         updatedAt: new Date(),
       },
       include: {
@@ -409,6 +412,34 @@ export class BookingsService {
         agent: true,
       },
     });
+
+    // Upsert Container record if containerNumber or blNumber provided
+    if (containerNumber !== undefined || blNumber !== undefined) {
+      const existingContainer = await prisma.container.findFirst({
+        where: { bookingId: id },
+      });
+
+      if (existingContainer) {
+        // Update existing container
+        await prisma.container.update({
+          where: { id: existingContainer.id },
+          data: {
+            ...(containerNumber !== undefined ? { containerNumber } : {}),
+            ...(blNumber !== undefined ? { blNumber: blNumber || null } : {}),
+          },
+        });
+      } else if (containerNumber) {
+        // Create new container record
+        await prisma.container.create({
+          data: {
+            bookingId: id,
+            containerNumber,
+            blNumber: blNumber || null,
+            type: existing.containerType,
+          },
+        });
+      }
+    }
 
     // Audit log
     await prisma.auditLog.create({

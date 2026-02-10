@@ -18,6 +18,62 @@ const PlusCircleIcon = () => <svg className="w-5 h-5" fill="none" viewBox="0 0 2
 const TrashIcon = () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>;
 const PackageIcon = () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>;
 
+// Reusable form components — defined outside PriceCalculator to avoid
+// re-creation on every render (which causes inputs to lose focus).
+const FormField = ({ label, children, hint, required }: { label: string; children: React.ReactNode; hint?: string; required?: boolean }) => (
+    <div className="space-y-1.5">
+        <label className="block text-sm font-medium text-primary-800 dark:text-neutral-200">
+            {label}
+            {required && <span className="text-error-500 ml-1">*</span>}
+        </label>
+        {children}
+        {hint && <p className="text-xs text-neutral-400">{hint}</p>}
+    </div>
+);
+
+const CalcSelect = ({ ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) => (
+    <select
+        {...props}
+        className="w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all appearance-none cursor-pointer"
+        style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7684' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.75rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.25em 1.25em', paddingRight: '2.5rem' }}
+    />
+);
+
+const CalcInput = ({ className = '', ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input
+        {...props}
+        className={`w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all ${className}`}
+    />
+);
+
+const CalcTextArea = ({ ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
+    <textarea
+        {...props}
+        className="w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all resize-none"
+    />
+);
+
+const RouteDisplay = ({ route }: { route: string }) => {
+    const parts = route.split(' → ');
+    return (
+        <div className="flex items-center gap-2 text-sm">
+            {parts.map((part, idx) => (
+                <React.Fragment key={idx}>
+                    <span className={cn(
+                        "px-2 py-1 rounded",
+                        idx === 0 ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400" :
+                        idx === parts.length - 1 ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400" :
+                        "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400"
+                    )}>
+                        {part}
+                    </span>
+                    {idx < parts.length - 1 && <ArrowRightIcon />}
+                </React.Fragment>
+            ))}
+        </div>
+    );
+};
+
 const PriceCalculator = ({ user }: { user?: User }) => {
     const isAdmin = user && [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER].includes(user.role);
     // Form state
@@ -188,62 +244,6 @@ const PriceCalculator = ({ user }: { user?: User }) => {
         }
     };
 
-    // Flexport-style form components
-    const FormField = ({ label, children, hint, required }: { label: string; children: React.ReactNode; hint?: string; required?: boolean }) => (
-        <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-primary-800 dark:text-neutral-200">
-                {label}
-                {required && <span className="text-error-500 ml-1">*</span>}
-            </label>
-            {children}
-            {hint && <p className="text-xs text-neutral-400">{hint}</p>}
-        </div>
-    );
-
-    const Select = ({ ...props }) => (
-        <select
-            {...props}
-            className="w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all appearance-none cursor-pointer"
-            style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7684' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.75rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.25em 1.25em', paddingRight: '2.5rem' }}
-        />
-    );
-
-    const Input = ({ className = '', ...props }) => (
-        <input
-            {...props}
-            className={`w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all ${className}`}
-        />
-    );
-
-    const TextArea = ({ ...props }) => (
-        <textarea
-            {...props}
-            className="w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all resize-none"
-        />
-    );
-
-    // Route display component
-    const RouteDisplay = ({ route }: { route: string }) => {
-        const parts = route.split(' → ');
-        return (
-            <div className="flex items-center gap-2 text-sm">
-                {parts.map((part, idx) => (
-                    <React.Fragment key={idx}>
-                        <span className={cn(
-                            "px-2 py-1 rounded",
-                            idx === 0 ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400" :
-                            idx === parts.length - 1 ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400" :
-                            "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400"
-                        )}>
-                            {part}
-                        </span>
-                        {idx < parts.length - 1 && <ArrowRightIcon />}
-                    </React.Fragment>
-                ))}
-            </div>
-        );
-    };
-
     return (
         <div className="space-y-6">
             {/* Page Header */}
@@ -272,23 +272,23 @@ const PriceCalculator = ({ user }: { user?: User }) => {
 
                         <form onSubmit={handleCalculate} className="space-y-5">
                             <FormField label="Port Origine" required>
-                                <Select
+                                <CalcSelect
                                     value={params.portOrigin}
                                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setParams({ ...params, portOrigin: e.target.value })}
                                     required
                                 >
                                     {availablePorts.map(p => <option key={p} value={p}>{p}</option>)}
-                                </Select>
+                                </CalcSelect>
                             </FormField>
 
                             <FormField label="Port Destinație" hint="Alegeți portul de tranzit">
-                                <Select
+                                <CalcSelect
                                     value={params.portDestination}
                                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setParams({ ...params, portDestination: e.target.value })}
                                     required
                                 >
                                     {availableDestinations.map(d => <option key={d} value={d}>{d}</option>)}
-                                </Select>
+                                </CalcSelect>
                             </FormField>
 
                             {/* Multiple Containers Section */}
@@ -306,7 +306,7 @@ const PriceCalculator = ({ user }: { user?: User }) => {
                                     {containers.map((container, index) => (
                                         <div key={index} className="flex items-center gap-2 p-3 bg-neutral-50 dark:bg-neutral-700/50 rounded-lg">
                                             <div className="flex-1">
-                                                <Select
+                                                <CalcSelect
                                                     value={container.type}
                                                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
                                                         updateContainer(index, 'type', e.target.value)
@@ -316,10 +316,10 @@ const PriceCalculator = ({ user }: { user?: User }) => {
                                                     {availableContainerTypes.map(t => (
                                                         <option key={t} value={t}>{t}</option>
                                                     ))}
-                                                </Select>
+                                                </CalcSelect>
                                             </div>
                                             <div className="w-20">
-                                                <Input
+                                                <CalcInput
                                                     type="number"
                                                     min="1"
                                                     max="50"
@@ -358,13 +358,13 @@ const PriceCalculator = ({ user }: { user?: User }) => {
                             </div>
 
                             <FormField label="Greutate Marfă" required>
-                                <Select
+                                <CalcSelect
                                     value={params.cargoWeight}
                                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setParams({ ...params, cargoWeight: e.target.value })}
                                     required
                                 >
                                     {availableWeightRanges.map(w => <option key={w} value={w}>{w}</option>)}
-                                </Select>
+                                </CalcSelect>
                             </FormField>
 
                             <FormField label="Categorie Marfă (Cod HS)" hint="Opțional - căutați după cod sau descriere">
@@ -378,7 +378,7 @@ const PriceCalculator = ({ user }: { user?: User }) => {
                             </FormField>
 
                             <FormField label="Data Pregătire Marfă" required>
-                                <Input
+                                <CalcInput
                                     type="date"
                                     value={params.cargoReadyDate}
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setParams({ ...params, cargoReadyDate: e.target.value })}
@@ -492,7 +492,7 @@ const PriceCalculator = ({ user }: { user?: User }) => {
                             <form onSubmit={handlePlaceOrder} className="space-y-5">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <FormField label="Nume Furnizor" required>
-                                        <Input
+                                        <CalcInput
                                             type="text"
                                             placeholder="Ex: China Trading Co."
                                             value={supplierData.supplierName}
@@ -502,7 +502,7 @@ const PriceCalculator = ({ user }: { user?: User }) => {
                                     </FormField>
 
                                     <FormField label="Persoană de Contact" required>
-                                        <Input
+                                        <CalcInput
                                             type="text"
                                             placeholder="Ex: Zhang Wei"
                                             value={supplierData.supplierContact}
@@ -513,7 +513,7 @@ const PriceCalculator = ({ user }: { user?: User }) => {
                                 </div>
 
                                 <FormField label="Adresa Furnizor" required>
-                                    <Input
+                                    <CalcInput
                                         type="text"
                                         placeholder="Ex: 123 Industrial Zone, Shanghai, China"
                                         value={supplierData.supplierAddress}
@@ -524,7 +524,7 @@ const PriceCalculator = ({ user }: { user?: User }) => {
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <FormField label="Email Furnizor" required>
-                                        <Input
+                                        <CalcInput
                                             type="email"
                                             placeholder="supplier@example.com"
                                             value={supplierData.supplierEmail}
@@ -534,7 +534,7 @@ const PriceCalculator = ({ user }: { user?: User }) => {
                                     </FormField>
 
                                     <FormField label="Telefon Furnizor" required>
-                                        <Input
+                                        <CalcInput
                                             type="tel"
                                             placeholder="+86 123 456 7890"
                                             value={supplierData.supplierPhone}
@@ -545,7 +545,7 @@ const PriceCalculator = ({ user }: { user?: User }) => {
                                 </div>
 
                                 <FormField label="Descriere Marfă" required>
-                                    <TextArea
+                                    <CalcTextArea
                                         rows={3}
                                         placeholder="Ex: Mobilier din lemn - 50 seturi canapele"
                                         value={supplierData.cargoDescription}
@@ -556,7 +556,7 @@ const PriceCalculator = ({ user }: { user?: User }) => {
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <FormField label="Valoare Factură" required>
-                                        <Input
+                                        <CalcInput
                                             type="number"
                                             min="0"
                                             step="0.01"
@@ -568,19 +568,19 @@ const PriceCalculator = ({ user }: { user?: User }) => {
                                     </FormField>
 
                                     <FormField label="Monedă">
-                                        <Select
+                                        <CalcSelect
                                             value={supplierData.invoiceCurrency}
                                             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSupplierData({ ...supplierData, invoiceCurrency: e.target.value })}
                                         >
                                             <option value="USD">USD</option>
                                             <option value="EUR">EUR</option>
                                             <option value="CNY">CNY</option>
-                                        </Select>
+                                        </CalcSelect>
                                     </FormField>
                                 </div>
 
                                 <FormField label="Instrucțiuni Speciale" hint="Opțional - cerințe speciale pentru transport">
-                                    <TextArea
+                                    <CalcTextArea
                                         rows={2}
                                         placeholder="Ex: Marfă fragilă, necesită manipulare atentă"
                                         value={supplierData.specialInstructions}

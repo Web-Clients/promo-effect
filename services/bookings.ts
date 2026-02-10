@@ -39,6 +39,8 @@ export interface UpdateBookingData {
   supplierAddress?: string;
   clientNotes?: string;
   internalNotes?: string;
+  containerNumber?: string;
+  blNumber?: string;
 }
 
 export interface BookingFilters {

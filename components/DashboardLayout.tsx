@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { User, UserRole, Booking } from '../types';
 import { cn } from '../lib/utils';
-import { LayoutDashboardIcon, PackageIcon, ShipIcon, UsersIcon, FileTextIcon, BarChartIcon, SettingsIcon, CalculatorIcon, MailIcon, SparklesIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon, SunIcon, MoonIcon, PlusIcon, LogOutIcon, MoreHorizontalIcon, UserIcon, DollarSignIcon, GlobeIcon, UserCheckIcon, AnchorIcon, MapPinIcon } from './icons';
+import { LayoutDashboardIcon, PackageIcon, ShipIcon, UsersIcon, FileTextIcon, BarChartIcon, SettingsIcon, CalculatorIcon, MailIcon, SparklesIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon, SunIcon, MoonIcon, PlusIcon, LogOutIcon, MoreHorizontalIcon, UserIcon, DollarSignIcon, GlobeIcon, UserCheckIcon, AnchorIcon, MapPinIcon, TruckIcon } from './icons';
 import NotificationsDropdown from './NotificationsDropdown';
 
 interface DashboardLayoutProps {
@@ -64,6 +64,8 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
     { name: 'AI Email Parser', path: 'ai-parser', icon: SparklesIcon, visible: isAdminOrManager },
     { name: 'Rapoarte', path: 'reports', icon: BarChartIcon, visible: isAdminOrManager },
     { name: 'Administrare Prețuri', path: 'admin-pricing', icon: DollarSignIcon, visible: isAdmin },
+    { name: 'Linii Maritime', path: 'shipping-lines', icon: ShipIcon, visible: isAdmin },
+    { name: 'Transport Terestru', path: 'transport-rates', icon: TruckIcon, visible: isAdmin },
     { name: 'Agenți Chinezi', path: 'agents', icon: GlobeIcon, visible: isAdmin },
     { name: 'Gestionare Porturi', path: 'ports-manager', icon: AnchorIcon, visible: isAdmin },
     { name: 'Panou Admin', path: 'admin-panel', icon: UserCheckIcon, visible: isAdmin },

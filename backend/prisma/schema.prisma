@@ -389,6 +389,48 @@ model PricingRule {
 }
 
 // ============================================
+// 3b. SHIPPING LINES & LOCAL TAXES
+// ============================================
+
+// Shipping line + container type → local port taxes
+model ShippingLineContainer {
+  id             String  @id @default(uuid())
+  shippingLine   String  @map("shipping_line")   // MSC, Maersk, Hapag-Lloyd, etc.
+  containerType  String  @map("container_type")   // 20DC, 40DC, 40HC, etc.
+  portTaxes      Float   @default(0) @map("port_taxes") // Local taxes in Constanța (USD)
+  isActive       Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([shippingLine, containerType])
+  @@index([shippingLine])
+  @@index([isActive])
+  @@map("shipping_line_containers")
+}
+
+// ============================================
+// 3c. TRANSPORT RATES (terrestrial per container type & weight)
+// ============================================
+
+model TransportRate {
+  id            String  @id @default(uuid())
+  containerType String  @map("container_type")  // 20DC, 40DC, 40HC, etc.
+  weightRange   String  @map("weight_range")    // "1-10 tone", "10-20 tone", etc.
+  destination   String  @default("Constanța")   // Constanța or Odessa
+  rate          Float   @default(0)             // Transport rate in USD
+  isActive      Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([containerType, weightRange, destination])
+  @@index([destination])
+  @@index([isActive])
+  @@map("transport_rates")
+}
+
+// ============================================
 // 4. BOOKINGS & CONTAINERS
 // ============================================
 

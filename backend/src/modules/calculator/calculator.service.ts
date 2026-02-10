@@ -180,6 +180,27 @@ export class CalculatorService {
       pricesByShippingLine.get(price.shippingLine)!.push(price);
     }
 
+    // 4b. Preload ShippingLineContainer configs (for local port taxes lookup)
+    const shippingLineContainers = await prisma.shippingLineContainer.findMany({
+      where: { isActive: true },
+    });
+    const slcMap = new Map<string, number>(); // "MSC__20DC" → portTaxes
+    for (const slc of shippingLineContainers) {
+      slcMap.set(`${slc.shippingLine}__${slc.containerType}`, slc.portTaxes);
+    }
+
+    // 4c. Preload TransportRate configs (for transport rate lookup)
+    const transportRates = await prisma.transportRate.findMany({
+      where: {
+        isActive: true,
+        destination: isConstanta ? 'Constanța' : 'Odessa',
+      },
+    });
+    const trMap = new Map<string, number>(); // "20DC__1-10 tone" → rate
+    for (const tr of transportRates) {
+      trMap.set(`${tr.containerType}__${tr.weightRange}`, tr.rate);
+    }
+
     // 5. Calculate total price for each shipping line across all container types
     const offers: PriceOffer[] = [];
 
@@ -222,10 +243,19 @@ export class CalculatorService {
         maxTransitDays = Math.max(maxTransitDays, price.transitDays);
       }
 
-      // Per-line cost overrides (fallback to global admin_settings)
+      // Per-line cost overrides
+      // Priority: BasePrice override → ShippingLineContainer / TransportRate table → global AdminSettings
       const firstPrice = prices[0];
-      const linePortTaxes = firstPrice.portTaxes ?? portTaxes;
-      const lineTerrestrialTransport = firstPrice.terrestrialTransport ?? terrestrialTransport;
+      const primaryContainerType = containers[0]?.type || containerTypes[0];
+
+      // Port taxes: BasePrice → ShippingLineContainer → AdminSettings
+      const slcPortTaxes = slcMap.get(`${shippingLine}__${primaryContainerType}`);
+      const linePortTaxes = firstPrice.portTaxes ?? slcPortTaxes ?? portTaxes;
+
+      // Transport: BasePrice → TransportRate → AdminSettings
+      const trRate = trMap.get(`${primaryContainerType}__${input.cargoWeight}`);
+      const lineTerrestrialTransport = firstPrice.terrestrialTransport ?? trRate ?? terrestrialTransport;
+
       const lineCustomsTaxes = firstPrice.customsTaxes ?? settings.customsTaxes;
       const lineCommission = firstPrice.commission ?? settings.commission;
 

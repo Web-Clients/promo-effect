@@ -200,9 +200,21 @@ class TrackingService {
       prisma.container.count({ where }),
     ]);
 
-    // Add calculated fields
+    // Add calculated fields and map booking to match frontend interface
     const containersWithCalc = containers.map(container => ({
       ...container,
+      booking: container.booking ? {
+        id: container.booking.id,
+        bookingNumber: container.booking.id,
+        origin: container.booking.portOrigin,
+        destination: container.booking.portDestination,
+        shippingLine: container.booking.shippingLine,
+        status: container.booking.status,
+        client: container.booking.client ? {
+          id: container.booking.client.id,
+          name: container.booking.client.companyName,
+        } : undefined,
+      } : undefined,
       latestEvent: container.trackingEvents[0] || null,
       daysInTransit: this.calculateDaysInTransit(container),
       isDelayed: this.checkIfDelayed(container),
@@ -265,6 +277,19 @@ class TrackingService {
 
     return {
       ...container,
+      // Map booking fields to match frontend Container interface
+      booking: container.booking ? {
+        id: container.booking.id,
+        bookingNumber: container.booking.id,
+        origin: (container.booking as any).portOrigin,
+        destination: (container.booking as any).portDestination,
+        shippingLine: (container.booking as any).shippingLine,
+        status: (container.booking as any).status,
+        client: (container.booking as any).client ? {
+          id: (container.booking as any).client.id,
+          name: (container.booking as any).client.companyName,
+        } : undefined,
+      } : undefined,
       daysInTransit: this.calculateDaysInTransit(container),
       isDelayed: this.checkIfDelayed(container),
       daysDelayed: this.calculateDaysDelayed(container),
@@ -319,6 +344,19 @@ class TrackingService {
 
     return {
       ...container,
+      // Map booking fields to match frontend Container interface
+      booking: container.booking ? {
+        id: container.booking.id,
+        bookingNumber: container.booking.id,
+        origin: container.booking.portOrigin,
+        destination: container.booking.portDestination,
+        shippingLine: container.booking.shippingLine,
+        status: container.booking.status,
+        client: container.booking.client ? {
+          id: container.booking.client.id,
+          name: container.booking.client.companyName,
+        } : undefined,
+      } : undefined,
       daysInTransit: this.calculateDaysInTransit(container),
       isDelayed: this.checkIfDelayed(container),
       daysDelayed: this.calculateDaysDelayed(container),
@@ -777,21 +815,22 @@ class TrackingService {
                 }
               }
 
-              // Update container status and location from SeaRates
-              if (searatesData.status || searatesData.location) {
-                await prisma.container.update({
-                  where: { id: containerId },
-                  data: {
-                    currentStatus: searatesData.status || undefined,
-                    currentLocation: searatesData.location?.name || undefined,
-                    currentLat: searatesData.location?.latitude || undefined,
-                    currentLng: searatesData.location?.longitude || undefined,
-                    eta: searatesData.eta ? new Date(searatesData.eta) : undefined,
-                    actualArrival: searatesData.ata ? new Date(searatesData.ata) : undefined,
-                    lastSyncAt: new Date(),
-                  } as any,
-                });
-              }
+            }
+
+            // Update container status and location from SeaRates (always, even without new events)
+            if (searatesData.status || searatesData.location) {
+              await prisma.container.update({
+                where: { id: containerId },
+                data: {
+                  currentStatus: searatesData.status || undefined,
+                  currentLocation: searatesData.location?.name || undefined,
+                  currentLat: searatesData.location?.latitude || undefined,
+                  currentLng: searatesData.location?.longitude || undefined,
+                  eta: searatesData.eta ? new Date(searatesData.eta) : undefined,
+                  actualArrival: searatesData.ata ? new Date(searatesData.ata) : undefined,
+                  lastSyncAt: new Date(),
+                } as any,
+              });
             }
           }
         } catch (error) {

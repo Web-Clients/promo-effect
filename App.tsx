@@ -26,6 +26,8 @@ import AgentPricesDashboard from './components/AgentPricesDashboard';
 import AdminPriceApproval from './components/AdminPriceApproval';
 import AdminPortsManager from './components/AdminPortsManager';
 import ContainersInTransit from './components/ContainersInTransit';
+import ShippingLinesPage from './components/ShippingLinesPage';
+import TransportRatesPage from './components/TransportRatesPage';
 import UserManagement from './components/UserManagement';
 import { User, Booking } from './types';
 import { ToastProvider } from './components/ui/Toast';
@@ -48,6 +50,8 @@ const RouteObserver = () => {
     else if (path.includes('/dashboard/invoices')) title = 'Facturi | Promo-Efect';
     else if (path.includes('/dashboard/reports')) title = 'Rapoarte | Promo-Efect';
     else if (path.includes('/dashboard/adminSettings')) title = 'Setări Admin | Promo-Efect';
+    else if (path.includes('/dashboard/shipping-lines')) title = 'Linii Maritime | Promo-Efect';
+    else if (path.includes('/dashboard/transport-rates')) title = 'Transport Terestru | Promo-Efect';
     else if (path.includes('/dashboard/admin-pricing')) title = 'Administrare Prețuri | Promo-Efect';
     else if (path.includes('/dashboard/agents')) title = 'Agenți Chinezi | Promo-Efect';
     else if (path.includes('/dashboard/admin-panel')) title = 'Panou Admin | Promo-Efect';
@@ -172,6 +176,8 @@ const App = () => {
           <Route path="reports" element={<ReportsPage />} />
           <Route path="adminSettings" element={<AdminSettingsPage />} />
           <Route path="admin-pricing" element={<AdminPricingPanel />} />
+          <Route path="shipping-lines" element={<ShippingLinesPage />} />
+          <Route path="transport-rates" element={<TransportRatesPage />} />
           <Route path="agents" element={<AgentsPanel />} />
           <Route path="admin-panel" element={<AdminDashboard />} />
           <Route path="my-prices" element={<AgentPricesDashboard />} />

@@ -32,10 +32,9 @@ export function startEmailFetcherJob() {
     try {
       console.log('[Email Fetcher] Starting scheduled email fetch...');
 
-      // Check if Gmail is connected
-      const status = await gmailIntegration.getStatus();
-      if (!status.connected) {
-        console.log('[Email Fetcher] Gmail not connected, skipping');
+      // Check if Gmail is configured
+      if (!gmailIntegration.isConfigured()) {
+        console.log('[Email Fetcher] Gmail not configured, skipping');
         isRunning = false;
         return;
       }
@@ -81,6 +80,11 @@ export function startEmailFetcherJob() {
             result.error
           );
 
+          // Mark as read in Gmail
+          try {
+            await gmailIntegration.markAsProcessed(email.id);
+          } catch (_) { /* ignore mark errors */ }
+
           if (result.status === 'SUCCESS' && result.bookingId) {
             created++;
             console.log(`[Email Fetcher] Created booking: ${result.bookingId} from email ${email.id}`);
@@ -104,6 +108,35 @@ export function startEmailFetcherJob() {
 
       const duration = Date.now() - startTime;
       console.log(`[Email Fetcher] Completed in ${duration}ms: ${processed} processed, ${created} bookings created, ${failed} failed`);
+
+      // Save fetch log to database (as JSON in AdminSettings)
+      const fetchResult = {
+        emailsFetched: emails.length,
+        emailsProcessed: processed,
+        bookingsCreated: created,
+        processingFailed: failed,
+        durationMs: duration,
+        timestamp: new Date().toISOString(),
+      };
+
+      try {
+        const prisma = (await import('../lib/prisma')).default;
+        await prisma.adminSettings.upsert({
+          where: { id: 1 },
+          update: {
+            lastEmailFetchAt: new Date(),
+            lastEmailFetchResult: JSON.stringify(fetchResult),
+          },
+          create: {
+            id: 1,
+            lastEmailFetchAt: new Date(),
+            lastEmailFetchResult: JSON.stringify(fetchResult),
+          },
+        });
+        console.log('[Email Fetcher] Log saved to database');
+      } catch (logError: any) {
+        console.error('[Email Fetcher] Failed to save fetch log:', logError);
+      }
 
     } catch (error) {
       console.error('[Email Fetcher] Fatal error:', error);

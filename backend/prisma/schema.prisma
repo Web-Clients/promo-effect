@@ -315,6 +315,7 @@ model AdminSettings {
   gmailTokenExpiry  DateTime? @map("gmail_token_expiry")
   gmailEmail        String?   @map("gmail_email")
   lastEmailFetchAt  DateTime? @map("last_email_fetch_at")
+  lastEmailFetchResult String? @map("last_email_fetch_result")
 
   updatedBy String?  @map("updated_by")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -817,12 +818,19 @@ model IncomingEmail {
   // AI extracted data (stored as JSON)
   extractedData String? @map("extracted_data") @db.Text
 
+  // PDF attachments metadata (JSON: [{filename, mimeType, size}])
+  attachments String? @db.Text
+
+  // PDF extracted text (combined text from all PDF attachments)
+  pdfText String? @map("pdf_text") @db.Text
+
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([status])
   @@index([receivedAt])
   @@map("incoming_emails")
 }
+
 
 // ============================================
 // 8. SYSTEM & AUDIT

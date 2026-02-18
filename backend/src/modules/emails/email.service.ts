@@ -12,6 +12,7 @@
 
 import prisma from '../../lib/prisma';
 import notificationService from '../../services/notification.service';
+import { extractTextFromPDF } from '../../services/pdf-parser.service';
 
 // ===== EMAIL PARSING TYPES =====
 
@@ -374,11 +375,67 @@ ${email.body.substring(0, 5000)}
     const startTime = Date.now();
 
     try {
-      // Step 1: Try regex parsing first
-      let extractedData = await this.parseEmailWithRegex(email);
+      // Step 0: Extract text from PDF attachments
+      let pdfTexts: string[] = [];
+      if (email.attachments && email.attachments.length > 0) {
+        for (const attachment of email.attachments) {
+          if (attachment.mimeType === 'application/pdf' && attachment.data) {
+            console.log(`[EmailService] Extracting text from PDF: ${attachment.filename}`);
+            const text = await extractTextFromPDF(attachment.data);
+            if (text.trim()) {
+              pdfTexts.push(`--- ${attachment.filename} ---\n${text}`);
+            }
+          }
+        }
+      }
 
-      // Step 2: If confidence < 80%, try AI parsing
-      if (extractedData.confidence < 80) {
+      // Step 1: Try regex parsing first (on email body + PDF text)
+      const emailWithPdfText: ParsedEmail = {
+        ...email,
+        body: pdfTexts.length > 0 ? `${email.body}\n\n${pdfTexts.join('\n\n')}` : email.body,
+      };
+      let extractedData = await this.parseEmailWithRegex(emailWithPdfText);
+
+      // Step 2: If we have PDF text, use specialized shipping document prompt
+      if (pdfTexts.length > 0) {
+        try {
+          const geminiService = await import('../../services/gemini.service');
+          if (geminiService.isGeminiConfigured()) {
+            const pdfResult = await geminiService.parseShippingDocumentWithGemini(
+              pdfTexts.join('\n\n'),
+              `From: ${email.from}\nSubject: ${email.subject}\nDate: ${email.date.toISOString()}\n\n${email.body.substring(0, 1000)}`
+            );
+
+            if (!pdfResult.error && (pdfResult.confidence || 0) > extractedData.confidence) {
+              extractedData = {
+                containerNumber: pdfResult.containerNumber || extractedData.containerNumber,
+                blNumber: pdfResult.billOfLading || extractedData.blNumber,
+                shippingLine: pdfResult.shippingLine || extractedData.shippingLine,
+                vesselName: pdfResult.vesselName || extractedData.vesselName,
+                voyageNumber: pdfResult.voyageNumber || extractedData.voyageNumber,
+                portOrigin: pdfResult.portOfLoading || extractedData.portOrigin,
+                portDestination: pdfResult.portOfDischarge || extractedData.portDestination,
+                etd: pdfResult.departureDate ? new Date(pdfResult.departureDate) : extractedData.etd,
+                eta: pdfResult.eta ? new Date(pdfResult.eta) : extractedData.eta,
+                containerType: pdfResult.containerType || extractedData.containerType,
+                cargoWeight: pdfResult.weight || extractedData.cargoWeight,
+                cargoDescription: pdfResult.cargoDescription || extractedData.cargoDescription,
+                supplierName: pdfResult.shipperName || pdfResult.supplierName || extractedData.supplierName,
+                supplierPhone: pdfResult.supplierPhone || extractedData.supplierPhone,
+                supplierEmail: pdfResult.supplierEmail || extractedData.supplierEmail,
+                confidence: pdfResult.confidence || 85,
+                extractionMethod: 'AI',
+                rawEmailId: email.id,
+              };
+              console.log(`[EmailService] PDF AI parsing: confidence=${pdfResult.confidence}%, BL=${pdfResult.billOfLading}, container=${pdfResult.containerNumber}`);
+            }
+          }
+        } catch (pdfAiError) {
+          console.error('[EmailService] PDF AI parsing failed:', pdfAiError);
+        }
+      }
+      // Step 2b: If no PDFs or PDF parsing failed and confidence still low, try regular AI parsing
+      else if (extractedData.confidence < 80) {
         const aiData = await this.parseEmailWithAI(email);
 
         // Merge results, preferring higher confidence fields
@@ -396,18 +453,36 @@ ${email.body.substring(0, 5000)}
         }
       }
 
-      // Step 3: Check if container already exists
+      // Step 3: Check if container already exists (by container number, BL, or booking ref in subject)
       let existingContainer = null;
       if (extractedData.containerNumber) {
         existingContainer = await prisma.container.findUnique({
           where: { containerNumber: extractedData.containerNumber.toUpperCase() },
           include: { booking: true },
         });
-      } else if (extractedData.blNumber) {
+      }
+      if (!existingContainer && extractedData.blNumber) {
+        // Try matching by BL number — check both exact and partial match
+        const blClean = extractedData.blNumber.toUpperCase().replace(/[\s\/]/g, '');
         existingContainer = await prisma.container.findFirst({
-          where: { blNumber: extractedData.blNumber.toUpperCase() } as any,
+          where: { blNumber: { contains: blClean, mode: 'insensitive' } } as any,
           include: { booking: true },
         });
+      }
+      if (!existingContainer && extractedData.blNumber) {
+        // Try matching booking by subject keywords (booking reference in internal notes)
+        const booking = await prisma.booking.findFirst({
+          where: {
+            OR: [
+              { internalNotes: { contains: extractedData.blNumber, mode: 'insensitive' } } as any,
+              { clientNotes: { contains: extractedData.blNumber, mode: 'insensitive' } } as any,
+            ],
+          },
+          include: { containers: true },
+        });
+        if (booking && booking.containers.length > 0) {
+          existingContainer = { ...booking.containers[0], booking } as any;
+        }
       }
 
       // Step 4: If container exists, update it with new data
@@ -443,14 +518,17 @@ ${email.body.substring(0, 5000)}
           }
           console.log(`[EmailService] Container ${existingContainer.containerNumber} has significant changes, needs review`);
         } else {
-          // Update minor changes automatically
+          // Update container with data from BL
+          const updateData: any = { updatedAt: new Date() };
+          if (extractedData.eta) updateData.eta = new Date(extractedData.eta);
+          if (extractedData.blNumber && !existingContainer.blNumber) updateData.blNumber = extractedData.blNumber.toUpperCase();
+          if (extractedData.cargoWeight) updateData.weightGross = parseFloat(extractedData.cargoWeight.replace(/[^0-9.]/g, '')) || undefined;
+          if (extractedData.cargoDescription) updateData.content = extractedData.cargoDescription;
+          if (extractedData.portOrigin) updateData.currentLocation = extractedData.portOrigin;
+
           await prisma.container.update({
             where: { id: existingContainer.id },
-            data: {
-              eta: extractedData.eta ? new Date(extractedData.eta) : existingContainer.eta,
-              currentLocation: extractedData.portOrigin || existingContainer.currentLocation,
-              updatedAt: new Date(),
-            } as any,
+            data: updateData,
           });
 
           // Create tracking event
@@ -676,6 +754,27 @@ ${email.body.substring(0, 5000)}
    * Save raw email to queue for processing
    */
   async queueEmailForProcessing(email: ParsedEmail): Promise<void> {
+    // Extract text from PDF attachments before queuing
+    let pdfText = '';
+    const attachmentsMeta: Array<{ filename: string; mimeType: string; size: number }> = [];
+
+    if (email.attachments && email.attachments.length > 0) {
+      for (const attachment of email.attachments) {
+        attachmentsMeta.push({
+          filename: attachment.filename,
+          mimeType: attachment.mimeType,
+          size: attachment.size,
+        });
+
+        if (attachment.mimeType === 'application/pdf' && attachment.data) {
+          const text = await extractTextFromPDF(attachment.data);
+          if (text.trim()) {
+            pdfText += `--- ${attachment.filename} ---\n${text}\n\n`;
+          }
+        }
+      }
+    }
+
     await (prisma as any).incomingEmail.create({
       data: {
         messageId: email.id,
@@ -684,6 +783,8 @@ ${email.body.substring(0, 5000)}
         body: email.body,
         receivedAt: email.date,
         status: 'PENDING',
+        attachments: attachmentsMeta.length > 0 ? JSON.stringify(attachmentsMeta) : null,
+        pdfText: pdfText || null,
       },
     });
   }
@@ -732,14 +833,18 @@ ${email.body.substring(0, 5000)}
       take: 10,
     });
 
-    return queued.map((q: any) => ({
-      id: q.messageId,
-      from: q.fromAddress,
-      subject: q.subject,
-      date: q.receivedAt,
-      body: q.body,
-      attachments: [],
-    }));
+    return queued.map((q: any) => {
+      // If PDF text was extracted during queuing, append it to body for processing
+      const body = q.pdfText ? `${q.body}\n\n${q.pdfText}` : q.body;
+      return {
+        id: q.messageId,
+        from: q.fromAddress,
+        subject: q.subject,
+        date: q.receivedAt,
+        body,
+        attachments: [], // Attachments already processed into pdfText
+      };
+    });
   }
 
   /**

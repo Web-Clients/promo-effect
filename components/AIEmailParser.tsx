@@ -3,7 +3,7 @@
  *
  * Parses forwarded shipping emails using Gemini AI
  * Extracts container info, shipping details, ports, dates
- * Can search for existing containers or create new ones
+ * Can fetch emails from Gmail (efect.logistic@gmail.com) via IMAP
  */
 
 import React, { useState, useEffect } from 'react';
@@ -25,8 +25,15 @@ import {
   PackageIcon,
   UserIcon,
   PhoneIcon,
+  DownloadIcon,
+  Loader2Icon,
 } from './icons';
-import emailParserService, { ParsedEmailData, EmailProcessingResult } from '../services/emailParser';
+import emailParserService, {
+  ParsedEmailData,
+  EmailProcessingResult,
+  GmailStatus,
+  FetchAndProcessResult,
+} from '../services/emailParser';
 
 interface ExtractedField {
   label: string;
@@ -44,25 +51,64 @@ const AIEmailParser: React.FC = () => {
   const [parsedData, setParsedData] = useState<ParsedEmailData | null>(null);
   const [processingResult, setProcessingResult] = useState<EmailProcessingResult | null>(null);
   const [aiAvailable, setAiAvailable] = useState<boolean | null>(null);
-  const [activeTab, setActiveTab] = useState<'parse' | 'queue' | 'stats'>('parse');
+  const [activeTab, setActiveTab] = useState<'gmail' | 'parse' | 'queue' | 'stats'>('gmail');
   const [stats, setStats] = useState<any>(null);
   const [pendingEmails, setPendingEmails] = useState<any[]>([]);
 
-  // Check AI availability on mount
+  // Gmail state
+  const [gmailStatus, setGmailStatus] = useState<GmailStatus | null>(null);
+  const [isFetching, setIsFetching] = useState(false);
+  const [fetchResult, setFetchResult] = useState<FetchAndProcessResult | null>(null);
+
+  // Check AI availability and Gmail status on mount
   useEffect(() => {
     checkAIStatus();
+    loadGmailStatus();
   }, []);
 
   const checkAIStatus = async () => {
     try {
       const status = await emailParserService.checkAIStatus();
       setAiAvailable(status.available);
-      if (!status.available) {
-        addToast(`AI недоступен: ${status.reason}`, 'warning');
-      }
     } catch (error) {
       setAiAvailable(false);
-      console.error('Failed to check AI status:', error);
+    }
+  };
+
+  const loadGmailStatus = async () => {
+    try {
+      const status = await emailParserService.getGmailStatus();
+      setGmailStatus(status);
+    } catch (error) {
+      console.error('Failed to load Gmail status:', error);
+    }
+  };
+
+  // Fetch and process emails from Gmail
+  const handleFetchAndProcess = async () => {
+    setIsFetching(true);
+    setFetchResult(null);
+
+    try {
+      const result = await emailParserService.fetchAndProcess(20);
+      setFetchResult(result);
+
+      if (result.summary.fetched === 0) {
+        addToast('Нет новых писем', 'info');
+      } else {
+        addToast(
+          `Получено ${result.summary.fetched} писем: ${result.summary.success} обработано, ${result.summary.bookingsCreated} букингов создано`,
+          result.summary.failed > 0 ? 'warning' : 'success'
+        );
+      }
+
+      // Refresh status
+      await loadGmailStatus();
+    } catch (error: any) {
+      console.error('Fetch error:', error);
+      addToast(error.response?.data?.message || error.message || 'Ошибка получения писем', 'error');
+    } finally {
+      setIsFetching(false);
     }
   };
 
@@ -111,7 +157,7 @@ const AIEmailParser: React.FC = () => {
           body: emailContent,
         },
         autoCreate,
-        70 // minConfidence
+        70
       );
 
       setProcessingResult(result);
@@ -120,11 +166,7 @@ const AIEmailParser: React.FC = () => {
       }
 
       if (result.status === 'SUCCESS') {
-        if (result.containerId) {
-          addToast(`Контейнер ${result.containerId ? 'найден/создан' : 'не найден'}`, 'success');
-        } else {
-          addToast('Данные извлечены успешно', 'success');
-        }
+        addToast(result.containerId ? 'Контейнер найден/создан' : 'Данные извлечены успешно', 'success');
       } else if (result.status === 'NEEDS_REVIEW') {
         addToast('Требуется ручная проверка данных', 'warning');
       } else {
@@ -252,30 +294,62 @@ const AIEmailParser: React.FC = () => {
           </p>
         </div>
 
-        {/* AI Status Badge */}
-        {aiAvailable !== null && (
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
-            aiAvailable
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-          }`}>
-            {aiAvailable ? (
-              <>
-                <CheckIcon className="h-4 w-4" />
-                Gemini AI готов
-              </>
-            ) : (
-              <>
-                <AlertCircleIcon className="h-4 w-4" />
-                AI недоступен
-              </>
-            )}
-          </div>
-        )}
+        {/* Status Badges */}
+        <div className="flex items-center gap-3">
+          {/* Gmail Status */}
+          {gmailStatus && (
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
+              gmailStatus.connected
+                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                : gmailStatus.configured
+                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400'
+            }`}>
+              <MailIcon className="h-4 w-4" />
+              {gmailStatus.connected
+                ? gmailStatus.email
+                : gmailStatus.configured
+                ? 'Gmail: проверка...'
+                : 'Gmail: не настроен'}
+            </div>
+          )}
+
+          {/* AI Status Badge */}
+          {aiAvailable !== null && (
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
+              aiAvailable
+                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+            }`}>
+              {aiAvailable ? (
+                <>
+                  <CheckIcon className="h-4 w-4" />
+                  Gemini AI
+                </>
+              ) : (
+                <>
+                  <AlertCircleIcon className="h-4 w-4" />
+                  AI недоступен
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-neutral-200 dark:border-neutral-700">
+        <button
+          onClick={() => setActiveTab('gmail')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            activeTab === 'gmail'
+              ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+              : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
+          }`}
+        >
+          <MailIcon className="h-4 w-4 inline mr-2" />
+          Gmail
+        </button>
         <button
           onClick={() => setActiveTab('parse')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
@@ -284,8 +358,8 @@ const AIEmailParser: React.FC = () => {
               : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
           }`}
         >
-          <MailIcon className="h-4 w-4 inline mr-2" />
-          Парсинг Email
+          <SparklesIcon className="h-4 w-4 inline mr-2" />
+          Ручной парсинг
         </button>
         <button
           onClick={() => setActiveTab('queue')}
@@ -310,6 +384,159 @@ const AIEmailParser: React.FC = () => {
           Статистика
         </button>
       </div>
+
+      {/* Gmail Tab */}
+      {activeTab === 'gmail' && (
+        <div className="space-y-6">
+          {/* Gmail Connection Card */}
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-4 flex items-center gap-2">
+              <MailIcon className="h-5 w-5 text-primary-500" />
+              Почтовый ящик
+            </h2>
+
+            {!gmailStatus?.configured ? (
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircleIcon className="h-5 w-5 text-yellow-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-yellow-800 dark:text-yellow-200">Gmail не настроен</p>
+                    <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                      Для автоматического получения писем необходимо настроить IMAP доступ:
+                    </p>
+                    <ol className="text-sm text-yellow-700 dark:text-yellow-300 mt-2 space-y-1 list-decimal list-inside">
+                      <li>Включите двухфакторную аутентификацию на Gmail аккаунте</li>
+                      <li>Создайте App Password: Google Account &rarr; Security &rarr; App Passwords</li>
+                      <li>Включите IMAP в настройках Gmail</li>
+                      <li>Добавьте в .env на сервере:</li>
+                    </ol>
+                    <div className="mt-2 bg-neutral-800 text-green-400 rounded p-3 font-mono text-xs">
+                      GMAIL_EMAIL=efect.logistic@gmail.com<br />
+                      GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
+                    </div>
+                    <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-2">
+                      После этого перезапустите сервер (pm2 restart)
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Status */}
+                <div className={`flex items-center gap-3 p-4 rounded-lg ${
+                  gmailStatus.connected
+                    ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+                    : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+                }`}>
+                  <div className={`h-3 w-3 rounded-full ${gmailStatus.connected ? 'bg-green-500' : 'bg-red-500'}`} />
+                  <div className="flex-1">
+                    <p className="font-medium text-neutral-800 dark:text-neutral-100">
+                      {gmailStatus.connected ? 'Подключено' : 'Ошибка подключения'}
+                    </p>
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                      {gmailStatus.email || 'efect.logistic@gmail.com'}
+                    </p>
+                  </div>
+                  {gmailStatus.lastFetch && (
+                    <p className="text-xs text-neutral-400">
+                      Последняя проверка: {new Date(gmailStatus.lastFetch).toLocaleString('ru-RU')}
+                    </p>
+                  )}
+                </div>
+
+                {/* Info */}
+                <div className="bg-neutral-50 dark:bg-neutral-800 rounded-lg p-4">
+                  <p className="text-sm text-neutral-600 dark:text-neutral-300">
+                    Система автоматически проверяет новые письма каждые 15 минут.
+                    Также можно запустить проверку вручную.
+                  </p>
+                </div>
+
+                {/* Fetch Button */}
+                <Button
+                  onClick={handleFetchAndProcess}
+                  disabled={isFetching || !gmailStatus.connected}
+                  loading={isFetching}
+                  className="w-full"
+                  variant="primary"
+                >
+                  <DownloadIcon className="h-4 w-4 mr-2" />
+                  Получить и обработать новые письма
+                </Button>
+              </div>
+            )}
+          </Card>
+
+          {/* Fetch Results */}
+          {fetchResult && (
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-4">
+                Результат обработки
+              </h3>
+
+              {/* Summary */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div className="bg-neutral-50 dark:bg-neutral-800 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-neutral-800 dark:text-neutral-100">{fetchResult.summary.fetched}</p>
+                  <p className="text-xs text-neutral-500">Получено</p>
+                </div>
+                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-green-600">{fetchResult.summary.success}</p>
+                  <p className="text-xs text-neutral-500">Успешно</p>
+                </div>
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-yellow-600">{fetchResult.summary.needsReview}</p>
+                  <p className="text-xs text-neutral-500">Требуют проверки</p>
+                </div>
+                <div className="bg-primary-50 dark:bg-primary-900/20 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-primary-600">{fetchResult.summary.bookingsCreated}</p>
+                  <p className="text-xs text-neutral-500">Букингов создано</p>
+                </div>
+              </div>
+
+              {/* Results List */}
+              {fetchResult.results.length > 0 && (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {fetchResult.results.map((result, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-3 p-3 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg"
+                    >
+                      {result.status === 'SUCCESS' ? (
+                        <CheckIcon className="h-4 w-4 text-green-600 flex-shrink-0" />
+                      ) : result.status === 'NEEDS_REVIEW' ? (
+                        <AlertCircleIcon className="h-4 w-4 text-yellow-600 flex-shrink-0" />
+                      ) : (
+                        <AlertCircleIcon className="h-4 w-4 text-red-600 flex-shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">
+                          {result.subject}
+                        </p>
+                        {result.error && (
+                          <p className="text-xs text-red-500 truncate">{result.error}</p>
+                        )}
+                        {result.bookingId && (
+                          <p className="text-xs text-green-600">Booking: {result.bookingId}</p>
+                        )}
+                      </div>
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                        result.status === 'SUCCESS'
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : result.status === 'NEEDS_REVIEW'
+                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                      }`}>
+                        {result.status === 'SUCCESS' ? 'OK' : result.status === 'NEEDS_REVIEW' ? 'Проверить' : 'Ошибка'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Parse Tab */}
       {activeTab === 'parse' && (

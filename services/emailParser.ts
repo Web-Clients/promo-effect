@@ -43,6 +43,14 @@ export interface AIStatusResponse {
   reason: string;
 }
 
+// Gmail IMAP status
+export interface GmailStatus {
+  configured: boolean;
+  connected: boolean;
+  email?: string;
+  lastFetch?: string;
+}
+
 // Incoming email from queue
 export interface IncomingEmail {
   id: string;
@@ -68,6 +76,25 @@ export interface EmailProcessingStats {
   averageConfidence: number;
 }
 
+// Fetch and process result
+export interface FetchAndProcessResult {
+  success: boolean;
+  summary: {
+    fetched: number;
+    success: number;
+    needsReview: number;
+    failed: number;
+    bookingsCreated: number;
+  };
+  results: Array<{
+    emailId: string;
+    subject: string;
+    status: string;
+    error?: string;
+    bookingId?: string;
+  }>;
+}
+
 class EmailParserService {
   /**
    * Check if Gemini AI parsing is available
@@ -78,8 +105,15 @@ class EmailParserService {
   }
 
   /**
+   * Get Gmail IMAP connection status
+   */
+  async getGmailStatus(): Promise<GmailStatus> {
+    const response = await api.get<GmailStatus>('/admin/gmail/status');
+    return response.data;
+  }
+
+  /**
    * Parse email content using Gemini AI
-   * Returns extracted shipping/logistics data
    */
   async parseWithAI(emailContent: string): Promise<{ success: boolean; data?: ParsedEmailData; confidence?: number; error?: string }> {
     const response = await api.post<{ success: boolean; data?: ParsedEmailData; confidence?: number; error?: string }>(
@@ -91,7 +125,6 @@ class EmailParserService {
 
   /**
    * Parse email without creating booking
-   * Uses both regex and AI parsing
    */
   async parseEmail(email: { from?: string; subject: string; body: string; date?: string }): Promise<EmailProcessingResult> {
     const response = await api.post<EmailProcessingResult>('/admin/emails/parse', email);
@@ -111,6 +144,29 @@ class EmailParserService {
       autoCreate,
       minConfidence,
     });
+    return response.data;
+  }
+
+  /**
+   * Fetch emails from Gmail and process them immediately
+   */
+  async fetchAndProcess(maxResults: number = 20): Promise<FetchAndProcessResult> {
+    const response = await api.post<FetchAndProcessResult>('/admin/emails/fetch-and-process', {
+      maxResults,
+      autoCreate: true,
+      minConfidence: 80,
+    });
+    return response.data;
+  }
+
+  /**
+   * Fetch emails from Gmail (queue only, no processing)
+   */
+  async fetchFromGmail(maxResults: number = 10): Promise<{ success: boolean; fetched: number; queued: number; message: string }> {
+    const response = await api.post<{ success: boolean; fetched: number; queued: number; message: string }>(
+      '/admin/emails/fetch',
+      { maxResults }
+    );
     return response.data;
   }
 
@@ -166,63 +222,6 @@ class EmailParserService {
    */
   async getStats(): Promise<EmailProcessingStats> {
     const response = await api.get<EmailProcessingStats>('/admin/emails/stats');
-    return response.data;
-  }
-
-  /**
-   * Fetch emails from Gmail
-   */
-  async fetchFromGmail(maxResults: number = 10): Promise<{ success: boolean; fetched: number; message: string }> {
-    const response = await api.post<{ success: boolean; fetched: number; message: string }>(
-      '/admin/emails/fetch',
-      { maxResults }
-    );
-    return response.data;
-  }
-
-  /**
-   * Get Gmail connection status
-   */
-  async getGmailStatus(): Promise<{
-    configured: boolean;
-    connected: boolean;
-    email?: string;
-    expiresAt?: string;
-    lastFetchAt?: string;
-  }> {
-    const response = await api.get('/admin/gmail/status');
-    return response.data;
-  }
-
-  /**
-   * Get Gmail auth URL
-   */
-  async getGmailAuthUrl(): Promise<{ authUrl: string; message: string }> {
-    const response = await api.get<{ authUrl: string; message: string }>('/admin/gmail/auth');
-    return response.data;
-  }
-
-  /**
-   * Setup email forwarding address
-   */
-  async setupForwarding(): Promise<{
-    success: boolean;
-    data: {
-      forwardAddress: string;
-      instructions: {
-        gmail: string[];
-        outlook: string[];
-        generic: string[];
-      };
-      webhookUrl: string;
-      autoProcessing: {
-        enabled: boolean;
-        minConfidence: number;
-        autoCreateContainers: boolean;
-      };
-    };
-  }> {
-    const response = await api.post('/admin/email/forward-setup');
     return response.data;
   }
 }

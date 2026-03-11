@@ -39,8 +39,8 @@ export function startEmailFetcherJob() {
         return;
       }
 
-      // Fetch unread emails (max 20 at a time)
-      const emails = await gmailIntegration.fetchUnreadEmails(20);
+      // Fetch unread emails (max 50 at a time)
+      const emails = await gmailIntegration.fetchUnreadEmails(50);
       console.log(`[Email Fetcher] Fetched ${emails.length} unread emails`);
 
       if (emails.length === 0) {
@@ -72,6 +72,9 @@ export function startEmailFetcherJob() {
 
       for (const email of pending) {
         try {
+          // Small delay between emails to avoid Gemini API rate limits (15 RPM on free tier)
+          if (processed > 0) await new Promise(r => setTimeout(r, 4000));
+
           const result = await emailService.processEmail(email, true, 80);
 
           await emailService.markEmailProcessed(
@@ -80,10 +83,8 @@ export function startEmailFetcherJob() {
             result.error
           );
 
-          // Mark as read in Gmail
-          try {
-            await gmailIntegration.markAsProcessed(email.id);
-          } catch (_) { /* ignore mark errors */ }
+          // NOTE: Intentionally NOT marking emails as read in Gmail
+          // Client needs to see unread emails to respond to them manually
 
           if (result.status === 'SUCCESS' && result.bookingId) {
             created++;

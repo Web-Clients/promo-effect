@@ -391,4 +391,45 @@ router.get('/emails/ai-status', authMiddleware, async (_req: Request, res: Respo
   }
 });
 
+/**
+ * GET /api/admin/emails/recent-containers
+ *
+ * Returns containers recently registered via email parsing (from audit log)
+ */
+router.get('/emails/recent-containers', requireRole(['SUPER_ADMIN', 'ADMIN']), async (_req: Request, res: Response) => {
+  try {
+    const prisma = (await import('../../lib/prisma')).default;
+
+    // Find audit logs for email auto-creates
+    const auditLogs = await prisma.auditLog.findMany({
+      where: {
+        action: 'CREATE',
+        changes: { contains: 'EMAIL_AUTO_CREATE' },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
+    const items = auditLogs.map((log: any) => {
+      let changes: any = {};
+      try { changes = JSON.parse(log.changes); } catch (_) {}
+      return {
+        id: log.id,
+        entityId: log.entityId,
+        containerNumber: changes.containerNumber,
+        blNumber: changes.blNumber,
+        emailFrom: changes.emailFrom,
+        emailSubject: changes.emailSubject,
+        confidence: changes.confidence,
+        createdAt: log.createdAt,
+      };
+    });
+
+    return res.json(items);
+  } catch (error: any) {
+    console.error('Recent containers error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

@@ -72,7 +72,7 @@ export async function parseEmailWithGemini(emailContent: string): Promise<Parsed
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
     const prompt = `Analizează conținutul următorului email de logistică și extrage informațiile cheie în format JSON.
     
@@ -159,7 +159,7 @@ export async function parseShippingDocumentWithGemini(
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
     const prompt = `You are a logistics data extraction specialist. Analyze the following shipping document text (extracted from a Bill of Lading PDF or Shipping Instruction PDF) and extract ALL available fields.
 

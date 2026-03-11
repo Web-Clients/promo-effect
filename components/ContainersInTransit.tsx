@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Badge } from './ui/Badge';
 import { SearchIcon, RefreshCwIcon, ShipIcon, PackageIcon } from './icons';
 import bookingsService, { BookingResponse } from '../services/bookings';
+import { searchContainer, refreshTracking, Container } from '../services/tracking';
+import ContainerMap from './ContainerMap';
 import { cn } from '../lib/utils';
 
 const statusVariantMap: { [key: string]: 'blue' | 'yellow' | 'green' | 'purple' | 'default' } = {
@@ -19,19 +20,26 @@ const statusTextMap: { [key: string]: string } = {
     'ARRIVED': 'Sosit',
 };
 
+interface TrackingEntry {
+    data: Container | null;
+    loadedAt: number;
+}
+
 const ContainersInTransit = () => {
-    const navigate = useNavigate();
     const [bookings, setBookings] = useState<BookingResponse[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const [search, setSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState<string>('ALL');
+    const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [trackingCache, setTrackingCache] = useState<Record<string, TrackingEntry>>({});
+    const [trackingLoading, setTrackingLoading] = useState<Record<string, boolean>>({});
+    const [refreshingId, setRefreshingId] = useState<string | null>(null);
 
     const loadBookings = async () => {
         setIsLoading(true);
         setError('');
         try {
-            // Fetch both IN_TRANSIT and CONFIRMED bookings
             const [transitResult, confirmedResult, sentResult] = await Promise.all([
                 bookingsService.getBookings({ status: 'IN_TRANSIT', limit: 500 }),
                 bookingsService.getBookings({ status: 'CONFIRMED', limit: 500 }),
@@ -44,7 +52,6 @@ const ContainersInTransit = () => {
                 ...sentResult.bookings,
             ];
 
-            // Sort by ETA ascending (nearest first)
             all.sort((a, b) => {
                 const aEta = a.eta ? new Date(a.eta).getTime() : Infinity;
                 const bEta = b.eta ? new Date(b.eta).getTime() : Infinity;
@@ -63,7 +70,47 @@ const ContainersInTransit = () => {
         loadBookings();
     }, []);
 
-    // Filter by search and status
+    const fetchTrackingData = async (bookingId: string, containerNumber: string) => {
+        setTrackingLoading(prev => ({ ...prev, [bookingId]: true }));
+        try {
+            const data = await searchContainer(containerNumber);
+            setTrackingCache(prev => ({ ...prev, [bookingId]: { data, loadedAt: Date.now() } }));
+        } catch {
+            setTrackingCache(prev => ({ ...prev, [bookingId]: { data: null, loadedAt: Date.now() } }));
+        } finally {
+            setTrackingLoading(prev => ({ ...prev, [bookingId]: false }));
+        }
+    };
+
+    const handleRowClick = (bookingId: string, containerNumber?: string) => {
+        if (expandedId === bookingId) {
+            setExpandedId(null);
+            return;
+        }
+        setExpandedId(bookingId);
+        if (containerNumber && trackingCache[bookingId] === undefined && !trackingLoading[bookingId]) {
+            fetchTrackingData(bookingId, containerNumber);
+        }
+    };
+
+    const handleRefreshTracking = async (e: React.MouseEvent, bookingId: string, containerId: string, containerNumber: string) => {
+        e.stopPropagation();
+        setRefreshingId(bookingId);
+        try {
+            await refreshTracking(containerId);
+            setTrackingCache(prev => {
+                const next = { ...prev };
+                delete next[bookingId];
+                return next;
+            });
+            await fetchTrackingData(bookingId, containerNumber);
+        } catch (err: any) {
+            console.error('Refresh failed:', err);
+        } finally {
+            setRefreshingId(null);
+        }
+    };
+
     const filtered = bookings.filter(b => {
         if (filterStatus !== 'ALL' && b.status !== filterStatus) return false;
         if (!search) return true;
@@ -80,11 +127,9 @@ const ContainersInTransit = () => {
         );
     });
 
-    // Stats
     const totalInTransit = bookings.filter(b => b.status === 'IN_TRANSIT').length;
     const totalConfirmed = bookings.filter(b => b.status === 'CONFIRMED').length;
     const totalSent = bookings.filter(b => b.status === 'SENT').length;
-    const totalValue = bookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
 
     const statusTabs = [
         { value: 'ALL', label: `Toate (${bookings.length})` },
@@ -93,10 +138,18 @@ const ContainersInTransit = () => {
         { value: 'SENT', label: `Expediate (${totalSent})` },
     ];
 
-    const getDaysUntilEta = (eta: string | null) => {
+    const getDaysUntilEta = (eta: string | null | undefined) => {
         if (!eta) return null;
-        const diff = Math.ceil((new Date(eta).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-        return diff;
+        return Math.ceil((new Date(eta).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    };
+
+    const formatSyncTime = (lastSyncAt?: string) => {
+        if (!lastSyncAt) return null;
+        const diff = Date.now() - new Date(lastSyncAt).getTime();
+        const hours = Math.floor(diff / 3600000);
+        const minutes = Math.floor((diff % 3600000) / 60000);
+        if (hours > 0) return `${hours}h ${minutes}m în urmă`;
+        return `${minutes}m în urmă`;
     };
 
     return (
@@ -108,7 +161,7 @@ const ContainersInTransit = () => {
                         Marfă în Drum
                     </h1>
                     <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-                        Toate containerele active - confirmate, expediate și în tranzit
+                        Toate containerele active · click pe rând pentru hartă
                     </p>
                 </div>
                 <button
@@ -157,12 +210,12 @@ const ContainersInTransit = () => {
                 </div>
                 <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 p-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-500/10 flex items-center justify-center">
-                            <span className="text-green-600 dark:text-green-400 font-bold text-sm">$</span>
+                        <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-500/10 flex items-center justify-center">
+                            <ShipIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                         </div>
                         <div>
-                            <p className="text-xs text-neutral-500 dark:text-neutral-400">Valoare Totală</p>
-                            <p className="text-xl font-bold text-green-600 dark:text-green-400">${totalValue.toLocaleString('ro-RO')}</p>
+                            <p className="text-xs text-neutral-500 dark:text-neutral-400">Expediate</p>
+                            <p className="text-xl font-bold text-purple-600 dark:text-purple-400">{totalSent}</p>
                         </div>
                     </div>
                 </div>
@@ -212,7 +265,6 @@ const ContainersInTransit = () => {
                     <p className="text-neutral-500 dark:text-neutral-400">Se încarcă containerele...</p>
                 </div>
             ) : filtered.length === 0 ? (
-                /* Empty */
                 <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 p-12 flex flex-col items-center justify-center">
                     <div className="w-16 h-16 rounded-2xl bg-neutral-100 dark:bg-neutral-700 flex items-center justify-center mb-4">
                         <ShipIcon className="h-8 w-8 text-neutral-400" />
@@ -223,12 +275,12 @@ const ContainersInTransit = () => {
                     </p>
                 </div>
             ) : (
-                /* Table */
                 <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead>
                                 <tr className="bg-neutral-50 dark:bg-neutral-700/50 border-b border-neutral-200 dark:border-neutral-700">
+                                    <th className="w-10 p-4"></th>
                                     <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Nr.</th>
                                     <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Container</th>
                                     <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Beneficiar</th>
@@ -246,90 +298,205 @@ const ContainersInTransit = () => {
                                 {filtered.map((b, index) => {
                                     const container = b.containers?.[0];
                                     const daysUntil = getDaysUntilEta(b.eta);
+                                    const isExpanded = expandedId === b.id;
+                                    const tracking = trackingCache[b.id];
+                                    const isTrackingLoading = trackingLoading[b.id];
+
+                                    // Build currentLocation for the map
+                                    const trackingLocation = tracking?.data?._location?.latitude || tracking?.data?.currentLat
+                                        ? {
+                                            name: tracking?.data?._location?.name || (tracking?.data?.currentLocation ?? undefined),
+                                            city: tracking?.data?._location?.city,
+                                            country: tracking?.data?._location?.country,
+                                            latitude: tracking?.data?._location?.latitude || tracking?.data?.currentLat,
+                                            longitude: tracking?.data?._location?.longitude || tracking?.data?.currentLng,
+                                        }
+                                        : undefined;
 
                                     return (
-                                        <tr
-                                            key={b.id}
-                                            onClick={() => navigate(`/dashboard/bookings/${b.id}`)}
-                                            className="cursor-pointer transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-700/30"
-                                        >
-                                            <td className="p-4 text-sm text-neutral-400">{index + 1}</td>
-                                            <td className="p-4">
-                                                <div>
-                                                    <span className="font-mono font-semibold text-primary-800 dark:text-white text-sm">
-                                                        {container?.containerNumber || b.id}
-                                                    </span>
-                                                    {container?.containerNumber && (
-                                                        <p className="text-xs text-neutral-400 mt-0.5">{b.id}</p>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="p-4">
-                                                <span className="text-sm text-neutral-700 dark:text-neutral-200">
-                                                    {b.client?.companyName || 'N/A'}
-                                                </span>
-                                            </td>
-                                            <td className="p-4">
-                                                <span className="text-sm text-neutral-600 dark:text-neutral-300">
-                                                    {container?.type || b.containerType}
-                                                </span>
-                                            </td>
-                                            <td className="p-4">
-                                                <span className="text-sm font-medium text-neutral-700 dark:text-neutral-200">
-                                                    {b.shippingLine}
-                                                </span>
-                                            </td>
-                                            <td className="p-4">
-                                                <span className="font-mono text-sm text-neutral-600 dark:text-neutral-300">
-                                                    {container?.blNumber || '—'}
-                                                </span>
-                                            </td>
-                                            <td className="p-4">
-                                                <span className="text-sm text-neutral-600 dark:text-neutral-300">
-                                                    {container?.weightGross
-                                                        ? `${(container.weightGross / 1000).toFixed(1)}t`
-                                                        : b.cargoWeight || '—'}
-                                                </span>
-                                            </td>
-                                            <td className="p-4 text-right">
-                                                <span className="text-sm font-semibold text-primary-800 dark:text-white">
-                                                    ${b.totalPrice?.toLocaleString('ro-RO') || '0'}
-                                                </span>
-                                            </td>
-                                            <td className="p-4">
-                                                <div className="flex items-center gap-1.5 text-sm text-neutral-600 dark:text-neutral-300">
-                                                    <span>{b.portOrigin}</span>
-                                                    <span className="text-neutral-400">→</span>
-                                                    <span>{b.portDestination || 'Constanța'}</span>
-                                                </div>
-                                            </td>
-                                            <td className="p-4">
-                                                {b.eta ? (
+                                        <React.Fragment key={b.id}>
+                                            {/* Main row */}
+                                            <tr
+                                                onClick={() => handleRowClick(b.id, container?.containerNumber)}
+                                                className={cn(
+                                                    "cursor-pointer transition-colors",
+                                                    isExpanded
+                                                        ? "bg-blue-50 dark:bg-blue-900/10"
+                                                        : "hover:bg-neutral-50 dark:hover:bg-neutral-700/30"
+                                                )}
+                                            >
+                                                {/* Chevron */}
+                                                <td className="p-4">
+                                                    <svg
+                                                        className={cn(
+                                                            "h-4 w-4 text-neutral-400 transition-transform duration-200",
+                                                            isExpanded && "rotate-180"
+                                                        )}
+                                                        fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                                    >
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                    </svg>
+                                                </td>
+                                                <td className="p-4 text-sm text-neutral-400">{index + 1}</td>
+                                                <td className="p-4">
                                                     <div>
-                                                        <span className="text-sm text-neutral-600 dark:text-neutral-300">
-                                                            {new Date(b.eta).toLocaleDateString('ro-RO')}
+                                                        <span className="font-mono font-semibold text-primary-800 dark:text-white text-sm">
+                                                            {container?.containerNumber || b.id}
                                                         </span>
-                                                        {daysUntil !== null && (
-                                                            <p className={cn(
-                                                                "text-xs mt-0.5",
-                                                                daysUntil <= 0 ? "text-green-600 dark:text-green-400 font-medium" :
-                                                                daysUntil <= 7 ? "text-orange-500 dark:text-orange-400" :
-                                                                "text-neutral-400"
-                                                            )}>
-                                                                {daysUntil <= 0 ? 'Sosit!' : `${daysUntil} zile`}
-                                                            </p>
+                                                        {container?.containerNumber && (
+                                                            <p className="text-xs text-neutral-400 mt-0.5">{b.id}</p>
                                                         )}
                                                     </div>
-                                                ) : (
-                                                    <span className="text-sm text-neutral-400">—</span>
-                                                )}
-                                            </td>
-                                            <td className="p-4">
-                                                <Badge variant={statusVariantMap[b.status] || 'default'}>
-                                                    {statusTextMap[b.status] || b.status}
-                                                </Badge>
-                                            </td>
-                                        </tr>
+                                                </td>
+                                                <td className="p-4">
+                                                    <span className="text-sm text-neutral-700 dark:text-neutral-200">
+                                                        {b.client?.companyName || 'N/A'}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4">
+                                                    <span className="text-sm text-neutral-600 dark:text-neutral-300">
+                                                        {container?.type || b.containerType}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4">
+                                                    <span className="text-sm font-medium text-neutral-700 dark:text-neutral-200">
+                                                        {b.shippingLine}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4">
+                                                    <span className="font-mono text-sm text-neutral-600 dark:text-neutral-300">
+                                                        {container?.blNumber || '—'}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4">
+                                                    <span className="text-sm text-neutral-600 dark:text-neutral-300">
+                                                        {container?.weightGross
+                                                            ? `${(container.weightGross / 1000).toFixed(1)}t`
+                                                            : b.cargoWeight || '—'}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4 text-right">
+                                                    <span className="text-sm font-semibold text-primary-800 dark:text-white">
+                                                        ${b.totalPrice?.toLocaleString('ro-RO') || '0'}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4">
+                                                    <div className="flex items-center gap-1.5 text-sm text-neutral-600 dark:text-neutral-300">
+                                                        <span>{b.portOrigin}</span>
+                                                        <span className="text-neutral-400">→</span>
+                                                        <span>{b.portDestination || 'Constanța'}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="p-4">
+                                                    {b.eta ? (
+                                                        <div>
+                                                            <span className="text-sm text-neutral-600 dark:text-neutral-300">
+                                                                {new Date(b.eta).toLocaleDateString('ro-RO')}
+                                                            </span>
+                                                            {daysUntil !== null && (
+                                                                <p className={cn(
+                                                                    "text-xs mt-0.5",
+                                                                    daysUntil <= 0 ? "text-green-600 dark:text-green-400 font-medium" :
+                                                                    daysUntil <= 7 ? "text-orange-500 dark:text-orange-400" :
+                                                                    "text-neutral-400"
+                                                                )}>
+                                                                    {daysUntil <= 0 ? 'Sosit!' : `${daysUntil} zile`}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-sm text-neutral-400">—</span>
+                                                    )}
+                                                </td>
+                                                <td className="p-4">
+                                                    <Badge variant={statusVariantMap[b.status] || 'default'}>
+                                                        {statusTextMap[b.status] || b.status}
+                                                    </Badge>
+                                                </td>
+                                            </tr>
+
+                                            {/* Expanded map row */}
+                                            {isExpanded && (
+                                                <tr>
+                                                    <td colSpan={12} className="p-0 border-b border-neutral-200 dark:border-neutral-700">
+                                                        <div className="p-4 bg-neutral-50 dark:bg-neutral-900/50">
+                                                            {isTrackingLoading ? (
+                                                                <div className="flex items-center justify-center py-10">
+                                                                    <div className="w-8 h-8 border-4 border-primary-800 border-t-transparent rounded-full animate-spin mr-3"></div>
+                                                                    <span className="text-sm text-neutral-500 dark:text-neutral-400">Se încarcă datele de tracking...</span>
+                                                                </div>
+                                                            ) : !container?.containerNumber ? (
+                                                                <div className="flex items-center justify-center py-8 text-neutral-400">
+                                                                    <span className="text-sm">Numărul containerului nu este disponibil</span>
+                                                                </div>
+                                                            ) : tracking?.data ? (
+                                                                <div className="space-y-3">
+                                                                    {/* Info bar */}
+                                                                    <div className="flex items-center justify-between flex-wrap gap-2">
+                                                                        <div className="flex items-center gap-4 text-sm flex-wrap">
+                                                                            {tracking.data._vessel?.name && (
+                                                                                <span className="text-neutral-600 dark:text-neutral-300">
+                                                                                    🚢 <span className="font-medium">{tracking.data._vessel.name}</span>
+                                                                                    {tracking.data._vessel.imo && (
+                                                                                        <span className="text-neutral-400 text-xs ml-1">IMO: {tracking.data._vessel.imo}</span>
+                                                                                    )}
+                                                                                </span>
+                                                                            )}
+                                                                            {tracking.data._location?.name && (
+                                                                                <span className="text-neutral-600 dark:text-neutral-300">
+                                                                                    📍 {tracking.data._location.name}
+                                                                                    {tracking.data._location.country && `, ${tracking.data._location.country}`}
+                                                                                </span>
+                                                                            )}
+                                                                            {tracking.data.lastSyncAt && (
+                                                                                <span className="text-neutral-400 text-xs">
+                                                                                    Actualizat: {formatSyncTime(tracking.data.lastSyncAt)}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        <button
+                                                                            onClick={(e) => handleRefreshTracking(e, b.id, tracking.data!.id, container.containerNumber)}
+                                                                            disabled={refreshingId === b.id}
+                                                                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary-800 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors"
+                                                                        >
+                                                                            <RefreshCwIcon className={cn("h-3.5 w-3.5", refreshingId === b.id && "animate-spin")} />
+                                                                            Reîmprospătare tracking
+                                                                        </button>
+                                                                    </div>
+                                                                    {/* Map */}
+                                                                    <ContainerMap
+                                                                        containerNumber={container.containerNumber}
+                                                                        currentLocation={trackingLocation}
+                                                                        vessel={tracking.data._vessel}
+                                                                        route={tracking.data._route}
+                                                                        originPort={b.portOrigin || undefined}
+                                                                        destinationPort={b.portDestination || undefined}
+                                                                        status={tracking.data.currentStatus}
+                                                                        eta={tracking.data.eta || b.eta || undefined}
+                                                                        height="320px"
+                                                                    />
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex flex-col items-center justify-center py-8 gap-3">
+                                                                    <div className="w-12 h-12 rounded-full bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center">
+                                                                        <ShipIcon className="h-6 w-6 text-neutral-400" />
+                                                                    </div>
+                                                                    <div className="text-center">
+                                                                        <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                                                                            Date de tracking indisponibile pentru{' '}
+                                                                            <span className="font-mono font-medium">{container.containerNumber}</span>
+                                                                        </p>
+                                                                        <p className="text-xs text-neutral-400 mt-1">
+                                                                            Containerul va fi sincronizat automat cu SeaRates în curând.
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </React.Fragment>
                                     );
                                 })}
                             </tbody>

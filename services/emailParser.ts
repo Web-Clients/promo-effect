@@ -49,6 +49,26 @@ export interface GmailStatus {
   connected: boolean;
   email?: string;
   lastFetch?: string;
+  lastFetchResult?: {
+    emailsFetched: number;
+    emailsProcessed: number;
+    bookingsCreated: number;
+    processingFailed: number;
+    durationMs: number;
+    timestamp: string;
+  };
+}
+
+// Recently registered container from email
+export interface RecentEmailContainer {
+  id: string;
+  entityId: string;
+  containerNumber?: string;
+  blNumber?: string;
+  emailFrom?: string;
+  emailSubject?: string;
+  confidence?: number;
+  createdAt: string;
 }
 
 // Incoming email from queue
@@ -222,6 +242,14 @@ class EmailParserService {
    */
   async getStats(): Promise<EmailProcessingStats> {
     const response = await api.get<EmailProcessingStats>('/admin/emails/stats');
+    return response.data;
+  }
+
+  /**
+   * Get recently registered containers from email parsing
+   */
+  async getRecentContainers(): Promise<RecentEmailContainer[]> {
+    const response = await api.get<RecentEmailContainer[]>('/admin/emails/recent-containers');
     return response.data;
   }
 }

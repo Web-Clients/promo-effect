@@ -1,823 +1,348 @@
 /**
- * AI Email Parser Component
+ * AI Email Parser - Autopilot Dashboard
  *
- * Parses forwarded shipping emails using Gemini AI
- * Extracts container info, shipping details, ports, dates
- * Can fetch emails from Gmail (efect.logistic@gmail.com) via IMAP
+ * Automatically reads emails from Gmail every 15 minutes,
+ * finds container numbers in emails and PDF attachments,
+ * and registers them in the database.
  */
 
 import React, { useState, useEffect } from 'react';
-import { Card } from './ui/Card';
-import { Button } from './ui/Button';
 import { useToast } from './ui/Toast';
 import {
-  MailIcon,
-  SparklesIcon,
-  CheckIcon,
-  AlertCircleIcon,
-  SearchIcon,
-  PlusIcon,
-  CopyIcon,
-  RefreshCwIcon,
-  ShipIcon,
-  CalendarIcon,
-  MapPinIcon,
-  PackageIcon,
-  UserIcon,
-  PhoneIcon,
-  DownloadIcon,
-  Loader2Icon,
+    MailIcon,
+    SparklesIcon,
+    CheckIcon,
+    AlertCircleIcon,
+    RefreshCwIcon,
+    ShipIcon,
+    PackageIcon,
 } from './icons';
-import emailParserService, {
-  ParsedEmailData,
-  EmailProcessingResult,
-  GmailStatus,
-  FetchAndProcessResult,
-} from '../services/emailParser';
-
-interface ExtractedField {
-  label: string;
-  value: string | undefined;
-  icon: React.ReactNode;
-}
+import emailParserService, { GmailStatus, RecentEmailContainer } from '../services/emailParser';
+import { cn } from '../lib/utils';
 
 const AIEmailParser: React.FC = () => {
-  const { addToast } = useToast();
+    const { addToast } = useToast();
 
-  // State
-  const [emailContent, setEmailContent] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isParsing, setIsParsing] = useState(false);
-  const [parsedData, setParsedData] = useState<ParsedEmailData | null>(null);
-  const [processingResult, setProcessingResult] = useState<EmailProcessingResult | null>(null);
-  const [aiAvailable, setAiAvailable] = useState<boolean | null>(null);
-  const [activeTab, setActiveTab] = useState<'gmail' | 'parse' | 'queue' | 'stats'>('gmail');
-  const [stats, setStats] = useState<any>(null);
-  const [pendingEmails, setPendingEmails] = useState<any[]>([]);
+    const [gmailStatus, setGmailStatus] = useState<GmailStatus | null>(null);
+    const [aiAvailable, setAiAvailable] = useState<boolean | null>(null);
+    const [recentContainers, setRecentContainers] = useState<RecentEmailContainer[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isFetching, setIsFetching] = useState(false);
 
-  // Gmail state
-  const [gmailStatus, setGmailStatus] = useState<GmailStatus | null>(null);
-  const [isFetching, setIsFetching] = useState(false);
-  const [fetchResult, setFetchResult] = useState<FetchAndProcessResult | null>(null);
+    const loadData = async () => {
+        setIsLoading(true);
+        try {
+            const [status, aiStatus, recent] = await Promise.allSettled([
+                emailParserService.getGmailStatus(),
+                emailParserService.checkAIStatus(),
+                emailParserService.getRecentContainers(),
+            ]);
 
-  // Check AI availability and Gmail status on mount
-  useEffect(() => {
-    checkAIStatus();
-    loadGmailStatus();
-  }, []);
+            if (status.status === 'fulfilled') setGmailStatus(status.value);
+            if (aiStatus.status === 'fulfilled') setAiAvailable(aiStatus.value.available);
+            if (recent.status === 'fulfilled') setRecentContainers(recent.value);
+        } catch (err) {
+            console.error('Failed to load email parser data:', err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-  const checkAIStatus = async () => {
-    try {
-      const status = await emailParserService.checkAIStatus();
-      setAiAvailable(status.available);
-    } catch (error) {
-      setAiAvailable(false);
-    }
-  };
+    useEffect(() => {
+        loadData();
+    }, []);
 
-  const loadGmailStatus = async () => {
-    try {
-      const status = await emailParserService.getGmailStatus();
-      setGmailStatus(status);
-    } catch (error) {
-      console.error('Failed to load Gmail status:', error);
-    }
-  };
+    const handleRunNow = async () => {
+        setIsFetching(true);
+        try {
+            const result = await emailParserService.fetchAndProcess(20);
+            if (result.summary.fetched === 0) {
+                addToast('Nu sunt email-uri noi de procesat', 'info');
+            } else {
+                addToast(
+                    `${result.summary.fetched} email-uri procesate, ${result.summary.bookingsCreated} containere înregistrate`,
+                    result.summary.failed > 0 ? 'warning' : 'success'
+                );
+            }
+            await loadData();
+        } catch (error: any) {
+            addToast(error.response?.data?.message || 'Eroare la procesarea email-urilor', 'error');
+        } finally {
+            setIsFetching(false);
+        }
+    };
 
-  // Fetch and process emails from Gmail
-  const handleFetchAndProcess = async () => {
-    setIsFetching(true);
-    setFetchResult(null);
+    const formatTime = (isoString?: string) => {
+        if (!isoString) return '—';
+        const d = new Date(isoString);
+        return d.toLocaleString('ro-RO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    };
 
-    try {
-      const result = await emailParserService.fetchAndProcess(20);
-      setFetchResult(result);
+    const formatTimeAgo = (isoString?: string) => {
+        if (!isoString) return null;
+        const diff = Date.now() - new Date(isoString).getTime();
+        const min = Math.floor(diff / 60000);
+        const hours = Math.floor(min / 60);
+        if (hours > 0) return `acum ${hours}h ${min % 60}m`;
+        return `acum ${min}m`;
+    };
 
-      if (result.summary.fetched === 0) {
-        addToast('Нет новых писем', 'info');
-      } else {
-        addToast(
-          `Получено ${result.summary.fetched} писем: ${result.summary.success} обработано, ${result.summary.bookingsCreated} букингов создано`,
-          result.summary.failed > 0 ? 'warning' : 'success'
-        );
-      }
-
-      // Refresh status
-      await loadGmailStatus();
-    } catch (error: any) {
-      console.error('Fetch error:', error);
-      addToast(error.response?.data?.message || error.message || 'Ошибка получения писем', 'error');
-    } finally {
-      setIsFetching(false);
-    }
-  };
-
-  // Parse email with AI only (quick preview)
-  const handleQuickParse = async () => {
-    if (!emailContent.trim()) {
-      addToast('Введите содержимое email', 'error');
-      return;
-    }
-
-    setIsParsing(true);
-    setParsedData(null);
-    setProcessingResult(null);
-
-    try {
-      const result = await emailParserService.parseWithAI(emailContent);
-
-      if (result.success && result.data) {
-        setParsedData(result.data);
-        addToast(`Данные извлечены (уверенность: ${result.confidence}%)`, 'success');
-      } else {
-        addToast(result.error || 'Не удалось извлечь данные', 'error');
-      }
-    } catch (error: any) {
-      console.error('Parse error:', error);
-      addToast(error.message || 'Ошибка парсинга', 'error');
-    } finally {
-      setIsParsing(false);
-    }
-  };
-
-  // Full processing with container search/creation
-  const handleFullProcess = async (autoCreate: boolean = false) => {
-    if (!emailContent.trim()) {
-      addToast('Введите содержимое email', 'error');
-      return;
-    }
-
-    setIsLoading(true);
-    setProcessingResult(null);
-
-    try {
-      const result = await emailParserService.processEmail(
-        {
-          subject: 'Forwarded email',
-          body: emailContent,
-        },
-        autoCreate,
-        70
-      );
-
-      setProcessingResult(result);
-      if (result.extractedData) {
-        setParsedData(result.extractedData);
-      }
-
-      if (result.status === 'SUCCESS') {
-        addToast(result.containerId ? 'Контейнер найден/создан' : 'Данные извлечены успешно', 'success');
-      } else if (result.status === 'NEEDS_REVIEW') {
-        addToast('Требуется ручная проверка данных', 'warning');
-      } else {
-        addToast(result.error || 'Обработка не удалась', 'error');
-      }
-    } catch (error: any) {
-      console.error('Process error:', error);
-      addToast(error.message || 'Ошибка обработки', 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Load statistics
-  const loadStats = async () => {
-    try {
-      const data = await emailParserService.getStats();
-      setStats(data);
-    } catch (error) {
-      console.error('Failed to load stats:', error);
-    }
-  };
-
-  // Load pending emails
-  const loadPendingEmails = async () => {
-    try {
-      const data = await emailParserService.getPendingEmails();
-      setPendingEmails(data.emails || []);
-    } catch (error) {
-      console.error('Failed to load pending emails:', error);
-    }
-  };
-
-  // Process queue
-  const handleProcessQueue = async () => {
-    setIsLoading(true);
-    try {
-      const result = await emailParserService.processQueue(true, 70);
-      addToast(
-        `Обработано: ${result.summary.success} успешно, ${result.summary.failed} ошибок`,
-        result.summary.failed > 0 ? 'warning' : 'success'
-      );
-      loadPendingEmails();
-      loadStats();
-    } catch (error: any) {
-      addToast(error.message || 'Ошибка обработки очереди', 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Paste from clipboard
-  const handlePaste = async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      setEmailContent(text);
-      addToast('Текст вставлен из буфера обмена', 'success');
-    } catch (error) {
-      addToast('Не удалось вставить из буфера обмена', 'error');
-    }
-  };
-
-  // Clear all
-  const handleClear = () => {
-    setEmailContent('');
-    setParsedData(null);
-    setProcessingResult(null);
-  };
-
-  // Get confidence badge
-  const getConfidenceBadge = (confidence: number) => {
-    const color = confidence >= 80 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-      : confidence >= 60 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-      : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+    const lastRun = gmailStatus?.lastFetchResult;
 
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${color}`}>
-        {confidence}% уверенность
-      </span>
-    );
-  };
-
-  // Build extracted fields array
-  const getExtractedFields = (): ExtractedField[] => {
-    if (!parsedData) return [];
-
-    return [
-      { label: 'Номер контейнера', value: parsedData.containerNumber, icon: <PackageIcon className="h-4 w-4" /> },
-      { label: 'Bill of Lading', value: parsedData.billOfLading, icon: <CopyIcon className="h-4 w-4" /> },
-      { label: 'Shipping Line', value: parsedData.shippingLine, icon: <ShipIcon className="h-4 w-4" /> },
-      { label: 'Судно', value: parsedData.vesselName, icon: <ShipIcon className="h-4 w-4" /> },
-      { label: 'Voyage', value: parsedData.voyageNumber, icon: <MapPinIcon className="h-4 w-4" /> },
-      { label: 'Порт загрузки', value: parsedData.portOfLoading, icon: <MapPinIcon className="h-4 w-4" /> },
-      { label: 'Порт выгрузки', value: parsedData.portOfDischarge, icon: <MapPinIcon className="h-4 w-4" /> },
-      { label: 'Дата отправления', value: parsedData.departureDate, icon: <CalendarIcon className="h-4 w-4" /> },
-      { label: 'ETA', value: parsedData.eta, icon: <CalendarIcon className="h-4 w-4" /> },
-      { label: 'Тип контейнера', value: parsedData.containerType, icon: <PackageIcon className="h-4 w-4" /> },
-      { label: 'Вес', value: parsedData.weight, icon: <PackageIcon className="h-4 w-4" /> },
-      { label: 'Описание груза', value: parsedData.cargoDescription, icon: <PackageIcon className="h-4 w-4" /> },
-      { label: 'Поставщик', value: parsedData.supplierName, icon: <UserIcon className="h-4 w-4" /> },
-      { label: 'Телефон поставщика', value: parsedData.supplierPhone, icon: <PhoneIcon className="h-4 w-4" /> },
-      { label: 'Email поставщика', value: parsedData.supplierEmail, icon: <MailIcon className="h-4 w-4" /> },
-    ].filter(f => f.value);
-  };
-
-  useEffect(() => {
-    if (activeTab === 'stats') {
-      loadStats();
-    } else if (activeTab === 'queue') {
-      loadPendingEmails();
-    }
-  }, [activeTab]);
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-neutral-800 dark:text-neutral-100 flex items-center gap-2">
-            <SparklesIcon className="h-7 w-7 text-primary-500" />
-            AI Email Parser
-          </h1>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-            Извлечение данных о контейнерах из email с помощью Gemini AI
-          </p>
-        </div>
-
-        {/* Status Badges */}
-        <div className="flex items-center gap-3">
-          {/* Gmail Status */}
-          {gmailStatus && (
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
-              gmailStatus.connected
-                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                : gmailStatus.configured
-                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400'
-            }`}>
-              <MailIcon className="h-4 w-4" />
-              {gmailStatus.connected
-                ? gmailStatus.email
-                : gmailStatus.configured
-                ? 'Gmail: проверка...'
-                : 'Gmail: не настроен'}
-            </div>
-          )}
-
-          {/* AI Status Badge */}
-          {aiAvailable !== null && (
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
-              aiAvailable
-                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-            }`}>
-              {aiAvailable ? (
-                <>
-                  <CheckIcon className="h-4 w-4" />
-                  Gemini AI
-                </>
-              ) : (
-                <>
-                  <AlertCircleIcon className="h-4 w-4" />
-                  AI недоступен
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-2 border-b border-neutral-200 dark:border-neutral-700">
-        <button
-          onClick={() => setActiveTab('gmail')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            activeTab === 'gmail'
-              ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-              : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
-          }`}
-        >
-          <MailIcon className="h-4 w-4 inline mr-2" />
-          Gmail
-        </button>
-        <button
-          onClick={() => setActiveTab('parse')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            activeTab === 'parse'
-              ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-              : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
-          }`}
-        >
-          <SparklesIcon className="h-4 w-4 inline mr-2" />
-          Ручной парсинг
-        </button>
-        <button
-          onClick={() => setActiveTab('queue')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            activeTab === 'queue'
-              ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-              : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
-          }`}
-        >
-          <RefreshCwIcon className="h-4 w-4 inline mr-2" />
-          Очередь ({pendingEmails.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('stats')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            activeTab === 'stats'
-              ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-              : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'
-          }`}
-        >
-          <SparklesIcon className="h-4 w-4 inline mr-2" />
-          Статистика
-        </button>
-      </div>
-
-      {/* Gmail Tab */}
-      {activeTab === 'gmail' && (
         <div className="space-y-6">
-          {/* Gmail Connection Card */}
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-4 flex items-center gap-2">
-              <MailIcon className="h-5 w-5 text-primary-500" />
-              Почтовый ящик
-            </h2>
-
-            {!gmailStatus?.configured ? (
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <AlertCircleIcon className="h-5 w-5 text-yellow-600 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-yellow-800 dark:text-yellow-200">Gmail не настроен</p>
-                    <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                      Для автоматического получения писем необходимо настроить IMAP доступ:
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-primary-800 dark:text-white font-heading">
+                        AI Email Parser
+                    </h1>
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
+                        Citește automat email-urile și înregistrează containerele din PDF-uri
                     </p>
-                    <ol className="text-sm text-yellow-700 dark:text-yellow-300 mt-2 space-y-1 list-decimal list-inside">
-                      <li>Включите двухфакторную аутентификацию на Gmail аккаунте</li>
-                      <li>Создайте App Password: Google Account &rarr; Security &rarr; App Passwords</li>
-                      <li>Включите IMAP в настройках Gmail</li>
-                      <li>Добавьте в .env на сервере:</li>
-                    </ol>
-                    <div className="mt-2 bg-neutral-800 text-green-400 rounded p-3 font-mono text-xs">
-                      GMAIL_EMAIL=efect.logistic@gmail.com<br />
-                      GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
-                    </div>
-                    <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-2">
-                      После этого перезапустите сервер (pm2 restart)
-                    </p>
-                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {/* Status */}
-                <div className={`flex items-center gap-3 p-4 rounded-lg ${
-                  gmailStatus.connected
-                    ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
-                    : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
-                }`}>
-                  <div className={`h-3 w-3 rounded-full ${gmailStatus.connected ? 'bg-green-500' : 'bg-red-500'}`} />
-                  <div className="flex-1">
-                    <p className="font-medium text-neutral-800 dark:text-neutral-100">
-                      {gmailStatus.connected ? 'Подключено' : 'Ошибка подключения'}
-                    </p>
-                    <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                      {gmailStatus.email || 'efect.logistic@gmail.com'}
-                    </p>
-                  </div>
-                  {gmailStatus.lastFetch && (
-                    <p className="text-xs text-neutral-400">
-                      Последняя проверка: {new Date(gmailStatus.lastFetch).toLocaleString('ru-RU')}
-                    </p>
-                  )}
-                </div>
-
-                {/* Info */}
-                <div className="bg-neutral-50 dark:bg-neutral-800 rounded-lg p-4">
-                  <p className="text-sm text-neutral-600 dark:text-neutral-300">
-                    Система автоматически проверяет новые письма каждые 15 минут.
-                    Также можно запустить проверку вручную.
-                  </p>
-                </div>
-
-                {/* Fetch Button */}
-                <Button
-                  onClick={handleFetchAndProcess}
-                  disabled={isFetching || !gmailStatus.connected}
-                  loading={isFetching}
-                  className="w-full"
-                  variant="primary"
+                <button
+                    onClick={loadData}
+                    className="p-2.5 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
+                    title="Reîncarcă"
                 >
-                  <DownloadIcon className="h-4 w-4 mr-2" />
-                  Получить и обработать новые письма
-                </Button>
-              </div>
-            )}
-          </Card>
+                    <RefreshCwIcon className={cn('h-5 w-5 text-neutral-500', isLoading && 'animate-spin')} />
+                </button>
+            </div>
 
-          {/* Fetch Results */}
-          {fetchResult && (
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-4">
-                Результат обработки
-              </h3>
-
-              {/* Summary */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                <div className="bg-neutral-50 dark:bg-neutral-800 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-neutral-800 dark:text-neutral-100">{fetchResult.summary.fetched}</p>
-                  <p className="text-xs text-neutral-500">Получено</p>
-                </div>
-                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-green-600">{fetchResult.summary.success}</p>
-                  <p className="text-xs text-neutral-500">Успешно</p>
-                </div>
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-yellow-600">{fetchResult.summary.needsReview}</p>
-                  <p className="text-xs text-neutral-500">Требуют проверки</p>
-                </div>
-                <div className="bg-primary-50 dark:bg-primary-900/20 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-primary-600">{fetchResult.summary.bookingsCreated}</p>
-                  <p className="text-xs text-neutral-500">Букингов создано</p>
-                </div>
-              </div>
-
-              {/* Results List */}
-              {fetchResult.results.length > 0 && (
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {fetchResult.results.map((result, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center gap-3 p-3 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg"
-                    >
-                      {result.status === 'SUCCESS' ? (
-                        <CheckIcon className="h-4 w-4 text-green-600 flex-shrink-0" />
-                      ) : result.status === 'NEEDS_REVIEW' ? (
-                        <AlertCircleIcon className="h-4 w-4 text-yellow-600 flex-shrink-0" />
-                      ) : (
-                        <AlertCircleIcon className="h-4 w-4 text-red-600 flex-shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">
-                          {result.subject}
+            {/* Status Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Gmail Status */}
+                <div className={cn(
+                    'rounded-xl border p-4 flex items-start gap-3',
+                    gmailStatus?.connected
+                        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700/50'
+                        : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700/50'
+                )}>
+                    <div className={cn(
+                        'w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0',
+                        gmailStatus?.connected ? 'bg-green-100 dark:bg-green-800/30' : 'bg-red-100 dark:bg-red-800/30'
+                    )}>
+                        <MailIcon className={cn('h-5 w-5', gmailStatus?.connected ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400')} />
+                    </div>
+                    <div className="min-w-0">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Gmail</p>
+                        <p className={cn('font-semibold text-sm mt-0.5', gmailStatus?.connected ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400')}>
+                            {gmailStatus?.connected ? 'Conectat' : gmailStatus === null ? 'Se verifică...' : 'Deconectat'}
                         </p>
-                        {result.error && (
-                          <p className="text-xs text-red-500 truncate">{result.error}</p>
+                        {gmailStatus?.email && (
+                            <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">{gmailStatus.email}</p>
                         )}
-                        {result.bookingId && (
-                          <p className="text-xs text-green-600">Booking: {result.bookingId}</p>
+                    </div>
+                </div>
+
+                {/* AI Status */}
+                <div className={cn(
+                    'rounded-xl border p-4 flex items-start gap-3',
+                    aiAvailable
+                        ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-700/50'
+                        : 'bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700'
+                )}>
+                    <div className={cn(
+                        'w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0',
+                        aiAvailable ? 'bg-purple-100 dark:bg-purple-800/30' : 'bg-neutral-200 dark:bg-neutral-700'
+                    )}>
+                        <SparklesIcon className={cn('h-5 w-5', aiAvailable ? 'text-purple-600 dark:text-purple-400' : 'text-neutral-400')} />
+                    </div>
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Gemini AI</p>
+                        <p className={cn('font-semibold text-sm mt-0.5', aiAvailable ? 'text-purple-700 dark:text-purple-400' : 'text-neutral-500 dark:text-neutral-400')}>
+                            {aiAvailable === null ? 'Se verifică...' : aiAvailable ? 'Disponibil' : 'Indisponibil'}
+                        </p>
+                        <p className="text-xs text-neutral-400 mt-0.5">Parsare PDF + email</p>
+                    </div>
+                </div>
+
+                {/* Autopilot Status */}
+                <div className="rounded-xl border border-blue-200 dark:border-blue-700/50 bg-blue-50 dark:bg-blue-900/20 p-4 flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-800/30 flex items-center justify-center flex-shrink-0">
+                        <div className="relative">
+                            <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">Autopilot</p>
+                        <p className="font-semibold text-sm text-blue-700 dark:text-blue-400 mt-0.5">Activ - la 15 min</p>
+                        {lastRun?.timestamp && (
+                            <p className="text-xs text-neutral-400 mt-0.5">Ultima rulare: {formatTimeAgo(lastRun.timestamp)}</p>
                         )}
-                      </div>
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        result.status === 'SUCCESS'
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : result.status === 'NEEDS_REVIEW'
-                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}>
-                        {result.status === 'SUCCESS' ? 'OK' : result.status === 'NEEDS_REVIEW' ? 'Проверить' : 'Ошибка'}
-                      </span>
                     </div>
-                  ))}
                 </div>
-              )}
-            </Card>
-          )}
-        </div>
-      )}
-
-      {/* Parse Tab */}
-      {activeTab === 'parse' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Input Section */}
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-neutral-800 dark:text-neutral-100">
-                Содержимое Email
-              </h2>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handlePaste}>
-                  <CopyIcon className="h-4 w-4 mr-1" />
-                  Вставить
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleClear}>
-                  Очистить
-                </Button>
-              </div>
             </div>
 
-            <textarea
-              value={emailContent}
-              onChange={(e) => setEmailContent(e.target.value)}
-              placeholder={`Вставьте содержимое email от партнёров из Китая...
-
-Пример:
-Subject: Booking Confirmation - MSCU1234567
-From: shipping@partner.cn
-
-Dear Promo-Efect,
-
-Please find below the shipping details:
-Container: MSCU1234567
-B/L: MEDUEN123456789
-Vessel: MSC OSCAR
-ETD: 2025-02-10
-ETA: 2025-03-15
-Port of Loading: Shanghai
-Port of Discharge: Constanta
-Weight: 18,500 kg
-Commodity: Furniture
-
-Best regards,
-China Shipping Partner`}
-              className="w-full h-80 p-4 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 rounded-lg text-sm font-mono resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
-            />
-
-            <div className="flex gap-3 mt-4">
-              <Button
-                onClick={handleQuickParse}
-                disabled={isParsing || !emailContent.trim() || !aiAvailable}
-                loading={isParsing}
-                className="flex-1"
-              >
-                <SparklesIcon className="h-4 w-4 mr-2" />
-                Быстрый парсинг (AI)
-              </Button>
-              <Button
-                onClick={() => handleFullProcess(false)}
-                disabled={isLoading || !emailContent.trim()}
-                loading={isLoading}
-                variant="outline"
-                className="flex-1"
-              >
-                <SearchIcon className="h-4 w-4 mr-2" />
-                Поиск контейнера
-              </Button>
-            </div>
-
-            <Button
-              onClick={() => handleFullProcess(true)}
-              disabled={isLoading || !emailContent.trim()}
-              variant="primary"
-              className="w-full mt-3"
-            >
-              <PlusIcon className="h-4 w-4 mr-2" />
-              Обработать и создать контейнер
-            </Button>
-          </Card>
-
-          {/* Results Section */}
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-4">
-              Извлечённые данные
-            </h2>
-
-            {!parsedData && !processingResult && (
-              <div className="flex flex-col items-center justify-center h-64 text-neutral-400">
-                <SparklesIcon className="h-12 w-12 mb-3" />
-                <p className="text-sm">Вставьте email и нажмите "Парсинг"</p>
-              </div>
+            {/* Last Run Result */}
+            {lastRun && (
+                <div className="bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200/50 dark:border-neutral-700/50 shadow-card p-5">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="font-semibold text-primary-800 dark:text-white">Ultima Rulare Automată</h2>
+                        <span className="text-xs text-neutral-400">{formatTime(lastRun.timestamp)}</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3 text-center">
+                            <p className="text-2xl font-bold text-primary-800 dark:text-white">{lastRun.emailsFetched}</p>
+                            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">Email-uri găsite</p>
+                        </div>
+                        <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3 text-center">
+                            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{lastRun.emailsProcessed}</p>
+                            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">Procesate</p>
+                        </div>
+                        <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center">
+                            <p className="text-2xl font-bold text-green-600 dark:text-green-400">{lastRun.bookingsCreated}</p>
+                            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">Containere înreg.</p>
+                        </div>
+                        <div className={cn(
+                            'rounded-lg p-3 text-center',
+                            lastRun.processingFailed > 0 ? 'bg-red-50 dark:bg-red-900/20' : 'bg-neutral-50 dark:bg-neutral-700/50'
+                        )}>
+                            <p className={cn('text-2xl font-bold', lastRun.processingFailed > 0 ? 'text-red-600 dark:text-red-400' : 'text-neutral-400')}>
+                                {lastRun.processingFailed}
+                            </p>
+                            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">Erori</p>
+                        </div>
+                    </div>
+                </div>
             )}
 
-            {parsedData && (
-              <div className="space-y-4">
-                {/* Confidence Score */}
-                {parsedData.confidence !== undefined && (
-                  <div className="flex items-center justify-between p-3 bg-neutral-50 dark:bg-neutral-800 rounded-lg">
-                    <span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
-                      Уверенность AI
-                    </span>
-                    {getConfidenceBadge(parsedData.confidence)}
-                  </div>
-                )}
-
-                {/* Processing Result */}
-                {processingResult && (
-                  <div className={`p-3 rounded-lg ${
-                    processingResult.status === 'SUCCESS'
-                      ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
-                      : processingResult.status === 'NEEDS_REVIEW'
-                      ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'
-                      : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
-                  }`}>
-                    <div className="flex items-center gap-2 text-sm">
-                      {processingResult.status === 'SUCCESS' && <CheckIcon className="h-4 w-4 text-green-600" />}
-                      {processingResult.status === 'NEEDS_REVIEW' && <AlertCircleIcon className="h-4 w-4 text-yellow-600" />}
-                      {processingResult.status === 'FAILED' && <AlertCircleIcon className="h-4 w-4 text-red-600" />}
-                      <span className="font-medium">
-                        {processingResult.status === 'SUCCESS' && 'Успешно обработано'}
-                        {processingResult.status === 'NEEDS_REVIEW' && 'Требуется проверка'}
-                        {processingResult.status === 'FAILED' && 'Ошибка обработки'}
-                      </span>
+            {/* Manual Trigger */}
+            <div className="bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200/50 dark:border-neutral-700/50 shadow-card p-5">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="font-semibold text-primary-800 dark:text-white">Procesare Manuală</h2>
+                        <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5">
+                            Rulează acum fără să aștepți ciclul de 15 minute. Procesează max. 20 email-uri noi.
+                        </p>
                     </div>
-                    {processingResult.containerId && (
-                      <p className="text-xs mt-1 text-neutral-600 dark:text-neutral-400">
-                        Container ID: {processingResult.containerId}
-                      </p>
-                    )}
-                    {processingResult.bookingId && (
-                      <p className="text-xs mt-1 text-neutral-600 dark:text-neutral-400">
-                        Booking ID: {processingResult.bookingId}
-                      </p>
-                    )}
-                    <p className="text-xs mt-1 text-neutral-500">
-                      Время обработки: {processingResult.processingTime}ms
-                    </p>
-                  </div>
-                )}
-
-                {/* Extracted Fields */}
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {getExtractedFields().map((field, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center gap-3 p-3 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg"
+                    <button
+                        onClick={handleRunNow}
+                        disabled={isFetching || !gmailStatus?.connected}
+                        className={cn(
+                            'flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-all',
+                            isFetching || !gmailStatus?.connected
+                                ? 'bg-neutral-200 dark:bg-neutral-700 text-neutral-400 cursor-not-allowed'
+                                : 'bg-primary-800 text-white hover:bg-primary-700 shadow-sm'
+                        )}
                     >
-                      <span className="text-neutral-400">{field.icon}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                          {field.label}
-                        </p>
-                        <p className="text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">
-                          {field.value}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                        {isFetching ? (
+                            <>
+                                <RefreshCwIcon className="h-4 w-4 animate-spin" />
+                                Se procesează...
+                            </>
+                        ) : (
+                            <>
+                                <MailIcon className="h-4 w-4" />
+                                Procesează Acum
+                            </>
+                        )}
+                    </button>
                 </div>
 
-                {/* Error display */}
-                {parsedData.error && (
-                  <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                    <p className="text-sm text-red-600 dark:text-red-400">
-                      {parsedData.error}
-                    </p>
-                  </div>
+                {!gmailStatus?.connected && !isLoading && (
+                    <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700/50 rounded-lg">
+                        <p className="text-sm text-yellow-700 dark:text-yellow-400">
+                            Gmail nu este conectat. Verificați variabilele de mediu: <code className="font-mono text-xs">GMAIL_EMAIL</code> și <code className="font-mono text-xs">GMAIL_APP_PASSWORD</code>
+                        </p>
+                    </div>
                 )}
-              </div>
-            )}
-          </Card>
-        </div>
-      )}
-
-      {/* Queue Tab */}
-      {activeTab === 'queue' && (
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-neutral-800 dark:text-neutral-100">
-              Очередь обработки
-            </h2>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={loadPendingEmails}>
-                <RefreshCwIcon className="h-4 w-4 mr-1" />
-                Обновить
-              </Button>
-              <Button
-                onClick={handleProcessQueue}
-                disabled={isLoading || pendingEmails.length === 0}
-                loading={isLoading}
-              >
-                Обработать все
-              </Button>
             </div>
-          </div>
 
-          {pendingEmails.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-neutral-400">
-              <MailIcon className="h-12 w-12 mb-3" />
-              <p className="text-sm">Очередь пуста</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {pendingEmails.map((email) => (
-                <div
-                  key={email.id}
-                  className="p-4 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-neutral-800 dark:text-neutral-100 truncate">
-                        {email.subject}
-                      </p>
-                      <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                        От: {email.from}
-                      </p>
-                      <p className="text-xs text-neutral-400 mt-1">
-                        {new Date(email.receivedAt).toLocaleString('ru-RU')}
-                      </p>
-                    </div>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      email.status === 'PENDING'
-                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                        : email.status === 'PROCESSED'
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                    }`}>
-                      {email.status}
-                    </span>
-                  </div>
+            {/* Recent Registered Containers */}
+            <div className="bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200/50 dark:border-neutral-700/50 shadow-card overflow-hidden">
+                <div className="px-5 py-4 border-b border-neutral-200 dark:border-neutral-700">
+                    <h2 className="font-semibold text-primary-800 dark:text-white">Containere Înregistrate din Email</h2>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+                        Containere detectate automat în email-uri și PDF-uri
+                    </p>
                 </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      )}
 
-      {/* Stats Tab */}
-      {activeTab === 'stats' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <Card className="p-6">
-            <p className="text-sm text-neutral-500 dark:text-neutral-400">Всего обработано</p>
-            <p className="text-3xl font-bold text-neutral-800 dark:text-neutral-100 mt-1">
-              {stats?.totalProcessed || 0}
-            </p>
-          </Card>
-          <Card className="p-6">
-            <p className="text-sm text-neutral-500 dark:text-neutral-400">Успешно</p>
-            <p className="text-3xl font-bold text-green-600 dark:text-green-400 mt-1">
-              {stats?.successCount || 0}
-            </p>
-          </Card>
-          <Card className="p-6">
-            <p className="text-sm text-neutral-500 dark:text-neutral-400">Требуют проверки</p>
-            <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400 mt-1">
-              {stats?.reviewCount || 0}
-            </p>
-          </Card>
-          <Card className="p-6">
-            <p className="text-sm text-neutral-500 dark:text-neutral-400">Ошибки</p>
-            <p className="text-3xl font-bold text-red-600 dark:text-red-400 mt-1">
-              {stats?.failedCount || 0}
-            </p>
-          </Card>
-          <Card className="p-6">
-            <p className="text-sm text-neutral-500 dark:text-neutral-400">Авто-создано букингов</p>
-            <p className="text-3xl font-bold text-primary-600 dark:text-primary-400 mt-1">
-              {stats?.autoCreatedBookings || 0}
-            </p>
-          </Card>
-          <Card className="p-6">
-            <p className="text-sm text-neutral-500 dark:text-neutral-400">Средняя уверенность</p>
-            <p className="text-3xl font-bold text-neutral-800 dark:text-neutral-100 mt-1">
-              {stats?.averageConfidence || 0}%
-            </p>
-          </Card>
+                {isLoading ? (
+                    <div className="flex items-center justify-center py-10">
+                        <div className="w-7 h-7 border-4 border-primary-800 border-t-transparent rounded-full animate-spin mr-2"></div>
+                        <span className="text-sm text-neutral-400">Se încarcă...</span>
+                    </div>
+                ) : recentContainers.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 gap-3">
+                        <div className="w-14 h-14 rounded-2xl bg-neutral-100 dark:bg-neutral-700 flex items-center justify-center">
+                            <PackageIcon className="h-7 w-7 text-neutral-400" />
+                        </div>
+                        <p className="text-sm text-neutral-500 dark:text-neutral-400 text-center">
+                            Niciun container înregistrat din email încă.<br />
+                            <span className="text-xs text-neutral-400">Sistemul va procesa automat email-urile noi.</span>
+                        </p>
+                    </div>
+                ) : (
+                    <div className="divide-y divide-neutral-100 dark:divide-neutral-700">
+                        {recentContainers.map((item) => (
+                            <div key={item.id} className="px-5 py-3 flex items-center gap-4">
+                                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                                    <ShipIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-mono font-semibold text-sm text-primary-800 dark:text-white">
+                                            {item.containerNumber || '—'}
+                                        </span>
+                                        {item.blNumber && (
+                                            <span className="font-mono text-xs text-neutral-500 dark:text-neutral-400">
+                                                BL: {item.blNumber}
+                                            </span>
+                                        )}
+                                        {item.confidence && (
+                                            <span className={cn(
+                                                'text-xs px-1.5 py-0.5 rounded font-medium',
+                                                item.confidence >= 80
+                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                    : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                            )}>
+                                                {item.confidence}%
+                                            </span>
+                                        )}
+                                    </div>
+                                    {item.emailSubject && (
+                                        <p className="text-xs text-neutral-400 truncate mt-0.5">{item.emailSubject}</p>
+                                    )}
+                                </div>
+                                <div className="text-right flex-shrink-0">
+                                    <span className="text-xs text-neutral-400">{formatTime(item.createdAt)}</span>
+                                    <div className="flex items-center justify-end gap-1 mt-0.5">
+                                        <CheckIcon className="h-3.5 w-3.5 text-green-500" />
+                                        <span className="text-xs text-green-600 dark:text-green-400">Înregistrat</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* How it works */}
+            <div className="bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200/50 dark:border-neutral-700/50 shadow-card p-5">
+                <h2 className="font-semibold text-primary-800 dark:text-white mb-4">Cum funcționează</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    {[
+                        { icon: <MailIcon className="h-5 w-5 text-blue-500" />, title: 'La fiecare 15 min', desc: 'Verifică email-urile necitite' },
+                        { icon: <SparklesIcon className="h-5 w-5 text-purple-500" />, title: 'AI analizează', desc: 'Citește email + PDF/documente' },
+                        { icon: <PackageIcon className="h-5 w-5 text-orange-500" />, title: 'Găsește containere', desc: 'Extrage nr. container și BL' },
+                        { icon: <CheckIcon className="h-5 w-5 text-green-500" />, title: 'Înregistrează', desc: 'Adaugă în baza de date' },
+                    ].map((step, i) => (
+                        <div key={i} className="flex items-start gap-3 p-3 bg-neutral-50 dark:bg-neutral-700/50 rounded-lg">
+                            <div className="w-8 h-8 rounded-lg bg-white dark:bg-neutral-600 flex items-center justify-center flex-shrink-0 shadow-sm">
+                                {step.icon}
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-neutral-700 dark:text-neutral-200">{step.title}</p>
+                                <p className="text-xs text-neutral-400 mt-0.5">{step.desc}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
         </div>
-      )}
-    </div>
-  );
+    );
 };
 
 export default AIEmailParser;

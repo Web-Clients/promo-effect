@@ -556,9 +556,15 @@ ${email.body.substring(0, 5000)}
       }
 
       // Step 5: Container doesn't exist - create new container and booking
-      if (autoCreateBooking && extractedData.confidence >= minConfidenceForAutoCreate) {
-        // Check minimum required fields
-        if (extractedData.portOrigin && (extractedData.containerNumber || extractedData.blNumber)) {
+      // Auto-create if we have container number + BL (key identifiers), OR high confidence with port info
+      const hasContainerKey = !!(extractedData.containerNumber && extractedData.blNumber);
+      const hasMinData = !!(extractedData.containerNumber || extractedData.blNumber);
+      const shouldAutoCreate = autoCreateBooking && hasMinData &&
+        (hasContainerKey || extractedData.confidence >= minConfidenceForAutoCreate);
+
+      if (shouldAutoCreate) {
+        // Check minimum required fields - just need container number or BL
+        if (extractedData.containerNumber || extractedData.blNumber) {
           // Find or create client based on email
           let client = await prisma.client.findFirst({
             where: { email: email.from },
@@ -584,9 +590,9 @@ ${email.body.substring(0, 5000)}
             // Create booking from extracted data
             const booking = await prisma.booking.create({
               data: {
-                id: undefined, // Let Prisma generate ID
+                id: require('crypto').randomUUID(),
                 clientId: client.id,
-                portOrigin: extractedData.portOrigin,
+                portOrigin: extractedData.portOrigin || 'TBD',
                 portDestination: extractedData.portDestination || 'Constanta',
                 containerType: extractedData.containerType || '40ft',
                 cargoCategory: 'TBD',
@@ -775,8 +781,11 @@ ${email.body.substring(0, 5000)}
       }
     }
 
-    await (prisma as any).incomingEmail.create({
-      data: {
+    // Use upsert to avoid duplicate key errors — if email was already queued/processed, skip it
+    await (prisma as any).incomingEmail.upsert({
+      where: { messageId: email.id },
+      update: {}, // Don't update anything if it already exists
+      create: {
         messageId: email.id,
         fromAddress: email.from,
         subject: email.subject,

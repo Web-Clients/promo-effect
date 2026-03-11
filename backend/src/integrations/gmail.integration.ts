@@ -51,7 +51,10 @@ export class GmailIntegration {
         user: this.email,
         pass: this.appPassword,
       },
-      logger: false, // Disable verbose IMAP logging
+      logger: false,
+      greetingTimeout: 30000,  // 30s (default 16s is too short on some VPS)
+      connectionTimeout: 30000,
+      socketTimeout: 60000,
     });
 
     await client.connect();
@@ -95,7 +98,11 @@ export class GmailIntegration {
   }
 
   /**
-   * Fetch unread emails from Gmail INBOX
+   * Fetch recent emails from Gmail INBOX (last 7 days, regardless of read status)
+   *
+   * NOTE: We do NOT filter by seen/unseen — clients often read emails on their phone
+   * before the parser runs, making all emails "seen". Instead we search by date and
+   * rely on the DB unique constraint on messageId to skip already-processed emails.
    */
   async fetchUnreadEmails(maxResults: number = 10): Promise<ParsedEmail[]> {
     const client = await this.getClient();
@@ -106,18 +113,20 @@ export class GmailIntegration {
       const mailbox = await client.getMailboxLock('INBOX');
 
       try {
-        // Search for unseen (unread) messages
-        const searchResult = await client.search({ seen: false });
+        // Search for emails from the last 7 days (regardless of read status)
+        // Use { uid: true } to get UIDs (not sequence numbers) — needed for consistent download
+        const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const searchResult = await client.search({ since }, { uid: true });
         const messages = Array.isArray(searchResult) ? searchResult : [];
 
         if (messages.length === 0) {
           return [];
         }
 
-        // Limit results
-        const messageIds = messages.slice(0, maxResults);
+        // Take most recent N emails (last in the array = most recent)
+        const messageIds = messages.slice(-maxResults);
 
-        // Fetch each message with full content
+        // Fetch each message with full content using UIDs
         for (const uid of messageIds) {
           try {
             const rawMessage = await client.download(uid.toString(), undefined, { uid: true });

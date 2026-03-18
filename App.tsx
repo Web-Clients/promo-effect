@@ -33,6 +33,11 @@ import { User, Booking } from './types';
 import { ToastProvider } from './components/ui/Toast';
 import authService from './services/auth';
 import { tokenManager } from './services/api';
+import { 
+  Servicii, Preturi, Despre, Contact, Resurse, GhidImport, FAQ, Termeni, Politica,
+  FCLTransport, LCLGrupaj, ConsultantaChina, Vamuire, Depozitare, Cariere, Cookies,
+  CalculPrompt
+} from './components/PublicPages';
 
 // Helper component to update document title and handle external script awareness
 const RouteObserver = () => {
@@ -152,6 +157,29 @@ const App = () => {
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/forgot-password" element={user ? <Navigate to="/dashboard" /> : <ForgotPassword />} />
         <Route path="/reset-password" element={user ? <Navigate to="/dashboard" /> : <ResetPassword />} />
+
+        {/* Public Pages */}
+        <Route path="/servicii" element={<Servicii onLoginRedirect={() => navigate('/login')} />} />
+        <Route path="/preturi" element={<Preturi onLoginRedirect={() => navigate('/login')} />} />
+        <Route path="/calcul-prompt" element={<CalculPrompt onLoginRedirect={() => navigate('/login')} />} />
+        <Route path="/despre" element={<Despre onLoginRedirect={() => navigate('/login')} />} />
+        <Route path="/contact" element={<Contact onLoginRedirect={() => navigate('/login')} />} />
+        <Route path="/resurse" element={<Resurse onLoginRedirect={() => navigate('/login')} />} />
+        <Route path="/ghid-import" element={<GhidImport onLoginRedirect={() => navigate('/login')} />} />
+        <Route path="/faq" element={<FAQ onLoginRedirect={() => navigate('/login')} />} />
+        <Route path="/termeni" element={<Termeni onLoginRedirect={() => navigate('/login')} />} />
+        <Route path="/politica" element={<Politica onLoginRedirect={() => navigate('/login')} />} />
+        <Route path="/cookies" element={<Cookies onLoginRedirect={() => navigate('/login')} />} />
+        
+        {/* Services Detail Pages */}
+        <Route path="/servicii/fcl" element={<FCLTransport onLoginRedirect={() => navigate('/login')} />} />
+        <Route path="/servicii/lcl" element={<LCLGrupaj onLoginRedirect={() => navigate('/login')} />} />
+        <Route path="/servicii/consultanta" element={<ConsultantaChina onLoginRedirect={() => navigate('/login')} />} />
+        <Route path="/servicii/vamuire" element={<Vamuire onLoginRedirect={() => navigate('/login')} />} />
+        <Route path="/servicii/depozitare" element={<Depozitare onLoginRedirect={() => navigate('/login')} />} />
+        
+        {/* Company Detail Pages */}
+        <Route path="/cariere" element={<Cariere onLoginRedirect={() => navigate('/login')} />} />
 
         <Route
           path="/dashboard"

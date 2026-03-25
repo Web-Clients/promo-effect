@@ -1,6 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware, requireRole } from '../../middleware/auth.middleware';
-import invoicesService, { CreateInvoiceData, UpdateInvoiceData, PaymentData } from './invoices.service';
+import invoicesService, {
+  CreateInvoiceData,
+  UpdateInvoiceData,
+  PaymentData,
+} from './invoices.service';
+import { createInvoiceSchema, markPaidSchema } from '../../middleware/validate.middleware';
 
 const router = Router();
 
@@ -34,7 +39,7 @@ router.get('/stats', authMiddleware, async (req: Request, res: Response) => {
 router.get('/', authMiddleware, async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    
+
     const filters = {
       page: parseInt(req.query.page as string) || 1,
       limit: parseInt(req.query.limit as string) || 10,
@@ -67,14 +72,14 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
     res.json(invoice);
   } catch (error: any) {
     console.error('Get invoice error:', error);
-    
+
     if (error.message === 'Invoice not found') {
       return res.status(404).json({ error: 'Invoice not found' });
     }
     if (error.message === 'Access denied') {
       return res.status(403).json({ error: 'Access denied' });
     }
-    
+
     res.status(500).json({ error: error.message || 'Failed to get invoice' });
   }
 });
@@ -84,201 +89,202 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
  * Create new invoice
  * @access ADMIN, SUPER_ADMIN
  */
-router.post('/', authMiddleware, requireRole(['ADMIN', 'SUPER_ADMIN', 'MANAGER']), async (req: Request, res: Response) => {
-  try {
-    const user = (req as any).user;
-    const { bookingId, clientId, dueDate, notes, discount } = req.body;
+router.post(
+  '/',
+  authMiddleware,
+  requireRole(['ADMIN', 'SUPER_ADMIN', 'MANAGER']),
+  async (req: Request, res: Response) => {
+    const parsed = createInvoiceSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, errors: parsed.error.flatten().fieldErrors });
+    }
+    try {
+      const user = (req as any).user;
+      const { bookingId, clientId, dueDate, notes, discount } = parsed.data;
 
-    // Validation
-    if (!bookingId) {
-      return res.status(400).json({ error: 'Booking ID is required' });
-    }
-    if (!clientId) {
-      return res.status(400).json({ error: 'Client ID is required' });
-    }
-    if (!dueDate) {
-      return res.status(400).json({ error: 'Due date is required' });
-    }
+      // Validate due date is in future
+      const dueDateObj = new Date(dueDate);
+      if (dueDateObj < new Date()) {
+        return res.status(400).json({ error: 'Due date must be in the future' });
+      }
 
-    // Validate due date is in future
-    const dueDateObj = new Date(dueDate);
-    if (dueDateObj < new Date()) {
-      return res.status(400).json({ error: 'Due date must be in the future' });
-    }
+      const invoiceData: CreateInvoiceData = {
+        bookingId,
+        clientId,
+        dueDate: dueDateObj,
+        notes,
+        discount,
+      };
 
-    // Validate discount
-    if (discount !== undefined && (discount < 0 || discount > 100)) {
-      return res.status(400).json({ error: 'Discount must be between 0 and 100' });
-    }
+      const invoice = await invoicesService.create(invoiceData, user.userId);
+      res.status(201).json(invoice);
+    } catch (error: any) {
+      console.error('Create invoice error:', error);
 
-    const invoiceData: CreateInvoiceData = {
-      bookingId,
-      clientId,
-      dueDate: dueDateObj,
-      notes,
-      discount,
-    };
+      if (error.message.includes('not found')) {
+        return res.status(404).json({ error: error.message });
+      }
+      if (error.message.includes('already exists')) {
+        return res.status(409).json({ error: error.message });
+      }
 
-    const invoice = await invoicesService.create(invoiceData, user.userId);
-    res.status(201).json(invoice);
-  } catch (error: any) {
-    console.error('Create invoice error:', error);
-    
-    if (error.message.includes('not found')) {
-      return res.status(404).json({ error: error.message });
+      res.status(500).json({ error: error.message || 'Failed to create invoice' });
     }
-    if (error.message.includes('already exists')) {
-      return res.status(409).json({ error: error.message });
-    }
-    
-    res.status(500).json({ error: error.message || 'Failed to create invoice' });
   }
-});
+);
 
 /**
  * PUT /api/invoices/:id
  * Update invoice (only DRAFT)
  * @access ADMIN, SUPER_ADMIN
  */
-router.put('/:id', authMiddleware, requireRole(['ADMIN', 'SUPER_ADMIN', 'MANAGER']), async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const user = (req as any).user;
-    const { dueDate, notes, discount } = req.body;
+router.put(
+  '/:id',
+  authMiddleware,
+  requireRole(['ADMIN', 'SUPER_ADMIN', 'MANAGER']),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const user = (req as any).user;
+      const { dueDate, notes, discount } = req.body;
 
-    // Validate due date if provided
-    if (dueDate) {
-      const dueDateObj = new Date(dueDate);
-      if (dueDateObj < new Date()) {
-        return res.status(400).json({ error: 'Due date must be in the future' });
+      // Validate due date if provided
+      if (dueDate) {
+        const dueDateObj = new Date(dueDate);
+        if (dueDateObj < new Date()) {
+          return res.status(400).json({ error: 'Due date must be in the future' });
+        }
       }
-    }
 
-    const updateData: UpdateInvoiceData = {
-      dueDate: dueDate ? new Date(dueDate) : undefined,
-      notes,
-      discount,
-    };
+      const updateData: UpdateInvoiceData = {
+        dueDate: dueDate ? new Date(dueDate) : undefined,
+        notes,
+        discount,
+      };
 
-    const invoice = await invoicesService.update(id, updateData, user.userId);
-    res.json(invoice);
-  } catch (error: any) {
-    console.error('Update invoice error:', error);
-    
-    if (error.message === 'Invoice not found') {
-      return res.status(404).json({ error: 'Invoice not found' });
+      const invoice = await invoicesService.update(id, updateData, user.userId);
+      res.json(invoice);
+    } catch (error: any) {
+      console.error('Update invoice error:', error);
+
+      if (error.message === 'Invoice not found') {
+        return res.status(404).json({ error: 'Invoice not found' });
+      }
+      if (error.message.includes('Only draft')) {
+        return res.status(400).json({ error: error.message });
+      }
+
+      res.status(500).json({ error: error.message || 'Failed to update invoice' });
     }
-    if (error.message.includes('Only draft')) {
-      return res.status(400).json({ error: error.message });
-    }
-    
-    res.status(500).json({ error: error.message || 'Failed to update invoice' });
   }
-});
+);
 
 /**
  * POST /api/invoices/:id/send
  * Send invoice to client
  * @access ADMIN, SUPER_ADMIN
  */
-router.post('/:id/send', authMiddleware, requireRole(['ADMIN', 'SUPER_ADMIN', 'MANAGER']), async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const user = (req as any).user;
+router.post(
+  '/:id/send',
+  authMiddleware,
+  requireRole(['ADMIN', 'SUPER_ADMIN', 'MANAGER']),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const user = (req as any).user;
 
-    const result = await invoicesService.send(id, user.userId);
-    res.json(result);
-  } catch (error: any) {
-    console.error('Send invoice error:', error);
-    
-    if (error.message === 'Invoice not found') {
-      return res.status(404).json({ error: 'Invoice not found' });
+      const result = await invoicesService.send(id, user.userId);
+      res.json(result);
+    } catch (error: any) {
+      console.error('Send invoice error:', error);
+
+      if (error.message === 'Invoice not found') {
+        return res.status(404).json({ error: 'Invoice not found' });
+      }
+      if (error.message.includes('Only draft')) {
+        return res.status(400).json({ error: error.message });
+      }
+
+      res.status(500).json({ error: error.message || 'Failed to send invoice' });
     }
-    if (error.message.includes('Only draft')) {
-      return res.status(400).json({ error: error.message });
-    }
-    
-    res.status(500).json({ error: error.message || 'Failed to send invoice' });
   }
-});
+);
 
 /**
  * POST /api/invoices/:id/mark-paid
  * Record payment and mark invoice as paid
  * @access ADMIN, SUPER_ADMIN
  */
-router.post('/:id/mark-paid', authMiddleware, requireRole(['ADMIN', 'SUPER_ADMIN', 'MANAGER']), async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const user = (req as any).user;
-    const { amount, paymentDate, paymentMethod, reference, notes } = req.body;
+router.post(
+  '/:id/mark-paid',
+  authMiddleware,
+  requireRole(['ADMIN', 'SUPER_ADMIN', 'MANAGER']),
+  async (req: Request, res: Response) => {
+    const parsed = markPaidSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, errors: parsed.error.flatten().fieldErrors });
+    }
+    try {
+      const { id } = req.params;
+      const user = (req as any).user;
+      const { amount, paymentDate, paymentMethod, reference, notes } = parsed.data;
 
-    // Validation
-    if (!amount || amount <= 0) {
-      return res.status(400).json({ error: 'Valid payment amount is required' });
-    }
-    if (!paymentDate) {
-      return res.status(400).json({ error: 'Payment date is required' });
-    }
-    if (!paymentMethod) {
-      return res.status(400).json({ error: 'Payment method is required' });
-    }
+      const paymentData: PaymentData = {
+        amount,
+        paymentDate: new Date(paymentDate),
+        paymentMethod,
+        reference,
+        notes,
+      };
 
-    const validMethods = ['BANK_TRANSFER', 'CASH', 'CARD', 'OTHER'];
-    if (!validMethods.includes(paymentMethod)) {
-      return res.status(400).json({ error: `Payment method must be one of: ${validMethods.join(', ')}` });
-    }
+      const result = await invoicesService.markPaid(id, paymentData, user.userId);
+      res.json(result);
+    } catch (error: any) {
+      console.error('Mark paid error:', error);
 
-    const paymentData: PaymentData = {
-      amount: parseFloat(amount),
-      paymentDate: new Date(paymentDate),
-      paymentMethod,
-      reference,
-      notes,
-    };
+      if (error.message === 'Invoice not found') {
+        return res.status(404).json({ error: 'Invoice not found' });
+      }
+      if (error.message.includes('Cannot') || error.message.includes('exceeds')) {
+        return res.status(400).json({ error: error.message });
+      }
 
-    const result = await invoicesService.markPaid(id, paymentData, user.userId);
-    res.json(result);
-  } catch (error: any) {
-    console.error('Mark paid error:', error);
-    
-    if (error.message === 'Invoice not found') {
-      return res.status(404).json({ error: 'Invoice not found' });
+      res.status(500).json({ error: error.message || 'Failed to record payment' });
     }
-    if (error.message.includes('Cannot') || error.message.includes('exceeds')) {
-      return res.status(400).json({ error: error.message });
-    }
-    
-    res.status(500).json({ error: error.message || 'Failed to record payment' });
   }
-});
+);
 
 /**
  * DELETE /api/invoices/:id
  * Cancel invoice
  * @access ADMIN, SUPER_ADMIN
  */
-router.delete('/:id', authMiddleware, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const user = (req as any).user;
-    const { reason } = req.body;
+router.delete(
+  '/:id',
+  authMiddleware,
+  requireRole(['ADMIN', 'SUPER_ADMIN']),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const user = (req as any).user;
+      const { reason } = req.body;
 
-    const invoice = await invoicesService.cancel(id, user.userId, reason);
-    res.json({ message: 'Invoice cancelled successfully', invoice });
-  } catch (error: any) {
-    console.error('Cancel invoice error:', error);
-    
-    if (error.message === 'Invoice not found') {
-      return res.status(404).json({ error: 'Invoice not found' });
+      const invoice = await invoicesService.cancel(id, user.userId, reason);
+      res.json({ message: 'Invoice cancelled successfully', invoice });
+    } catch (error: any) {
+      console.error('Cancel invoice error:', error);
+
+      if (error.message === 'Invoice not found') {
+        return res.status(404).json({ error: 'Invoice not found' });
+      }
+      if (error.message.includes('Cannot cancel')) {
+        return res.status(400).json({ error: error.message });
+      }
+
+      res.status(500).json({ error: error.message || 'Failed to cancel invoice' });
     }
-    if (error.message.includes('Cannot cancel')) {
-      return res.status(400).json({ error: error.message });
-    }
-    
-    res.status(500).json({ error: error.message || 'Failed to cancel invoice' });
   }
-});
+);
 
 /**
  * GET /api/invoices/:id/pdf
@@ -298,14 +304,14 @@ router.get('/:id/pdf', authMiddleware, async (req: Request, res: Response) => {
     res.send(result.buffer);
   } catch (error: any) {
     console.error('Generate PDF error:', error);
-    
+
     if (error.message === 'Invoice not found') {
       return res.status(404).json({ error: 'Invoice not found' });
     }
     if (error.message === 'Access denied') {
       return res.status(403).json({ error: 'Access denied' });
     }
-    
+
     res.status(500).json({ error: error.message || 'Failed to generate PDF' });
   }
 });
@@ -367,15 +373,19 @@ router.post(
  * Update overdue invoices status (for cron job)
  * @access ADMIN, SUPER_ADMIN
  */
-router.post('/update-overdue', authMiddleware, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Request, res: Response) => {
-  try {
-    const count = await invoicesService.updateOverdueStatus();
-    res.json({ message: `Updated ${count} invoices to overdue status` });
-  } catch (error: any) {
-    console.error('Update overdue error:', error);
-    res.status(500).json({ error: error.message || 'Failed to update overdue status' });
+router.post(
+  '/update-overdue',
+  authMiddleware,
+  requireRole(['ADMIN', 'SUPER_ADMIN']),
+  async (req: Request, res: Response) => {
+    try {
+      const count = await invoicesService.updateOverdueStatus();
+      res.json({ message: `Updated ${count} invoices to overdue status` });
+    } catch (error: any) {
+      console.error('Update overdue error:', error);
+      res.status(500).json({ error: error.message || 'Failed to update overdue status' });
+    }
   }
-});
+);
 
 export default router;
-

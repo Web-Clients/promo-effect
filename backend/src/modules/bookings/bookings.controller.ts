@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { BookingsService } from './bookings.service';
 import { authMiddleware, requireRole } from '../../middleware/auth.middleware';
 import multer from 'multer';
+import { createBookingSchema } from '../../middleware/validate.middleware';
 
 // Configure multer for memory storage
 const upload = multer({ storage: multer.memoryStorage() });
@@ -15,8 +16,12 @@ const bookingsService = new BookingsService();
  * Role: Any authenticated user (CLIENT, AGENT, ADMIN, etc.)
  */
 router.post('/', authMiddleware, async (req: Request, res: Response) => {
+  const parsed = createBookingSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, errors: parsed.error.flatten().fieldErrors });
+  }
   try {
-    const booking = await bookingsService.create(req.body, req.user!.userId);
+    const booking = await bookingsService.create(parsed.data, req.user!.userId);
     res.status(201).json(booking);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to create booking';
@@ -101,7 +106,12 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
  */
 router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const booking = await bookingsService.update(req.params.id, req.body, req.user!.userId, req.user!.role);
+    const booking = await bookingsService.update(
+      req.params.id,
+      req.body,
+      req.user!.userId,
+      req.user!.role
+    );
     res.json(booking);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to update booking';
@@ -120,51 +130,61 @@ router.put('/:id', authMiddleware, async (req: Request, res: Response) => {
  * Auth: Required
  * Role: ADMIN, SUPER_ADMIN only
  */
-router.delete('/:id', authMiddleware, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req: Request, res: Response) => {
-  try {
-    const result = await bookingsService.delete(req.params.id, req.user!.userId, req.user!.role);
-    res.json(result);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to delete booking';
-    if (message.includes('Forbidden')) {
-      res.status(403).json({ error: message });
-    } else if (message.includes('not found')) {
-      res.status(404).json({ error: message });
-    } else {
-      res.status(500).json({ error: message });
+router.delete(
+  '/:id',
+  authMiddleware,
+  requireRole(['ADMIN', 'SUPER_ADMIN']),
+  async (req: Request, res: Response) => {
+    try {
+      const result = await bookingsService.delete(req.params.id, req.user!.userId, req.user!.role);
+      res.json(result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete booking';
+      if (message.includes('Forbidden')) {
+        res.status(403).json({ error: message });
+      } else if (message.includes('not found')) {
+        res.status(404).json({ error: message });
+      } else {
+        res.status(500).json({ error: message });
+      }
     }
   }
-});
+);
 
 /**
  * POST /api/bookings/:id/documents - Upload document
  * Auth: Required
  * Role: ADMIN, AGENT, CLIENT (for own boookings)
  */
-router.post('/:id/documents', authMiddleware, upload.single('file'), async (req: Request, res: Response) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
+router.post(
+  '/:id/documents',
+  authMiddleware,
+  upload.single('file'),
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
 
-    const document = await bookingsService.addDocument(
-      req.params.id,
-      req.file,
-      req.user!.userId,
-      req.user!.role
-    );
+      const document = await bookingsService.addDocument(
+        req.params.id,
+        req.file,
+        req.user!.userId,
+        req.user!.role
+      );
 
-    res.status(201).json(document);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to upload document';
-    if (message.includes('Forbidden')) {
-      res.status(403).json({ error: message });
-    } else if (message.includes('not found')) {
-      res.status(404).json({ error: message });
-    } else {
-      res.status(500).json({ error: message });
+      res.status(201).json(document);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to upload document';
+      if (message.includes('Forbidden')) {
+        res.status(403).json({ error: message });
+      } else if (message.includes('not found')) {
+        res.status(404).json({ error: message });
+      } else {
+        res.status(500).json({ error: message });
+      }
     }
   }
-});
+);
 
 export default router;

@@ -6,14 +6,19 @@ import {
   registerLimiter,
   passwordResetLimiter,
 } from '../../middleware/rateLimit.middleware';
+import { registerSchema, loginSchema } from '../../middleware/validate.middleware';
 
 const router = Router();
 const authService = new AuthService();
 
 // POST /api/auth/register
 router.post('/register', registerLimiter, async (req: Request, res: Response) => {
+  const parsed = registerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, errors: parsed.error.flatten().fieldErrors });
+  }
   try {
-    const result = await authService.register(req.body);
+    const result = await authService.register(parsed.data);
     res.status(201).json({
       success: true,
       ...result,
@@ -29,8 +34,12 @@ router.post('/register', registerLimiter, async (req: Request, res: Response) =>
 
 // POST /api/auth/login
 router.post('/login', authLimiter, async (req: Request, res: Response) => {
+  const parsed = loginSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, errors: parsed.error.flatten().fieldErrors });
+  }
   try {
-    const { email, password, twoFactorCode } = req.body;
+    const { email, password, twoFactorCode } = parsed.data;
     const ipAddress = req.ip || req.socket.remoteAddress || undefined;
     const userAgent = req.headers['user-agent'];
 

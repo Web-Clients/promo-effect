@@ -5,9 +5,15 @@ import { Input } from './ui/Input';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import {
-  SearchIcon, PackageIcon, TruckIcon, CheckCircleIcon,
-  ClockIcon, AlertCircleIcon, PlusIcon, MapPinIcon,
-  RefreshCwIcon
+  SearchIcon,
+  PackageIcon,
+  TruckIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  AlertCircleIcon,
+  PlusIcon,
+  MapPinIcon,
+  RefreshCwIcon,
 } from './icons';
 import { TrackingTimeline } from './TrackingTimeline';
 import trackingService, {
@@ -42,7 +48,10 @@ interface TrackingEventForTimeline {
 // HELPER FUNCTIONS
 // ============================================
 
-const statusVariantMap: Record<string, 'blue' | 'yellow' | 'green' | 'red' | 'purple' | 'teal' | 'default'> = {
+const statusVariantMap: Record<
+  string,
+  'blue' | 'yellow' | 'green' | 'red' | 'purple' | 'teal' | 'default'
+> = {
   PENDING: 'default',
   PICKED_UP: 'blue',
   IN_TRANSIT: 'yellow',
@@ -75,7 +84,10 @@ function getEventTypeLabel(eventType: string): string {
   return labels[eventType] || eventType;
 }
 
-function convertToTimelineEvents(events: TrackingEvent[], currentStatus: string): TrackingEventForTimeline[] {
+function convertToTimelineEvents(
+  events: TrackingEvent[],
+  currentStatus: string
+): TrackingEventForTimeline[] {
   if (!events || events.length === 0) return [];
 
   // Sort events by date (newest first for display)
@@ -84,9 +96,7 @@ function convertToTimelineEvents(events: TrackingEvent[], currentStatus: string)
   );
 
   const now = new Date();
-  const latestEventIndex = sortedEvents.findIndex(
-    (e) => new Date(e.eventDate) <= now
-  );
+  const latestEventIndex = sortedEvents.findIndex((e) => new Date(e.eventDate) <= now);
 
   return sortedEvents.map((event, index) => {
     let status: 'completed' | 'current' | 'pending' = 'pending';
@@ -321,7 +331,10 @@ const StatsCards: React.FC<StatsCardsProps> = ({ stats, loading }) => {
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="animate-pulse bg-neutral-200 dark:bg-neutral-700 rounded-xl h-24" />
+          <div
+            key={i}
+            className="animate-pulse bg-neutral-200 dark:bg-neutral-700 rounded-xl h-24"
+          />
         ))}
       </div>
     );
@@ -397,7 +410,8 @@ const RecentContainers: React.FC<RecentContainersProps> = ({ containers, onSelec
                 {container.containerNumber}
               </p>
               <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                {container.booking?.bookingNumber || 'N/A'} • {container.currentLocation || 'Necunoscut'}
+                {container.booking?.bookingNumber || 'N/A'} •{' '}
+                {container.currentLocation || 'Necunoscut'}
               </p>
             </div>
           </div>
@@ -495,7 +509,9 @@ const TrackingView: React.FC = () => {
 
       // Also try to fetch route data from public tracking endpoint
       try {
-        const publicData = await trackingService.trackPublic(number.trim().toUpperCase(), { route: true });
+        const publicData = await trackingService.trackPublic(number.trim().toUpperCase(), {
+          route: true,
+        });
         console.log('[TrackingView] Public tracking data received:', {
           success: publicData.success,
           hasEvents: !!publicData.data?.events?.length,
@@ -525,11 +541,15 @@ const TrackingView: React.FC = () => {
 
             // Build path from events with coordinates
             const routePoints: Array<[number, number]> = [];
-            const pins: Array<{ coordinates: [number, number]; location?: string; type?: string }> = [];
+            const pins: Array<{ coordinates: [number, number]; location?: string; type?: string }> =
+              [];
 
             for (const event of sortedEvents) {
               if (event.location?.latitude && event.location?.longitude) {
-                const coords: [number, number] = [event.location.longitude, event.location.latitude];
+                const coords: [number, number] = [
+                  event.location.longitude,
+                  event.location.latitude,
+                ];
 
                 // Add to path if not duplicate
                 const lastPoint = routePoints[routePoints.length - 1];
@@ -538,19 +558,26 @@ const TrackingView: React.FC = () => {
                 }
 
                 // Add pin for significant events
-                if (event.type?.includes('LOAD') || event.type?.includes('DISCHARGE') ||
-                    event.type?.includes('DEPARTURE') || event.type?.includes('ARRIVAL') ||
-                    event.type?.includes('GATE')) {
-                  const existingPin = pins.find(p =>
-                    p.coordinates[0] === coords[0] && p.coordinates[1] === coords[1]
+                if (
+                  event.type?.includes('LOAD') ||
+                  event.type?.includes('DISCHARGE') ||
+                  event.type?.includes('DEPARTURE') ||
+                  event.type?.includes('ARRIVAL') ||
+                  event.type?.includes('GATE')
+                ) {
+                  const existingPin = pins.find(
+                    (p) => p.coordinates[0] === coords[0] && p.coordinates[1] === coords[1]
                   );
                   if (!existingPin) {
                     pins.push({
                       coordinates: coords,
                       location: event.location.name || event.location.city,
-                      type: event.type?.includes('LOAD') || event.type?.includes('DEPARTURE') ? 'POL' :
-                            event.type?.includes('DISCHARGE') || event.type?.includes('ARRIVAL') ? 'POD' :
-                            'TRANSSHIPMENT',
+                      type:
+                        event.type?.includes('LOAD') || event.type?.includes('DEPARTURE')
+                          ? 'POL'
+                          : event.type?.includes('DISCHARGE') || event.type?.includes('ARRIVAL')
+                            ? 'POD'
+                            : 'TRANSSHIPMENT',
                     });
                   }
                 }
@@ -568,33 +595,38 @@ const TrackingView: React.FC = () => {
             // Find current position from last ACTUAL event (not estimated)
             // The last actual event with coordinates is the real current position
             const actualEvents = sortedEvents
-              .filter(e => e.isActual && e.location?.latitude && e.location?.longitude)
+              .filter((e) => e.isActual && e.location?.latitude && e.location?.longitude)
               .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
             const lastActualEvent = actualEvents[0];
 
             // Check if vessel is currently at sea (departed but not arrived)
-            const departureEvents = actualEvents.filter(e =>
-              e.type?.includes('DEPARTURE') || e.type?.includes('LOAD')
+            const departureEvents = actualEvents.filter(
+              (e) => e.type?.includes('DEPARTURE') || e.type?.includes('LOAD')
             );
-            const arrivalEvents = actualEvents.filter(e =>
-              e.type?.includes('ARRIVAL') || e.type?.includes('DISCHARGE')
+            const arrivalEvents = actualEvents.filter(
+              (e) => e.type?.includes('ARRIVAL') || e.type?.includes('DISCHARGE')
             );
 
             const lastDeparture = departureEvents[0];
             const lastArrival = arrivalEvents[0];
 
             // Vessel is at sea if last departure is more recent than last arrival
-            const isAtSea = lastDeparture && (!lastArrival ||
-              new Date(lastDeparture.date) > new Date(lastArrival.date));
+            const isAtSea =
+              lastDeparture &&
+              (!lastArrival || new Date(lastDeparture.date) > new Date(lastArrival.date));
 
             if (isAtSea && lastDeparture?.location && publicData.data.eta) {
               // Calculate estimated position between last departure and destination
               const departureCoords = lastDeparture.location;
               const destinationCoords = publicData.data.location;
 
-              if (departureCoords?.latitude && departureCoords?.longitude &&
-                  destinationCoords?.latitude && destinationCoords?.longitude) {
+              if (
+                departureCoords?.latitude &&
+                departureCoords?.longitude &&
+                destinationCoords?.latitude &&
+                destinationCoords?.longitude
+              ) {
                 const departureTime = new Date(lastDeparture.date).getTime();
                 const etaTime = new Date(publicData.data.eta).getTime();
                 const nowTime = Date.now();
@@ -605,9 +637,11 @@ const TrackingView: React.FC = () => {
                 const progress = Math.min(Math.max(elapsed / totalDuration, 0), 0.95); // Max 95% until arrival
 
                 // Linear interpolation (simplified - doesn't account for actual shipping routes)
-                const estimatedLat = departureCoords.latitude +
+                const estimatedLat =
+                  departureCoords.latitude +
                   (destinationCoords.latitude - departureCoords.latitude) * progress;
-                const estimatedLng = departureCoords.longitude +
+                const estimatedLng =
+                  departureCoords.longitude +
                   (destinationCoords.longitude - departureCoords.longitude) * progress;
 
                 setLocationInfo({
@@ -812,11 +846,7 @@ const TrackingView: React.FC = () => {
                     </p>
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAddEventModal(true)}
-                >
+                <Button variant="outline" size="sm" onClick={() => setShowAddEventModal(true)}>
                   <PlusIcon className="h-4 w-4 mr-2" />
                   Adaugă Eveniment
                 </Button>
@@ -860,31 +890,34 @@ const TrackingView: React.FC = () => {
                     <h4 className="text-lg font-semibold text-neutral-700 dark:text-neutral-200">
                       Hartă Urmărire
                     </h4>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowMap(!showMap)}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => setShowMap(!showMap)}>
                       {showMap ? 'Ascunde Harta' : 'Afișează Harta'}
                     </Button>
                   </div>
                   {showMap && (
-                    <Suspense fallback={
-                      <div className="h-[400px] bg-neutral-100 dark:bg-neutral-800 rounded-xl flex items-center justify-center">
-                        <div className="text-center">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto mb-2"></div>
-                          <p className="text-sm text-neutral-500">Se încarcă harta...</p>
+                    <Suspense
+                      fallback={
+                        <div className="h-[400px] bg-neutral-100 dark:bg-neutral-800 rounded-xl flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto mb-2"></div>
+                            <p className="text-sm text-neutral-500">Se încarcă harta...</p>
+                          </div>
                         </div>
-                      </div>
-                    }>
+                      }
+                    >
                       <ContainerMap
                         containerNumber={trackingData.containerNumber}
-                        currentLocation={locationInfo || (trackingData.currentLat && trackingData.currentLng ? {
-                          name: trackingData.currentLocation,
-                          latitude: trackingData.currentLat,
-                          longitude: trackingData.currentLng,
-                        } : undefined)}
-                        vessel={vesselInfo}
+                        currentLocation={
+                          locationInfo ||
+                          (trackingData.currentLat && trackingData.currentLng
+                            ? {
+                                name: trackingData.currentLocation,
+                                latitude: trackingData.currentLat,
+                                longitude: trackingData.currentLng,
+                              }
+                            : undefined)
+                        }
+                        vessel={vesselInfo ?? undefined}
                         route={routeData || undefined}
                         originPort={trackingData.booking?.origin}
                         destinationPort={trackingData.booking?.destination}

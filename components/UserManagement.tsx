@@ -5,8 +5,13 @@ import { Input } from './ui/Input';
 import { useToast } from './ui/Toast';
 import usersService, { User, UserFilters } from '../services/users';
 
+interface CurrentUserShape {
+  id: string | number;
+  role: string;
+}
+
 interface UserManagementProps {
-  currentUser: User;
+  currentUser: CurrentUserShape;
 }
 
 const ROLES = [
@@ -17,7 +22,7 @@ const ROLES = [
 ];
 
 const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
-  const { showToast } = useToast();
+  const { addToast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -45,11 +50,11 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
       setTotalPages(response.meta.totalPages);
       setTotal(response.meta.total);
     } catch (error: any) {
-      showToast(error.message || 'Eroare la încărcarea utilizatorilor', 'error');
+      addToast(error.message || 'Eroare la încărcarea utilizatorilor', 'error');
     } finally {
       setLoading(false);
     }
-  }, [page, search, roleFilter, showToast]);
+  }, [page, search, roleFilter, addToast]);
 
   useEffect(() => {
     fetchUsers();
@@ -78,12 +83,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
     setSaving(true);
     try {
       await usersService.updateUser(selectedUser.id, editData);
-      showToast('Utilizator actualizat cu succes', 'success');
+      addToast('Utilizator actualizat cu succes', 'success');
       setShowEditModal(false);
       // Auto-refresh after successful save
       await fetchUsers();
     } catch (error: any) {
-      showToast(error.message || 'Eroare la salvare', 'error');
+      addToast(error.message || 'Eroare la salvare', 'error');
     } finally {
       setSaving(false);
     }
@@ -94,9 +99,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
 
     try {
       await usersService.resetPassword(user.id);
-      showToast('Parola a fost resetată. Utilizatorul va primi un email.', 'success');
+      addToast('Parola a fost resetată. Utilizatorul va primi un email.', 'success');
     } catch (error: any) {
-      showToast(error.message || 'Eroare la resetarea parolei', 'error');
+      addToast(error.message || 'Eroare la resetarea parolei', 'error');
     }
   };
 
@@ -106,19 +111,19 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
     setSaving(true);
     try {
       await usersService.deleteUser(selectedUser.id);
-      showToast('Utilizator șters cu succes', 'success');
+      addToast('Utilizator șters cu succes', 'success');
       setShowDeleteModal(false);
       // Auto-refresh after successful delete
       await fetchUsers();
     } catch (error: any) {
-      showToast(error.message || 'Eroare la ștergere', 'error');
+      addToast(error.message || 'Eroare la ștergere', 'error');
     } finally {
       setSaving(false);
     }
   };
 
   const getRoleColor = (role: string) => {
-    return ROLES.find(r => r.value === role)?.color || 'bg-gray-100 text-gray-800';
+    return ROLES.find((r) => r.value === role)?.color || 'bg-gray-100 text-gray-800';
   };
 
   const formatDate = (date?: string) => {
@@ -138,9 +143,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
         <h1 className="text-2xl font-bold text-neutral-800 dark:text-neutral-100">
           Gestionare Utilizatori
         </h1>
-        <span className="text-sm text-neutral-500">
-          Total: {total} utilizatori
-        </span>
+        <span className="text-sm text-neutral-500">Total: {total} utilizatori</span>
       </div>
 
       {/* Filters */}
@@ -155,12 +158,17 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
           </div>
           <select
             value={roleFilter}
-            onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setRoleFilter(e.target.value);
+              setPage(1);
+            }}
             className="px-3 py-2 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 rounded-md text-sm"
           >
             <option value="">Toate rolurile</option>
-            {ROLES.map(role => (
-              <option key={role.value} value={role.value}>{role.label}</option>
+            {ROLES.map((role) => (
+              <option key={role.value} value={role.value}>
+                {role.label}
+              </option>
             ))}
           </select>
           <Button type="submit">Caută</Button>
@@ -174,9 +182,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
             <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : users.length === 0 ? (
-          <div className="text-center py-12 text-neutral-500">
-            Nu s-au găsit utilizatori
-          </div>
+          <div className="text-center py-12 text-neutral-500">Nu s-au găsit utilizatori</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -211,14 +217,14 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                           {user.name}
                         </div>
                         <div className="text-sm text-neutral-500">{user.email}</div>
-                        {user.phone && (
-                          <div className="text-xs text-neutral-400">{user.phone}</div>
-                        )}
+                        {user.phone && <div className="text-xs text-neutral-400">{user.phone}</div>}
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
-                        {ROLES.find(r => r.value === user.role)?.label || user.role}
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}
+                      >
+                        {ROLES.find((r) => r.value === user.role)?.label || user.role}
                       </span>
                     </td>
                     <td className="px-4 py-4 text-sm text-neutral-600 dark:text-neutral-400">
@@ -247,11 +253,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                     </td>
                     <td className="px-4 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => openEditModal(user)}
-                        >
+                        <Button size="sm" variant="secondary" onClick={() => openEditModal(user)}>
                           Editează
                         </Button>
                         <Button
@@ -265,7 +267,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                           <Button
                             size="sm"
                             variant="danger"
-                            onClick={() => { setSelectedUser(user); setShowDeleteModal(true); }}
+                            onClick={() => {
+                              setSelectedUser(user);
+                              setShowDeleteModal(true);
+                            }}
                           >
                             Șterge
                           </Button>
@@ -290,7 +295,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                 size="sm"
                 variant="secondary"
                 disabled={page === 1}
-                onClick={() => setPage(p => p - 1)}
+                onClick={() => setPage((p) => p - 1)}
               >
                 Anterior
               </Button>
@@ -298,7 +303,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                 size="sm"
                 variant="secondary"
                 disabled={page === totalPages}
-                onClick={() => setPage(p => p + 1)}
+                onClick={() => setPage((p) => p + 1)}
               >
                 Următor
               </Button>
@@ -345,7 +350,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                   onChange={(e) => setEditData({ ...editData, role: e.target.value })}
                   className="w-full px-3 py-2 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 rounded-md"
                 >
-                  {ROLES.map(role => {
+                  {ROLES.map((role) => {
                     // Only SUPER_ADMIN can assign/change SUPER_ADMIN role
                     const isSuperAdminRole = role.value === 'SUPER_ADMIN';
                     const canAssignSuperAdmin = currentUser.role === 'SUPER_ADMIN';
@@ -353,7 +358,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
 
                     return (
                       <option key={role.value} value={role.value} disabled={disabled}>
-                        {role.label}{disabled ? ' (doar pentru SUPER_ADMIN)' : ''}
+                        {role.label}
+                        {disabled ? ' (doar pentru SUPER_ADMIN)' : ''}
                       </option>
                     );
                   })}
@@ -383,8 +389,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
           <Card className="w-full max-w-md p-6 m-4">
             <h3 className="text-lg font-semibold mb-4 text-red-600">Șterge Utilizator</h3>
             <p className="text-neutral-600 dark:text-neutral-400 mb-4">
-              Sigur doriți să ștergeți utilizatorul <strong>{selectedUser.email}</strong>?
-              Această acțiune nu poate fi anulată.
+              Sigur doriți să ștergeți utilizatorul <strong>{selectedUser.email}</strong>? Această
+              acțiune nu poate fi anulată.
             </p>
             <div className="flex justify-end gap-2">
               <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>

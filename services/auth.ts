@@ -63,7 +63,9 @@ const mapBackendUserToFrontend = (backendUser: BackendUser): User => {
  * Login user with email and password
  * Returns user if successful, or { requires2FA: true, tempToken: string } if 2FA is needed
  */
-export const login = async (data: LoginData): Promise<User | { requires2FA: true; tempToken: string }> => {
+export const login = async (
+  data: LoginData
+): Promise<User | { requires2FA: true; tempToken: string }> => {
   try {
     const response = await api.post<LoginResponse>('/auth/login', data);
 
@@ -90,8 +92,11 @@ export const login = async (data: LoginData): Promise<User | { requires2FA: true
     }
 
     throw new Error('Invalid response from server');
-  } catch (error: any) {
-    throw new Error(error.response?.data?.error || error.message || 'Autentificare eșuată');
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { error?: string } }; message?: string };
+    throw new Error(err.response?.data?.error || err.message || 'Autentificare eșuată', {
+      cause: error,
+    });
   }
 };
 
@@ -119,8 +124,11 @@ export const complete2FALogin = async (tempToken: string, twoFactorCode: string)
     }
 
     throw new Error('Invalid response from server');
-  } catch (error: any) {
-    throw new Error(error.response?.data?.error || error.message || 'Autentificare 2FA eșuată');
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { error?: string } }; message?: string };
+    throw new Error(err.response?.data?.error || err.message || 'Autentificare 2FA eșuată', {
+      cause: error,
+    });
   }
 };
 
@@ -133,6 +141,10 @@ export const register = async (data: RegisterData): Promise<User> => {
 
     const { user, accessToken, refreshToken } = response.data;
 
+    if (!accessToken || !refreshToken || !user) {
+      throw new Error('Invalid register response from server');
+    }
+
     // Store tokens
     tokenManager.setTokens(accessToken, refreshToken);
 
@@ -141,8 +153,9 @@ export const register = async (data: RegisterData): Promise<User> => {
     tokenManager.setUser(frontendUser);
 
     return frontendUser;
-  } catch (error: any) {
-    throw new Error(error.message || 'Înregistrare eșuată');
+  } catch (error: unknown) {
+    const err = error as { message?: string };
+    throw new Error(err.message || 'Înregistrare eșuată', { cause: error });
   }
 };
 
@@ -180,8 +193,11 @@ export const getCurrentUser = async (): Promise<User> => {
     tokenManager.setUser(frontendUser);
 
     return frontendUser;
-  } catch (error: any) {
-    throw new Error(error.message || 'Nu s-a putut încărca informația utilizatorului');
+  } catch (error: unknown) {
+    const err = error as { message?: string };
+    throw new Error(err.message || 'Nu s-a putut încărca informația utilizatorului', {
+      cause: error,
+    });
   }
 };
 
@@ -216,11 +232,16 @@ export const refreshToken = async (): Promise<void> => {
 
     const { accessToken, refreshToken: newRefreshToken } = response.data;
 
+    if (!accessToken || !newRefreshToken) {
+      throw new Error('Invalid refresh response from server');
+    }
+
     tokenManager.setTokens(accessToken, newRefreshToken);
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If refresh fails, clear tokens
     tokenManager.clearTokens();
-    throw new Error(error.message || 'Refresh token eșuat');
+    const err = error as { message?: string };
+    throw new Error(err.message || 'Refresh token eșuat', { cause: error });
   }
 };
 
@@ -230,25 +251,24 @@ export const refreshToken = async (): Promise<void> => {
 export const requestPasswordReset = async (email: string): Promise<void> => {
   try {
     await api.post('/auth/forgot-password', { email });
-  } catch (error: any) {
-    throw new Error(error.message || 'Cerere resetare parolă eșuată');
+  } catch (error: unknown) {
+    const err = error as { message?: string };
+    throw new Error(err.message || 'Cerere resetare parolă eșuată', { cause: error });
   }
 };
 
 /**
  * Reset password with token
  */
-export const resetPassword = async (
-  token: string,
-  newPassword: string
-): Promise<void> => {
+export const resetPassword = async (token: string, newPassword: string): Promise<void> => {
   try {
     await api.post('/auth/reset-password', {
       token,
       newPassword,
     });
-  } catch (error: any) {
-    throw new Error(error.message || 'Resetare parolă eșuată');
+  } catch (error: unknown) {
+    const err = error as { message?: string };
+    throw new Error(err.message || 'Resetare parolă eșuată', { cause: error });
   }
 };
 
@@ -258,15 +278,22 @@ export const resetPassword = async (
 export const verifyEmail = async (token: string): Promise<void> => {
   try {
     await api.get('/auth/verify-email', { params: { token } });
-  } catch (error: any) {
-    throw new Error(error.response?.data?.error || error.message || 'Verificare email eșuată');
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { error?: string } }; message?: string };
+    throw new Error(err.response?.data?.error || err.message || 'Verificare email eșuată', {
+      cause: error,
+    });
   }
 };
 
 /**
  * Enable 2FA - get QR code and backup codes
  */
-export const enable2FA = async (): Promise<{ secret: string; qrCodeUrl: string; backupCodes: string[] }> => {
+export const enable2FA = async (): Promise<{
+  secret: string;
+  qrCodeUrl: string;
+  backupCodes: string[];
+}> => {
   try {
     const response = await api.post<{
       success: boolean;
@@ -281,8 +308,11 @@ export const enable2FA = async (): Promise<{ secret: string; qrCodeUrl: string; 
       qrCodeUrl: response.data.qrCodeUrl,
       backupCodes: response.data.backupCodes,
     };
-  } catch (error: any) {
-    throw new Error(error.response?.data?.error || error.message || 'Activare 2FA eșuată');
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { error?: string } }; message?: string };
+    throw new Error(err.response?.data?.error || err.message || 'Activare 2FA eșuată', {
+      cause: error,
+    });
   }
 };
 
@@ -292,8 +322,11 @@ export const enable2FA = async (): Promise<{ secret: string; qrCodeUrl: string; 
 export const verify2FA = async (code: string): Promise<void> => {
   try {
     await api.post('/auth/verify-2fa', { code });
-  } catch (error: any) {
-    throw new Error(error.response?.data?.error || error.message || 'Verificare 2FA eșuată');
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { error?: string } }; message?: string };
+    throw new Error(err.response?.data?.error || err.message || 'Verificare 2FA eșuată', {
+      cause: error,
+    });
   }
 };
 
@@ -303,8 +336,11 @@ export const verify2FA = async (code: string): Promise<void> => {
 export const disable2FA = async (password: string): Promise<void> => {
   try {
     await api.post('/auth/disable-2fa', { password });
-  } catch (error: any) {
-    throw new Error(error.response?.data?.error || error.message || 'Dezactivare 2FA eșuată');
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { error?: string } }; message?: string };
+    throw new Error(err.response?.data?.error || err.message || 'Dezactivare 2FA eșuată', {
+      cause: error,
+    });
   }
 };
 

@@ -17,7 +17,13 @@ interface ClientModalProps {
   isLoading: boolean;
 }
 
-const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSubmit, client, isLoading }) => {
+const ClientModal: React.FC<ClientModalProps> = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  client,
+  isLoading,
+}) => {
   const [formData, setFormData] = useState<CreateClientData>({
     companyName: '',
     contactPerson: '',
@@ -64,13 +70,13 @@ const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSubmit, cl
       <div className="flex min-h-screen items-center justify-center p-4">
         {/* Overlay */}
         <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-        
+
         {/* Modal */}
         <div className="relative bg-white dark:bg-neutral-800 rounded-xl shadow-xl w-full max-w-lg p-6">
           <h2 className="text-xl font-semibold text-neutral-800 dark:text-white mb-4">
             {client ? 'Editare Client' : 'Client Nou'}
           </h2>
-          
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -84,7 +90,7 @@ const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSubmit, cl
                   required
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                   Persoană Contact *
@@ -111,7 +117,7 @@ const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSubmit, cl
                   required
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                   Telefon *
@@ -147,7 +153,7 @@ const ClientModal: React.FC<ClientModalProps> = ({ isOpen, onClose, onSubmit, cl
                   placeholder="1234567890123"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                   Cont Bancar
@@ -184,14 +190,20 @@ interface DeleteModalProps {
   isLoading: boolean;
 }
 
-const DeleteModal: React.FC<DeleteModalProps> = ({ isOpen, onClose, onConfirm, clientName, isLoading }) => {
+const DeleteModal: React.FC<DeleteModalProps> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  clientName,
+  isLoading,
+}) => {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-        
+
         <div className="relative bg-white dark:bg-neutral-800 rounded-xl shadow-xl w-full max-w-md p-6">
           <div className="text-center">
             <div className="mx-auto w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4">
@@ -201,8 +213,8 @@ const DeleteModal: React.FC<DeleteModalProps> = ({ isOpen, onClose, onConfirm, c
               Șterge Client
             </h3>
             <p className="text-neutral-600 dark:text-neutral-400 mb-6">
-              Sigur doriți să ștergeți clientul <strong>{clientName}</strong>? 
-              Această acțiune va dezactiva clientul.
+              Sigur doriți să ștergeți clientul <strong>{clientName}</strong>? Această acțiune va
+              dezactiva clientul.
             </p>
             <div className="flex justify-center gap-3">
               <Button variant="secondary" onClick={onClose} disabled={isLoading}>
@@ -221,22 +233,22 @@ const DeleteModal: React.FC<DeleteModalProps> = ({ isOpen, onClose, onConfirm, c
 
 const ClientsList = () => {
   const { addToast } = useToast();
-  
+
   // State
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const limit = 10;
-  
+
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
-  
+
   // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -252,7 +264,7 @@ const ClientsList = () => {
         search: searchTerm || undefined,
         status: statusFilter !== 'ALL' ? statusFilter : undefined,
       });
-      
+
       setClients(data.clients);
       setTotalPages(data.totalPages);
       setTotal(data.total);
@@ -312,7 +324,7 @@ const ClientsList = () => {
 
   const handleConfirmDelete = async () => {
     if (!selectedClient) return;
-    
+
     setIsSubmitting(true);
     try {
       await clientsService.deleteClient(selectedClient.id);
@@ -329,11 +341,11 @@ const ClientsList = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'ACTIVE':
-        return <Badge variant="success">Activ</Badge>;
+        return <Badge variant="green">Activ</Badge>;
       case 'INACTIVE':
-        return <Badge variant="secondary">Inactiv</Badge>;
+        return <Badge variant="default">Inactiv</Badge>;
       case 'SUSPENDED':
-        return <Badge variant="warning">Suspendat</Badge>;
+        return <Badge variant="yellow">Suspendat</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -368,7 +380,7 @@ const ClientsList = () => {
               className="pl-10"
             />
           </div>
-          
+
           {/* Status Filter */}
           <select
             value={statusFilter}
@@ -420,8 +432,8 @@ const ClientsList = () => {
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8">
                     <p className="text-neutral-500 dark:text-neutral-400">
-                      {searchTerm || statusFilter !== 'ALL' 
-                        ? 'Nu s-au găsit clienți care să corespundă filtrelor' 
+                      {searchTerm || statusFilter !== 'ALL'
+                        ? 'Nu s-au găsit clienți care să corespundă filtrelor'
                         : 'Nu există clienți încă'}
                     </p>
                   </TableCell>
@@ -432,8 +444,8 @@ const ClientsList = () => {
                     <TableCell className="font-medium">{client.companyName}</TableCell>
                     <TableCell>{client.contactPerson}</TableCell>
                     <TableCell>
-                      <a 
-                        href={`mailto:${client.email}`} 
+                      <a
+                        href={`mailto:${client.email}`}
                         className="text-accent-600 dark:text-accent-400 hover:underline"
                       >
                         {client.email}
@@ -444,17 +456,17 @@ const ClientsList = () => {
                     <TableCell>{getStatusBadge(client.status)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleEdit(client)}
                           title="Editează"
                         >
                           <EditIcon className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleDelete(client)}
                           title="Șterge"
                           className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"

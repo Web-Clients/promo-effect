@@ -2,6 +2,8 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
+import { doubleCsrf } from 'csrf-csrf';
 import authRoutes from './modules/auth/auth.routes';
 import bookingsRoutes from './modules/bookings/bookings.routes';
 import clientRoutes from './modules/clients/client.routes';
@@ -61,13 +63,41 @@ app.use(
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-csrf-token'],
   })
 );
 // FIX: The errors on app.use were likely due to a cascading type resolution issue.
 // Explicitly typing route handlers below should resolve this.
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+
+// CSRF protection — double-submit cookie pattern
+const { doubleCsrfProtection, generateCsrfToken } = doubleCsrf({
+  getSecret: () => process.env.CSRF_SECRET || process.env.JWT_SECRET || 'csrf-fallback-secret',
+  getSessionIdentifier: (req) => req.ip || '',
+  cookieName: '__csrf',
+  cookieOptions: {
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: process.env.NODE_ENV === 'production',
+  },
+  getCsrfTokenFromRequest: (req) => req.headers['x-csrf-token'] as string,
+});
+
+// CSRF token endpoint — must be BEFORE the protection middleware
+app.get('/api/csrf-token', (req: Request, res: Response) => {
+  const token = generateCsrfToken(req, res);
+  res.json({ token });
+});
+
+// Apply CSRF protection to state-changing API routes (skip GET/HEAD/OPTIONS)
+app.use('/api', (req: Request, res: Response, next: NextFunction) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    return next();
+  }
+  doubleCsrfProtection(req, res, next);
+});
 
 // Rate limiting - apply to all API routes
 app.use('/api', apiLimiter);

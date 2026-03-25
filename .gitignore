@@ -35,3 +35,11 @@ backend/prisma/*.db-journal
 
 # Claude Code
 .claude/
+
+# Temp files
+*.eml
+COMPLETE_ANALYSIS_REPORT.json
+
+# Coverage
+coverage/
+backend/coverage/

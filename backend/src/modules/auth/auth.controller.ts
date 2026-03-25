@@ -1,14 +1,17 @@
 import { Router, Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
-import { authLimiter, registerLimiter, passwordResetLimiter } from '../../middleware/rateLimit.middleware';
+import {
+  authLimiter,
+  registerLimiter,
+  passwordResetLimiter,
+} from '../../middleware/rateLimit.middleware';
 
 const router = Router();
 const authService = new AuthService();
 
 // POST /api/auth/register
-// TODO: Re-enable registerLimiter in production
-router.post('/register', /* registerLimiter, */ async (req: Request, res: Response) => {
+router.post('/register', registerLimiter, async (req: Request, res: Response) => {
   try {
     const result = await authService.register(req.body);
     res.status(201).json({
@@ -17,9 +20,9 @@ router.post('/register', /* registerLimiter, */ async (req: Request, res: Respon
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Registration failed';
-    res.status(400).json({ 
+    res.status(400).json({
       success: false,
-      error: message 
+      error: message,
     });
   }
 });
@@ -54,9 +57,9 @@ router.post('/login', authLimiter, async (req: Request, res: Response) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Login failed';
-    res.status(401).json({ 
+    res.status(401).json({
       success: false,
-      error: message 
+      error: message,
     });
   }
 });
@@ -125,12 +128,12 @@ router.post('/forgot-password', passwordResetLimiter, async (req: Request, res: 
     res.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to process request';
-    
+
     // Rate limit error
     if (message.includes('Too many')) {
       return res.status(429).json({ error: message });
     }
-    
+
     res.status(500).json({ error: message });
   }
 });
@@ -153,17 +156,17 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     res.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to reset password';
-    
+
     // Invalid/expired token
     if (message.includes('Invalid or expired')) {
       return res.status(400).json({ error: message });
     }
-    
+
     // Password validation errors
     if (message.includes('Password must')) {
       return res.status(400).json({ error: message });
     }
-    
+
     res.status(500).json({ error: message });
   }
 });
@@ -181,11 +184,11 @@ router.get('/verify-email', async (req: Request, res: Response) => {
     res.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Email verification failed';
-    
+
     if (message.includes('Invalid or expired')) {
       return res.status(400).json({ error: message });
     }
-    
+
     res.status(500).json({ error: message });
   }
 });
@@ -206,9 +209,9 @@ router.post('/resend-verification', registerLimiter, async (req: Request, res: R
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to resend verification email';
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: message 
+      error: message,
     });
   }
 });
@@ -218,7 +221,7 @@ router.post('/enable-2fa', authMiddleware, async (req: Request, res: Response) =
   try {
     const userId = req.user!.userId;
     const result = await authService.enable2FA(userId);
-    
+
     res.json({
       success: true,
       ...result,
@@ -226,11 +229,11 @@ router.post('/enable-2fa', authMiddleware, async (req: Request, res: Response) =
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to enable 2FA';
-    
+
     if (message.includes('already enabled')) {
       return res.status(400).json({ error: message });
     }
-    
+
     res.status(500).json({ error: message });
   }
 });
@@ -252,11 +255,11 @@ router.post('/verify-2fa', authMiddleware, async (req: Request, res: Response) =
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to verify 2FA';
-    
+
     if (message.includes('Invalid') || message.includes('already enabled')) {
       return res.status(400).json({ error: message });
     }
-    
+
     res.status(500).json({ error: message });
   }
 });
@@ -278,11 +281,11 @@ router.post('/disable-2fa', authMiddleware, async (req: Request, res: Response) 
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to disable 2FA';
-    
+
     if (message.includes('Invalid password') || message.includes('not enabled')) {
       return res.status(400).json({ error: message });
     }
-    
+
     res.status(500).json({ error: message });
   }
 });
@@ -314,11 +317,11 @@ router.post('/complete-2fa-login', async (req: Request, res: Response) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to complete 2FA login';
-    
+
     if (message.includes('Invalid') || message.includes('expired')) {
       return res.status(400).json({ error: message });
     }
-    
+
     res.status(500).json({ error: message });
   }
 });

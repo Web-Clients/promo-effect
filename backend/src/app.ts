@@ -34,38 +34,36 @@ app.set('trust proxy', 1);
 
 // Middlewares
 app.use(helmet());
-app.use(cors({
-  origin: (origin, callback) => {
-    // Allow non-browser tools (curl/postman) with no Origin
-    if (!origin) return callback(null, true);
 
-    const allowed = [
-      process.env.FRONTEND_URL, // optional explicit allow
-      'http://localhost:5173',
-      'http://127.0.0.1:5173',
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      'http://localhost:3002',
-      'http://127.0.0.1:3002',
-      'http://54.38.137.230:3000', // User's laptop IP
-      'http://54.38.137.230:5173',
-      'http://141.227.180.43', // Production server
-    ].filter(Boolean) as string[];
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
 
-    // Allow same-LAN/dev origins (e.g. http://192.168.x.x:3002)
-    const isLanDevOrigin = /^http:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[0-1])\.)[0-9.]+(?::\d+)?$/.test(origin);
-    
-    // Allow specific public IPs for development (e.g. http://54.38.137.230:3000)
-    const isDevPublicIP = /^http:\/\/54\.38\.137\.230(?::\d+)?$/.test(origin);
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
 
-    if (allowed.includes(origin) || isLanDevOrigin || isDevPublicIP) {
-      return callback(null, true);
-    }
-
-    return callback(new Error(`CORS blocked origin: ${origin}`));
-  },
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.some((allowed) => origin.startsWith(allowed))) {
+        return callback(null, true);
+      }
+      if (
+        process.env.NODE_ENV === 'development' &&
+        /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)/.test(origin)
+      ) {
+        return callback(null, true);
+      }
+      callback(new Error(`CORS: Origin ${origin} not allowed`));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  })
+);
 // FIX: The errors on app.use were likely due to a cascading type resolution issue.
 // Explicitly typing route handlers below should resolve this.
 app.use(express.json());
@@ -81,11 +79,15 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // Swagger/OpenAPI Documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'Promo-Efect API Documentation',
-  customfavIcon: '/favicon.ico',
-}));
+app.use(
+  '/api-docs',
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'Promo-Efect API Documentation',
+    customfavIcon: '/favicon.ico',
+  })
+);
 
 // Swagger JSON endpoint
 app.get('/api-docs.json', (req: Request, res: Response) => {
@@ -120,8 +122,8 @@ app.use('/api/tracking', trackingRoutes);
 app.use('/api/calculator', calculatorRoutes);
 
 // Admin routes (no versioning for internal tools)
-app.use('/api/admin', emailRoutes);   // Email processing (admin only)
-app.use('/api/emails', emailRoutes);  // Email parsing endpoints
+app.use('/api/admin', emailRoutes); // Email processing (admin only)
+app.use('/api/emails', emailRoutes); // Email parsing endpoints
 app.use('/api/admin-pricing', adminPricingRoutes); // Admin pricing management
 app.use('/api/agents', agentsRoutes); // Agents management
 app.use('/api/admin/dashboard', adminDashboardRoutes); // Admin dashboard stats
@@ -132,21 +134,24 @@ app.use('/api/shipping-lines', shippingLinesRoutes); // Shipping lines & transpo
 // Static file serving for storage (invoices, documents, etc.)
 import path from 'path';
 const storagePath = process.env.LOCAL_STORAGE_PATH || path.join(__dirname, '../storage');
-app.use('/storage', express.static(storagePath, {
-  setHeaders: (res, filePath) => {
-    // Set appropriate headers for PDF files
-    if (filePath.endsWith('.pdf')) {
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', 'inline');
-    }
-  },
-}));
+app.use(
+  '/storage',
+  express.static(storagePath, {
+    setHeaders: (res, filePath) => {
+      // Set appropriate headers for PDF files
+      if (filePath.endsWith('.pdf')) {
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'inline');
+      }
+    },
+  })
+);
 
 // TODO: Implement a proper error handling middleware
 // FIX: Using explicitly imported Request, Response, and NextFunction types to fix 'status' property not found error.
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-    console.error(err.stack);
-    res.status(500).json({ message: 'Something went wrong!' });
+  console.error(err.stack);
+  res.status(500).json({ message: 'Something went wrong!' });
 });
 
 export default app;

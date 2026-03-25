@@ -274,6 +274,43 @@ Tasks 5.3-5.5 require Prisma schema changes and migrations on the production dat
 
 ---
 
+## Phase 5B: Client Business Requirements (NEW)
+
+**Goal:** Implement business logic changes requested by the Promo-Effect admin. These are functional improvements, not code quality.
+
+**Full requirements:** `docs/superpowers/specs/2026-03-25-client-requirements-update.md`
+
+| Task | Details |
+|------|---------|
+| 5B.1 Rezervări — consolidate 3 pages into 1 | Merge Urmărire + Marfă în Drum into Rezervări. Add tabs: LA ÎNCĂRCARE, ÎN DRUM, PORT, LIVRATE |
+| 5B.2 Rezervări — redesign table columns | Show: Data, Port, Linie, Vas, Container Nr, BL Nr, Greutate, Tip, Beneficiar, Preț, TLX badge, DOC badge, Status |
+| 5B.3 Rezervări — BL as booking identifier | Replace UUID display with Bill of Lading number from document |
+| 5B.4 Rezervări — detail page improvements | Show map position, rate, shipper, beneficiary, print transport order + payment note |
+| 5B.5 Calculator — add final destination dropdown | Constanța, Chișinău, etc. Adds land route automatically |
+| 5B.6 Calculator — add Incoterms (EXW/FOB/CFR) | Dropdown that changes price structure: EXW shows China costs, FOB shows freight, CFR shows only Constanța→destination |
+| 5B.7 Calculator — detailed price breakdown per Incoterm | Rate 1 (maritime): tarif + ajustare + taxe. Rate 2 (terestre): transport + vamă + comision. Client sees total only for Rate 2 |
+| 5B.8 Calculator — fix HS Code nomenclature | Currently broken — make searchable and functional |
+| 5B.9 Calculator — show latest prices only | When new price added, old price no longer displayed |
+| 5B.10 Calculator — "no price" contact fallback | If no price in DB for selection, show "Contact representative" instead of error |
+| 5B.11 Admin Pricing — expand container types | Add: 20DV, 40DV/HQ, 45HQ, 20OT, 40OT, 20 REEFER, 40 REEFER (replace current 20ft/40ft/40ft_HC) |
+| 5B.12 Admin Pricing — restructure weight intervals | Per container type: 1-18t, 18-23t, 23-24t, 24-25t, 25-26t, 26-27t, 27-28t |
+| 5B.13 Admin Pricing — single base port model | One base port (e.g., Shanghai), other ports as adjustments (+/- from base) |
+| 5B.14 Admin Pricing — agent daily access | Prepare dashboard for 2-3 Chinese agents to update prices daily |
+
+**Verification Gate:**
+- [ ] Rezervări shows all bookings with BL number, route, shipper, beneficiary, ETA
+- [ ] Tabs (LA ÎNCĂRCARE, ÎN DRUM, PORT, LIVRATE) filter correctly
+- [ ] Urmărire and Marfă în Drum pages removed from sidebar
+- [ ] Calculator shows destination dropdown with Constanța and Chișinău
+- [ ] Incoterms dropdown (EXW/FOB/CFR) changes price calculation correctly
+- [ ] HS Code search works
+- [ ] Admin: 7 container types available
+- [ ] Admin: weight intervals per container type correct
+- [ ] "No price" shows contact option, not error
+- [ ] **CRITICAL: Manual test** — full flow: calculate price → create booking → track → deliver
+
+---
+
 ## Phase 6: Internationalization (i18n)
 
 **Goal:** Full RO/RU/EN support. Zero hardcoded strings.

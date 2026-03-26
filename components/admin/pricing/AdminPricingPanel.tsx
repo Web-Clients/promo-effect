@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { getStoredUser } from '../../../services/auth';
 import {
   getBasePrices,
   createBasePrice,
@@ -33,6 +34,8 @@ import { GeneralSettingsTab } from './GeneralSettingsTab';
 
 export function AdminPricingPanel() {
   const { t } = useTranslation();
+  const currentUser = getStoredUser();
+  const isAgent = currentUser?.role === 'AGENT' || currentUser?.role === 'AGENT_CONSTANTA';
   const [activeTab, setActiveTab] = useState<Tab>('base-prices');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,8 +128,24 @@ export function AdminPricingPanel() {
         await updateBasePrice(editingBasePrice.id, data);
         showMessage(t('pricing.basePriceSaved'));
       } else {
+        // Auto-deactivate existing active prices for the same route + container + shipping line
+        const duplicates = basePrices.filter(
+          (p) =>
+            p.isActive &&
+            p.shippingLine === data.shippingLine &&
+            p.portOrigin === data.portOrigin &&
+            p.portDestination === data.portDestination &&
+            p.containerType === data.containerType
+        );
+        for (const dup of duplicates) {
+          await updateBasePrice(dup.id, { isActive: false });
+        }
         await createBasePrice(data);
-        showMessage(t('pricing.basePriceCreated'));
+        const deactivatedMsg =
+          duplicates.length > 0
+            ? ` (${duplicates.length} preț${duplicates.length > 1 ? 'uri vechi' : ' vechi'} dezactivat${duplicates.length > 1 ? 'e' : ''})`
+            : '';
+        showMessage(t('pricing.basePriceCreated') + deactivatedMsg);
       }
       setShowBasePriceForm(false);
       setEditingBasePrice(null);
@@ -274,26 +293,30 @@ export function AdminPricingPanel() {
           >
             {t('pricing.tabBasePrices')}
           </button>
-          <button
-            onClick={() => setActiveTab('port-adjustments')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'port-adjustments'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            {t('pricing.tabPortAdjustments')}
-          </button>
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'settings'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            {t('pricing.tabSettings')}
-          </button>
+          {!isAgent && (
+            <button
+              onClick={() => setActiveTab('port-adjustments')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'port-adjustments'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              {t('pricing.tabPortAdjustments')}
+            </button>
+          )}
+          {!isAgent && (
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'settings'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              {t('pricing.tabSettings')}
+            </button>
+          )}
         </nav>
       </div>
 
@@ -321,7 +344,7 @@ export function AdminPricingPanel() {
         />
       )}
 
-      {activeTab === 'port-adjustments' && (
+      {activeTab === 'port-adjustments' && !isAgent && (
         <PortAdjustmentsTab
           portAdjustments={portAdjustments}
           loading={loading}
@@ -344,7 +367,7 @@ export function AdminPricingPanel() {
         />
       )}
 
-      {activeTab === 'settings' && (
+      {activeTab === 'settings' && !isAgent && (
         <GeneralSettingsTab
           settings={adminSettings}
           loading={loading}

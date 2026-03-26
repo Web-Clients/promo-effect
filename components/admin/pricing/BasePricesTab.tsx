@@ -113,9 +113,20 @@ export function BasePricesTab({
                 {ORIGIN_PORTS.map((port) => (
                   <option key={port} value={port}>
                     {port}
+                    {port === 'Shanghai' ? ' ★ (Referință)' : ''}
                   </option>
                 ))}
               </select>
+              {formData.portOrigin === 'Shanghai' && (
+                <p className="text-xs text-blue-600 mt-1 font-medium">
+                  Port de referință — prețul de bază fără ajustări suplimentare
+                </p>
+              )}
+              {formData.portOrigin && formData.portOrigin !== 'Shanghai' && (
+                <p className="text-xs text-amber-600 mt-1">
+                  Port secundar — se aplică ajustarea din tab-ul "Ajustări Port Origine"
+                </p>
+              )}
             </div>
 
             <div>
@@ -395,7 +406,17 @@ export function BasePricesTab({
                     <td className="px-4 py-3 text-sm font-medium text-gray-900">
                       {price.shippingLine}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{price.portOrigin}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {price.portOrigin}
+                      {price.portOrigin === 'Shanghai' && (
+                        <span
+                          className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700"
+                          title="Port de referință (bază)"
+                        >
+                          Ref
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-600">{price.portDestination}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{price.containerType}</td>
                     <td className="px-4 py-3 text-sm text-right font-medium">

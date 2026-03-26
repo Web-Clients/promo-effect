@@ -43,3 +43,7 @@ COMPLETE_ANALYSIS_REPORT.json
 # Coverage
 coverage/
 backend/coverage/
+
+# Playwright
+test-results/
+playwright-report/

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { User, UserRole } from '../types';
 import { Button } from './ui/Button';
@@ -10,12 +11,13 @@ interface LoginProps {
 }
 
 const Login = ({ onLogin }: LoginProps) => {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // 2FA state
   const [requires2FA, setRequires2FA] = useState(false);
   const [tempToken, setTempToken] = useState<string | null>(null);
@@ -29,7 +31,7 @@ const Login = ({ onLogin }: LoginProps) => {
       // If we're in 2FA step, complete login with 2FA code
       if (requires2FA && tempToken) {
         if (!twoFactorCode || twoFactorCode.length !== 6) {
-          setError('Introdu un cod 2FA valid (6 cifre)');
+          setError(t('auth.invalid2FACode'));
           setIsLoading(false);
           return;
         }
@@ -52,7 +54,7 @@ const Login = ({ onLogin }: LoginProps) => {
         onLogin(result);
       }
     } catch (err: any) {
-      setError(err.message || 'Email sau parolă invalidă');
+      setError(err.message || t('auth.invalidCredentials'));
     } finally {
       setIsLoading(false);
     }
@@ -72,24 +74,37 @@ const Login = ({ onLogin }: LoginProps) => {
         <div>
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-accent-500 flex items-center justify-center">
-              <svg className="h-7 w-7 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.125-.504 1.125-1.125V14.25m-17.25 4.5v-1.875a3.375 3.375 0 003.375-3.375h1.5a1.125 1.125 0 011.125 1.125v-1.5c0-.621.504-1.125 1.125-1.125H12m6 6v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H9.75" />
+              <svg
+                className="h-7 w-7 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.125-.504 1.125-1.125V14.25m-17.25 4.5v-1.875a3.375 3.375 0 003.375-3.375h1.5a1.125 1.125 0 011.125 1.125v-1.5c0-.621.504-1.125 1.125-1.125H12m6 6v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H9.75"
+                />
               </svg>
             </div>
             <div>
               <h1 className="font-heading font-bold text-2xl">Promo-Efect</h1>
-              <p className="text-white/60 text-sm">Logistics Platform</p>
+              <p className="text-white/60 text-sm">{t('landing.simplifyLogistics')}</p>
             </div>
           </div>
         </div>
 
         <div className="space-y-8">
           <h2 className="text-4xl font-heading font-bold leading-tight">
-            Simplificăm logistica<br />
+            Simplificăm logistica
+            <br />
             <span className="text-accent-400">China → Moldova</span>
           </h2>
           <p className="text-white/70 text-lg max-w-md">
-            Platforma completă pentru gestionarea transportului maritim de containere. Prețuri transparente, urmărire în timp real.
+            Platforma completă pentru gestionarea transportului maritim de containere. Prețuri
+            transparente, urmărire în timp real.
           </p>
           <div className="flex gap-8">
             <div>
@@ -107,9 +122,7 @@ const Login = ({ onLogin }: LoginProps) => {
           </div>
         </div>
 
-        <p className="text-white/40 text-sm">
-          © 2025 Promo-Efect. Toate drepturile rezervate.
-        </p>
+        <p className="text-white/40 text-sm">© 2025 Promo-Efect. Toate drepturile rezervate.</p>
       </div>
 
       {/* Right Side - Login Form */}
@@ -119,23 +132,34 @@ const Login = ({ onLogin }: LoginProps) => {
           <div className="lg:hidden text-center mb-8">
             <div className="inline-flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-accent-500 flex items-center justify-center">
-                <svg className="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.125-.504 1.125-1.125V14.25m-17.25 4.5v-1.875a3.375 3.375 0 003.375-3.375h1.5a1.125 1.125 0 011.125 1.125v-1.5c0-.621.504-1.125 1.125-1.125H12m6 6v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H9.75" />
+                <svg
+                  className="h-6 w-6 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.125-.504 1.125-1.125V14.25m-17.25 4.5v-1.875a3.375 3.375 0 003.375-3.375h1.5a1.125 1.125 0 011.125 1.125v-1.5c0-.621.504-1.125 1.125-1.125H12m6 6v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H9.75"
+                  />
                 </svg>
               </div>
-              <span className="font-heading font-bold text-xl text-primary-800 dark:text-white">Promo-Efect</span>
+              <span className="font-heading font-bold text-xl text-primary-800 dark:text-white">
+                Promo-Efect
+              </span>
             </div>
           </div>
 
           {/* Form Header */}
           <div>
             <h2 className="text-2xl font-bold text-primary-800 dark:text-white font-heading">
-              {requires2FA ? 'Verificare 2FA' : 'Bine ai revenit!'}
+              {requires2FA ? t('auth.twoFactorVerification') : t('auth.welcomeBack')}
             </h2>
             <p className="text-neutral-500 dark:text-neutral-400 mt-2">
-              {requires2FA 
-                ? 'Introdu codul din aplicația ta de autentificare' 
-                : 'Autentifică-te pentru a accesa platforma'}
+              {requires2FA ? t('auth.enterAuthCode') : t('auth.signInToPlatform')}
             </p>
           </div>
 
@@ -145,7 +169,7 @@ const Login = ({ onLogin }: LoginProps) => {
               <>
                 <div className="space-y-1.5">
                   <label className="block text-sm font-medium text-primary-800 dark:text-neutral-200">
-                    Email
+                    {t('auth.email')}
                   </label>
                   <Input
                     id="email"
@@ -163,13 +187,13 @@ const Login = ({ onLogin }: LoginProps) => {
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-center">
                     <label className="block text-sm font-medium text-primary-800 dark:text-neutral-200">
-                      Parolă
+                      {t('auth.password')}
                     </label>
                     <Link
                       to="/forgot-password"
                       className="text-xs text-accent-600 dark:text-accent-400 hover:underline"
                     >
-                      Ai uitat parola?
+                      {t('auth.forgotPassword')}
                     </Link>
                   </div>
                   <Input
@@ -195,7 +219,7 @@ const Login = ({ onLogin }: LoginProps) => {
 
                 <div className="space-y-1.5">
                   <label className="block text-sm font-medium text-primary-800 dark:text-neutral-200">
-                    Cod 2FA (6 cifre)
+                    {t('auth.twoFactorCode')}
                   </label>
                   <Input
                     id="twoFactorCode"
@@ -216,7 +240,7 @@ const Login = ({ onLogin }: LoginProps) => {
                     className="text-center text-2xl tracking-widest font-mono"
                   />
                   <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-                    Deschide aplicația de autentificare (Google Authenticator, Microsoft Authenticator, etc.) și introdu codul de 6 cifre.
+                    {t('auth.openAuthApp')}
                   </p>
                 </div>
 
@@ -225,7 +249,7 @@ const Login = ({ onLogin }: LoginProps) => {
                   onClick={handleBackToPassword}
                   className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
                 >
-                  ← Înapoi la parolă
+                  {t('auth.backToPassword')}
                 </button>
               </>
             )}
@@ -244,9 +268,13 @@ const Login = ({ onLogin }: LoginProps) => {
               disabled={isLoading}
               loading={isLoading}
             >
-              {isLoading 
-                ? (requires2FA ? 'Se verifică...' : 'Se autentifică...') 
-                : (requires2FA ? 'Verifică codul' : 'Autentificare')}
+              {isLoading
+                ? requires2FA
+                  ? t('auth.verifying')
+                  : t('auth.authenticating')
+                : requires2FA
+                  ? t('auth.verifyCode')
+                  : t('auth.login')}
             </Button>
           </form>
 
@@ -258,7 +286,9 @@ const Login = ({ onLogin }: LoginProps) => {
                   <div className="w-full border-t border-neutral-200 dark:border-neutral-700"></div>
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white dark:bg-neutral-900 text-neutral-500">Nu ai cont?</span>
+                  <span className="px-4 bg-white dark:bg-neutral-900 text-neutral-500">
+                    {t('auth.noAccountLink')}
+                  </span>
                 </div>
               </div>
 
@@ -268,7 +298,7 @@ const Login = ({ onLogin }: LoginProps) => {
                   to="/register"
                   className="text-sm text-primary-600 dark:text-primary-400 hover:underline font-medium"
                 >
-                  Creează un cont nou
+                  {t('auth.createNewAccount')}
                 </Link>
               </div>
             </>

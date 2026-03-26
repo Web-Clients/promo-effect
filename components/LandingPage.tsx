@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import {
   motion,
@@ -117,6 +118,7 @@ const FAQItem = ({ question, answer }: { question: string; answer: string; key?:
 // Redacted internal LogisticsMap
 
 const LandingPage = ({ onLoginRedirect }: LandingPageProps) => {
+  const { t } = useTranslation();
   const { scrollYProgress } = useScroll();
   const heroOpacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
   const heroScale = useTransform(scrollYProgress, [0, 0.2], [1, 1.05]);
@@ -164,7 +166,7 @@ const LandingPage = ({ onLoginRedirect }: LandingPageProps) => {
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary-500/10 border border-primary-500/20 mb-8">
               <span className="w-2 h-2 rounded-full bg-primary-500 animate-pulse" />
               <span className="text-primary-500 text-[10px] font-bold uppercase tracking-widest">
-                Inovație Logistică v2.0
+                {t('landing.tagline')}
               </span>
             </div>
 
@@ -174,8 +176,7 @@ const LandingPage = ({ onLoginRedirect }: LandingPageProps) => {
             </h1>
 
             <p className="max-w-2xl mx-auto text-neutral-400 text-lg md:text-xl font-medium leading-relaxed mb-12 italic">
-              Excelență operațională și tehnologie de calcul în timp real pentru importurile tale
-              strategice din Asia către Europa de Sud-Est.
+              {t('landing.heroDesc')}
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -184,7 +185,7 @@ const LandingPage = ({ onLoginRedirect }: LandingPageProps) => {
                 className="bg-primary-600 text-white hover:bg-primary-500 text-sm font-bold tracking-wide transition-all h-16 px-12 group rounded-xl"
                 onClick={onLoginRedirect}
               >
-                ÎNCEPE CALCULUL{' '}
+                {t('landing.startCalculation')}{' '}
                 <ArrowRightIcon className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </Button>
               <Button
@@ -193,7 +194,7 @@ const LandingPage = ({ onLoginRedirect }: LandingPageProps) => {
                 className="border border-white/10 text-white hover:bg-white/5 text-sm font-bold h-16 px-12 rounded-xl"
                 onClick={onLoginRedirect}
               >
-                SERVICII & CAPABILITĂȚI
+                {t('landing.servicesCapabilities')}
               </Button>
             </div>
           </motion.div>
@@ -202,7 +203,7 @@ const LandingPage = ({ onLoginRedirect }: LandingPageProps) => {
 
       {/* Sector Expertise Section */}
       <section className="py-20 max-w-7xl mx-auto px-6">
-        <SectionHeading subtitle="Expertiză Verticală" title="Soluții Adaptate Industriei Tale." />
+        <SectionHeading subtitle={t('landing.sectorExpertise')} title={t('landing.sectorTitle')} />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {[
             {
@@ -287,8 +288,8 @@ const LandingPage = ({ onLoginRedirect }: LandingPageProps) => {
       {/* Capability Matrix Section */}
       <section className="py-20 max-w-7xl mx-auto px-6">
         <SectionHeading
-          subtitle="Conectivitate Globală"
-          title="Matricea Capacității Operaționale."
+          subtitle={t('landing.capabilitySubtitle')}
+          title={t('landing.capabilityTitle')}
         />
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
@@ -353,7 +354,7 @@ const LandingPage = ({ onLoginRedirect }: LandingPageProps) => {
       {/* Operational Infrastructure (Hubs) */}
       <section className="py-20 bg-[#0A0C10]/40">
         <div className="max-w-7xl mx-auto px-6">
-          <SectionHeading subtitle="Infrastructură" title="Hub-uri de Consolidare." />
+          <SectionHeading subtitle={t('landing.infraSubtitle')} title={t('landing.infraTitle')} />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               { city: 'SHANGHAI', role: 'Consolidare LCL', cap: '5000+ m2' },
@@ -406,8 +407,8 @@ const LandingPage = ({ onLoginRedirect }: LandingPageProps) => {
       {/* Bento Grid Features */}
       <section className="py-20 max-w-7xl mx-auto px-6">
         <SectionHeading
-          subtitle="Tehnologie și Infrastructură"
-          title="Digitalizăm Logistica Tradițională."
+          subtitle={t('landing.featuresSubtitle')}
+          title={t('landing.featuresTitle')}
         />
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 auto-rows-[250px]">
@@ -481,7 +482,11 @@ const LandingPage = ({ onLoginRedirect }: LandingPageProps) => {
       {/* NEW: FAQ Section */}
       <section className="py-20 bg-[#07090b] border-y border-white/5">
         <div className="max-w-4xl mx-auto px-6">
-          <SectionHeading subtitle="Suport Clienți" title="Întrebări Frecvente." centered />
+          <SectionHeading
+            subtitle={t('landing.faqSubtitle')}
+            title={t('landing.faqTitle')}
+            centered
+          />
           <div className="space-y-4">
             {[
               {
@@ -509,7 +514,10 @@ const LandingPage = ({ onLoginRedirect }: LandingPageProps) => {
 
       {/* Success Stories / Testimonials */}
       <section className="py-20 max-w-7xl mx-auto px-6">
-        <SectionHeading subtitle="Parteneriate Solidari" title="Rezultate Care Vorbesc." />
+        <SectionHeading
+          subtitle={t('landing.testimonialsSubtitle')}
+          title={t('landing.testimonialsTitle')}
+        />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {[
             {
@@ -559,8 +567,8 @@ const LandingPage = ({ onLoginRedirect }: LandingPageProps) => {
       {/* Resources & Insights Preview */}
       <section className="py-20 max-w-7xl mx-auto px-6">
         <SectionHeading
-          subtitle="Cunoaștere și Expertiză"
-          title="Navigați Complexitatea Importurilor."
+          subtitle={t('landing.resourcesSubtitle')}
+          title={t('landing.resourcesTitle')}
         />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
           {[
@@ -619,7 +627,7 @@ const LandingPage = ({ onLoginRedirect }: LandingPageProps) => {
                 className="bg-primary-600 text-white hover:bg-primary-500 font-black h-12 px-8 rounded-xl tracking-widest uppercase text-[10px]"
                 onClick={onLoginRedirect}
               >
-                CALCULEAZĂ ACUM &rarr;
+                {t('landing.calculateNow')} &rarr;
               </Button>
               <Button
                 size="lg"
@@ -627,7 +635,7 @@ const LandingPage = ({ onLoginRedirect }: LandingPageProps) => {
                 className="border border-white/10 text-white hover:bg-white/5 font-black h-12 px-8 rounded-xl tracking-widest uppercase text-[10px]"
                 onClick={onLoginRedirect}
               >
-                VREAU O CONSULTANȚĂ
+                {t('landing.requestConsultation')}
               </Button>
             </div>
           </div>

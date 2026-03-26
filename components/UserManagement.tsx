@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
@@ -23,6 +24,7 @@ const ROLES = [
 
 const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
   const { addToast } = useToast();
+  const { t } = useTranslation();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -50,7 +52,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
       setTotalPages(response.meta.totalPages);
       setTotal(response.meta.total);
     } catch (error: any) {
-      addToast(error.message || 'Eroare la încărcarea utilizatorilor', 'error');
+      addToast(error.message || t('users.errorLoading'), 'error');
     } finally {
       setLoading(false);
     }
@@ -83,25 +85,25 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
     setSaving(true);
     try {
       await usersService.updateUser(selectedUser.id, editData);
-      addToast('Utilizator actualizat cu succes', 'success');
+      addToast(t('users.updated'), 'success');
       setShowEditModal(false);
       // Auto-refresh after successful save
       await fetchUsers();
     } catch (error: any) {
-      addToast(error.message || 'Eroare la salvare', 'error');
+      addToast(error.message || t('users.errorSaving'), 'error');
     } finally {
       setSaving(false);
     }
   };
 
   const handleResetPassword = async (user: User) => {
-    if (!confirm(`Sigur doriți să resetați parola pentru ${user.email}?`)) return;
+    if (!confirm(t('users.resetPasswordConfirm', { email: user.email }))) return;
 
     try {
       await usersService.resetPassword(user.id);
-      addToast('Parola a fost resetată. Utilizatorul va primi un email.', 'success');
+      addToast(t('users.resetPasswordSuccess'), 'success');
     } catch (error: any) {
-      addToast(error.message || 'Eroare la resetarea parolei', 'error');
+      addToast(error.message || t('users.errorResetPassword'), 'error');
     }
   };
 
@@ -111,12 +113,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
     setSaving(true);
     try {
       await usersService.deleteUser(selectedUser.id);
-      addToast('Utilizator șters cu succes', 'success');
+      addToast(t('users.deleted'), 'success');
       setShowDeleteModal(false);
       // Auto-refresh after successful delete
       await fetchUsers();
     } catch (error: any) {
-      addToast(error.message || 'Eroare la ștergere', 'error');
+      addToast(error.message || t('users.errorDeleting'), 'error');
     } finally {
       setSaving(false);
     }
@@ -141,9 +143,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-neutral-800 dark:text-neutral-100">
-          Gestionare Utilizatori
+          {t('users.title')}
         </h1>
-        <span className="text-sm text-neutral-500">Total: {total} utilizatori</span>
+        <span className="text-sm text-neutral-500">{t('users.totalCount', { count: total })}</span>
       </div>
 
       {/* Filters */}
@@ -151,7 +153,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
         <form onSubmit={handleSearch} className="flex flex-wrap gap-4">
           <div className="flex-1 min-w-[200px]">
             <Input
-              placeholder="Caută după email, nume sau companie..."
+              placeholder={t('users.searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -164,14 +166,14 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
             }}
             className="px-3 py-2 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 rounded-md text-sm"
           >
-            <option value="">Toate rolurile</option>
+            <option value="">{t('users.allRoles')}</option>
             {ROLES.map((role) => (
               <option key={role.value} value={role.value}>
                 {role.label}
               </option>
             ))}
           </select>
-          <Button type="submit">Caută</Button>
+          <Button type="submit">{t('actions.search')}</Button>
         </form>
       </Card>
 
@@ -182,29 +184,29 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
             <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : users.length === 0 ? (
-          <div className="text-center py-12 text-neutral-500">Nu s-au găsit utilizatori</div>
+          <div className="text-center py-12 text-neutral-500">{t('users.noUsersFound')}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-neutral-50 dark:bg-neutral-800">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    Utilizator
+                    {t('users.userColumn')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    Rol
+                    {t('users.roleColumn')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    Companie
+                    {t('users.companyColumn')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    Ultima autentificare
+                    {t('users.lastLoginColumn')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    Status
+                    {t('users.statusColumn')}
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                    Acțiuni
+                    {t('users.actionsColumn')}
                   </th>
                 </tr>
               </thead>
@@ -237,11 +239,11 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                       <div className="flex items-center gap-2">
                         {user.emailVerified ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-green-100 text-green-800">
-                            Verificat
+                            {t('status.verified')}
                           </span>
                         ) : (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-yellow-100 text-yellow-800">
-                            Neverificat
+                            {t('status.unverified')}
                           </span>
                         )}
                         {user.twoFactorEnabled && (
@@ -254,14 +256,14 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                     <td className="px-4 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <Button size="sm" variant="secondary" onClick={() => openEditModal(user)}>
-                          Editează
+                          {t('actions.edit')}
                         </Button>
                         <Button
                           size="sm"
                           variant="secondary"
                           onClick={() => handleResetPassword(user)}
                         >
-                          Reset Parolă
+                          {t('users.resetPassword')}
                         </Button>
                         {user.id !== currentUser.id && (
                           <Button
@@ -272,7 +274,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                               setShowDeleteModal(true);
                             }}
                           >
-                            Șterge
+                            {t('actions.delete')}
                           </Button>
                         )}
                       </div>
@@ -288,7 +290,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-neutral-200 dark:border-neutral-700">
             <div className="text-sm text-neutral-500">
-              Pagina {page} din {totalPages}
+              {t('users.pagination', { current: page, total: totalPages })}
             </div>
             <div className="flex gap-2">
               <Button
@@ -297,7 +299,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                 disabled={page === 1}
                 onClick={() => setPage((p) => p - 1)}
               >
-                Anterior
+                {t('users.prevPage')}
               </Button>
               <Button
                 size="sm"
@@ -305,7 +307,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                 disabled={page === totalPages}
                 onClick={() => setPage((p) => p + 1)}
               >
-                Următor
+                {t('users.nextPage')}
               </Button>
             </div>
           </div>
@@ -316,35 +318,35 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
       {showEditModal && selectedUser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md p-6 m-4">
-            <h3 className="text-lg font-semibold mb-4">Editează Utilizator</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('users.editUser')}</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Email</label>
+                <label className="block text-sm font-medium mb-1">{t('users.emailField')}</label>
                 <Input value={selectedUser.email} disabled />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Nume</label>
+                <label className="block text-sm font-medium mb-1">{t('users.nameField')}</label>
                 <Input
                   value={editData.name}
                   onChange={(e) => setEditData({ ...editData, name: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Telefon</label>
+                <label className="block text-sm font-medium mb-1">{t('users.phoneField')}</label>
                 <Input
                   value={editData.phone}
                   onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Companie</label>
+                <label className="block text-sm font-medium mb-1">{t('users.companyField')}</label>
                 <Input
                   value={editData.company}
                   onChange={(e) => setEditData({ ...editData, company: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Rol</label>
+                <label className="block text-sm font-medium mb-1">{t('users.roleField')}</label>
                 <select
                   value={editData.role}
                   onChange={(e) => setEditData({ ...editData, role: e.target.value })}
@@ -359,24 +361,22 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
                     return (
                       <option key={role.value} value={role.value} disabled={disabled}>
                         {role.label}
-                        {disabled ? ' (doar pentru SUPER_ADMIN)' : ''}
+                        {disabled ? ` ${t('users.superAdminOnly')}` : ''}
                       </option>
                     );
                   })}
                 </select>
                 {currentUser.role !== 'SUPER_ADMIN' && (
-                  <p className="text-xs text-neutral-500 mt-1">
-                    Doar SUPER_ADMIN poate modifica rolul SUPER_ADMIN
-                  </p>
+                  <p className="text-xs text-neutral-500 mt-1">{t('users.superAdminNote')}</p>
                 )}
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-6">
               <Button variant="secondary" onClick={() => setShowEditModal(false)}>
-                Anulează
+                {t('actions.cancel')}
               </Button>
               <Button onClick={handleSaveUser} loading={saving}>
-                Salvează
+                {t('actions.save')}
               </Button>
             </div>
           </Card>
@@ -387,17 +387,17 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
       {showDeleteModal && selectedUser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md p-6 m-4">
-            <h3 className="text-lg font-semibold mb-4 text-red-600">Șterge Utilizator</h3>
+            <h3 className="text-lg font-semibold mb-4 text-red-600">{t('users.deleteUser')}</h3>
             <p className="text-neutral-600 dark:text-neutral-400 mb-4">
-              Sigur doriți să ștergeți utilizatorul <strong>{selectedUser.email}</strong>? Această
-              acțiune nu poate fi anulată.
+              {t('users.deleteConfirm')} <strong>{selectedUser.email}</strong>?{' '}
+              {t('users.deleteWarning')}
             </p>
             <div className="flex justify-end gap-2">
               <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
-                Anulează
+                {t('actions.cancel')}
               </Button>
               <Button variant="danger" onClick={handleDeleteUser} loading={saving}>
-                Șterge
+                {t('actions.delete')}
               </Button>
             </div>
           </Card>

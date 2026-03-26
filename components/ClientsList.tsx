@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card } from './ui/Card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from './ui/Table';
 import { Button } from './ui/Button';
@@ -24,6 +25,7 @@ const ClientModal: React.FC<ClientModalProps> = ({
   client,
   isLoading,
 }) => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<CreateClientData>({
     companyName: '',
     contactPerson: '',
@@ -74,14 +76,14 @@ const ClientModal: React.FC<ClientModalProps> = ({
         {/* Modal */}
         <div className="relative bg-white dark:bg-neutral-800 rounded-xl shadow-xl w-full max-w-lg p-6">
           <h2 className="text-xl font-semibold text-neutral-800 dark:text-white mb-4">
-            {client ? 'Editare Client' : 'Client Nou'}
+            {client ? t('clients.editClient') : t('clients.newClient')}
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                  Nume Companie *
+                  {t('clients.companyName')} *
                 </label>
                 <Input
                   value={formData.companyName}
@@ -93,7 +95,7 @@ const ClientModal: React.FC<ClientModalProps> = ({
 
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                  Persoană Contact *
+                  {t('clients.contactPerson')} *
                 </label>
                 <Input
                   value={formData.contactPerson}
@@ -107,7 +109,7 @@ const ClientModal: React.FC<ClientModalProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                  Email *
+                  {t('clients.email')} *
                 </label>
                 <Input
                   type="email"
@@ -120,7 +122,7 @@ const ClientModal: React.FC<ClientModalProps> = ({
 
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                  Telefon *
+                  {t('clients.phone')} *
                 </label>
                 <Input
                   value={formData.phone}
@@ -133,7 +135,7 @@ const ClientModal: React.FC<ClientModalProps> = ({
 
             <div>
               <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                Adresă
+                {t('clients.address')}
               </label>
               <Input
                 value={formData.address}
@@ -145,7 +147,7 @@ const ClientModal: React.FC<ClientModalProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                  Cod Fiscal (IDNO)
+                  {t('clients.taxId')}
                 </label>
                 <Input
                   value={formData.taxId}
@@ -156,7 +158,7 @@ const ClientModal: React.FC<ClientModalProps> = ({
 
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                  Cont Bancar
+                  {t('clients.bankAccount')}
                 </label>
                 <Input
                   value={formData.bankAccount}
@@ -168,10 +170,10 @@ const ClientModal: React.FC<ClientModalProps> = ({
 
             <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200 dark:border-neutral-700">
               <Button type="button" variant="secondary" onClick={onClose} disabled={isLoading}>
-                Anulează
+                {t('actions.cancel')}
               </Button>
               <Button type="submit" variant="primary" disabled={isLoading} loading={isLoading}>
-                {client ? 'Salvează' : 'Creează'}
+                {client ? t('actions.save') : t('actions.create')}
               </Button>
             </div>
           </form>
@@ -197,6 +199,7 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
   clientName,
   isLoading,
 }) => {
+  const { t } = useTranslation();
   if (!isOpen) return null;
 
   return (
@@ -210,18 +213,18 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
               <TrashIcon className="w-6 h-6 text-red-600 dark:text-red-400" />
             </div>
             <h3 className="text-lg font-semibold text-neutral-800 dark:text-white mb-2">
-              Șterge Client
+              {t('clients.deleteClient')}
             </h3>
             <p className="text-neutral-600 dark:text-neutral-400 mb-6">
-              Sigur doriți să ștergeți clientul <strong>{clientName}</strong>? Această acțiune va
-              dezactiva clientul.
+              {t('clients.deleteConfirm')} <strong>{clientName}</strong>?{' '}
+              {t('clients.deleteWarning')}
             </p>
             <div className="flex justify-center gap-3">
               <Button variant="secondary" onClick={onClose} disabled={isLoading}>
-                Anulează
+                {t('actions.cancel')}
               </Button>
               <Button variant="danger" onClick={onConfirm} disabled={isLoading} loading={isLoading}>
-                Șterge
+                {t('actions.delete')}
               </Button>
             </div>
           </div>
@@ -233,6 +236,7 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
 
 const ClientsList = () => {
   const { addToast } = useToast();
+  const { t } = useTranslation();
 
   // State
   const [clients, setClients] = useState<Client[]>([]);
@@ -269,7 +273,7 @@ const ClientsList = () => {
       setTotalPages(data.totalPages);
       setTotal(data.total);
     } catch (error: any) {
-      addToast(error.message || 'Eroare la încărcarea clienților', 'error');
+      addToast(error.message || t('clients.errorLoading'), 'error');
     } finally {
       setIsLoading(false);
     }
@@ -308,15 +312,15 @@ const ClientsList = () => {
     try {
       if (selectedClient) {
         await clientsService.updateClient(selectedClient.id, data);
-        addToast('Client actualizat cu succes', 'success');
+        addToast(t('clients.updated'), 'success');
       } else {
         await clientsService.createClient(data as CreateClientData);
-        addToast('Client creat cu succes', 'success');
+        addToast(t('clients.created'), 'success');
       }
       setIsModalOpen(false);
       fetchClients();
     } catch (error: any) {
-      addToast(error.message || 'Eroare la salvarea clientului', 'error');
+      addToast(error.message || t('clients.errorSaving'), 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -328,11 +332,11 @@ const ClientsList = () => {
     setIsSubmitting(true);
     try {
       await clientsService.deleteClient(selectedClient.id);
-      addToast('Client șters cu succes', 'success');
+      addToast(t('clients.deleted'), 'success');
       setIsDeleteModalOpen(false);
       fetchClients();
     } catch (error: any) {
-      addToast(error.message || 'Eroare la ștergerea clientului', 'error');
+      addToast(error.message || t('clients.errorDeleting'), 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -341,11 +345,11 @@ const ClientsList = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'ACTIVE':
-        return <Badge variant="green">Activ</Badge>;
+        return <Badge variant="green">{t('status.active')}</Badge>;
       case 'INACTIVE':
-        return <Badge variant="default">Inactiv</Badge>;
+        return <Badge variant="default">{t('status.inactive')}</Badge>;
       case 'SUSPENDED':
-        return <Badge variant="yellow">Suspendat</Badge>;
+        return <Badge variant="yellow">{t('status.suspended')}</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -356,14 +360,16 @@ const ClientsList = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h3 className="text-2xl font-semibold text-neutral-800 dark:text-neutral-100">Clienți</h3>
+          <h3 className="text-2xl font-semibold text-neutral-800 dark:text-neutral-100">
+            {t('clients.title')}
+          </h3>
           <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-            {total} clienți în total
+            {t('clients.subtitle', { total })}
           </p>
         </div>
         <Button onClick={handleCreate}>
           <PlusIcon className="mr-2 h-4 w-4" />
-          Client Nou
+          {t('clients.newClient')}
         </Button>
       </div>
 
@@ -374,7 +380,7 @@ const ClientsList = () => {
           <div className="flex-1 relative">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
             <Input
-              placeholder="Caută după nume, email, cod fiscal..."
+              placeholder={t('clients.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -390,10 +396,10 @@ const ClientsList = () => {
             }}
             className="px-4 py-2 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-500"
           >
-            <option value="ALL">Toate statusurile</option>
-            <option value="ACTIVE">Activi</option>
-            <option value="INACTIVE">Inactivi</option>
-            <option value="SUSPENDED">Suspendați</option>
+            <option value="ALL">{t('clients.allStatuses')}</option>
+            <option value="ACTIVE">{t('clients.activeClients')}</option>
+            <option value="INACTIVE">{t('clients.inactiveClients')}</option>
+            <option value="SUSPENDED">{t('clients.suspendedClients')}</option>
           </select>
 
           {/* Refresh Button */}
@@ -409,13 +415,13 @@ const ClientsList = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Companie</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Telefon</TableHead>
-                <TableHead>Rezervări</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Acțiuni</TableHead>
+                <TableHead>{t('clients.companyName')}</TableHead>
+                <TableHead>{t('clients.contactPerson')}</TableHead>
+                <TableHead>{t('clients.email')}</TableHead>
+                <TableHead>{t('clients.phone')}</TableHead>
+                <TableHead>{t('clients.bookings')}</TableHead>
+                <TableHead>{t('bookings.status')}</TableHead>
+                <TableHead>{t('users.actionsColumn')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -424,7 +430,7 @@ const ClientsList = () => {
                   <TableCell colSpan={7} className="text-center py-8">
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-5 h-5 border-2 border-accent-500 border-t-transparent rounded-full animate-spin" />
-                      <span className="text-neutral-500">Se încarcă...</span>
+                      <span className="text-neutral-500">{t('clients.loading')}</span>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -433,8 +439,8 @@ const ClientsList = () => {
                   <TableCell colSpan={7} className="text-center py-8">
                     <p className="text-neutral-500 dark:text-neutral-400">
                       {searchTerm || statusFilter !== 'ALL'
-                        ? 'Nu s-au găsit clienți care să corespundă filtrelor'
-                        : 'Nu există clienți încă'}
+                        ? t('clients.noClientsFound')
+                        : t('clients.noClientsYet')}
                     </p>
                   </TableCell>
                 </TableRow>
@@ -460,7 +466,7 @@ const ClientsList = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleEdit(client)}
-                          title="Editează"
+                          title={t('actions.edit')}
                         >
                           <EditIcon className="h-4 w-4" />
                         </Button>
@@ -468,7 +474,7 @@ const ClientsList = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDelete(client)}
-                          title="Șterge"
+                          title={t('actions.delete')}
                           className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
                         >
                           <TrashIcon className="h-4 w-4" />
@@ -486,7 +492,7 @@ const ClientsList = () => {
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-neutral-200 dark:border-neutral-700">
             <p className="text-sm text-neutral-500 dark:text-neutral-400">
-              Pagina {currentPage} din {totalPages} ({total} clienți)
+              {t('clients.pagination', { current: currentPage, total: totalPages, count: total })}
             </p>
             <div className="flex gap-2">
               <Button
@@ -495,7 +501,7 @@ const ClientsList = () => {
                 onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1 || isLoading}
               >
-                Anterior
+                {t('clients.prevPage')}
               </Button>
               <Button
                 variant="secondary"
@@ -503,7 +509,7 @@ const ClientsList = () => {
                 onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages || isLoading}
               >
-                Următor
+                {t('clients.nextPage')}
               </Button>
             </div>
           </div>

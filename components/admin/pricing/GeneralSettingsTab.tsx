@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AdminSettings, AdminSettingsInput } from '../../../services/adminPricing';
 import { WeightRange } from './types';
 import { CONTAINER_TYPES } from './constants';
@@ -45,6 +46,7 @@ const defaultFormData = (): AdminSettingsInput => ({
 });
 
 export function GeneralSettingsTab({ settings, loading, onSave }: GeneralSettingsTabProps) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<AdminSettingsInput>(defaultFormData());
   const [ranges, setRanges] = useState<WeightRange[]>([]);
   const [activeContainerTab, setActiveContainerTab] = useState<string>(CONTAINER_TYPES[0]);
@@ -113,11 +115,7 @@ export function GeneralSettingsTab({ settings, loading, onSave }: GeneralSetting
   };
 
   const resetToDefaults = () => {
-    if (
-      window.confirm(
-        'Resetați toate intervalele la valorile implicite? Modificările nesalvate se vor pierde.'
-      )
-    ) {
+    if (window.confirm(t('pricing.resetConfirm'))) {
       setRanges(buildDefaultRanges());
     }
   };
@@ -129,13 +127,13 @@ export function GeneralSettingsTab({ settings, loading, onSave }: GeneralSetting
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-medium mb-6">Setări Generale de Preț</h3>
+      <h3 className="text-lg font-medium mb-6">{t('pricing.generalSettingsTitle')}</h3>
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Weight Ranges Config */}
         <div className="border-b pb-6">
           <div className="flex justify-between items-center mb-4">
             <h4 className="text-md font-medium text-gray-900">
-              Intervale de Greutate (Per Tip Container)
+              {t('pricing.weightIntervalsTitle')}
             </h4>
             <div className="flex gap-3">
               <button
@@ -143,14 +141,14 @@ export function GeneralSettingsTab({ settings, loading, onSave }: GeneralSetting
                 onClick={resetToDefaults}
                 className="text-sm text-gray-500 hover:text-gray-700 font-medium"
               >
-                Resetează Implicit
+                {t('pricing.resetDefaults')}
               </button>
               <button
                 type="button"
                 onClick={() => addRangeForContainer(activeContainerTab)}
                 className="text-sm text-blue-600 hover:text-blue-800 font-medium"
               >
-                + Adaugă Interval
+                + {t('pricing.addInterval')}
               </button>
             </div>
           </div>
@@ -179,24 +177,24 @@ export function GeneralSettingsTab({ settings, loading, onSave }: GeneralSetting
           <div className="space-y-3 bg-gray-50 p-4 rounded-lg">
             {activeRanges.length === 0 && (
               <p className="text-sm text-gray-500 text-center py-2">
-                Nu există intervale pentru {activeContainerTab}.{' '}
+                {t('pricing.noIntervalsForType', { type: activeContainerTab })}{' '}
                 <button
                   type="button"
                   onClick={() => addRangeForContainer(activeContainerTab)}
                   className="text-blue-600 hover:underline"
                 >
-                  Adaugă primul interval
+                  {t('pricing.addFirstInterval')}
                 </button>
               </p>
             )}
 
             {activeRanges.length > 0 && (
               <div className="grid grid-cols-[1fr_80px_80px_100px_100px_32px_32px] gap-2 items-center text-xs text-gray-500 font-medium px-1 mb-1">
-                <span>Etichetă</span>
-                <span>Min (t)</span>
-                <span>Max (t)</span>
-                <span>+ Maritim ($)</span>
-                <span>+ Terestru ($)</span>
+                <span>{t('pricing.labelCol')}</span>
+                <span>{t('pricing.minTons')}</span>
+                <span>{t('pricing.maxTons')}</span>
+                <span>{t('pricing.maritimeSurcharge')}</span>
+                <span>{t('pricing.terrestrialSurcharge')}</span>
                 <span></span>
                 <span></span>
               </div>
@@ -265,20 +263,16 @@ export function GeneralSettingsTab({ settings, loading, onSave }: GeneralSetting
               </div>
             ))}
           </div>
-          <p className="mt-2 text-xs text-gray-500">
-            Intervale configurate per tip de container (7 intervale implicite: 1-18, 18-23, 23-24,
-            24-25, 25-26, 26-27, 27-28 tone). + Maritim = suprataxa la tariful maritim (USD). +
-            Terestru = suprataxa la transportul terestru (USD).
-          </p>
+          <p className="mt-2 text-xs text-gray-500">{t('pricing.weightIntervalsHint')}</p>
         </div>
 
         {/* Constanța Section */}
         <div className="border-b pb-6">
-          <h4 className="text-md font-medium text-gray-900 mb-4">Constanța (România)</h4>
+          <h4 className="text-md font-medium text-gray-900 mb-4">{t('pricing.constanta')}</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Taxe Portuare (USD)
+                {t('pricing.portTaxes')}
               </label>
               <input
                 type="number"
@@ -292,7 +286,7 @@ export function GeneralSettingsTab({ settings, loading, onSave }: GeneralSetting
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Transport Terestru (USD)
+                {t('pricing.terrestrialTransport')}
               </label>
               <input
                 type="number"
@@ -312,11 +306,11 @@ export function GeneralSettingsTab({ settings, loading, onSave }: GeneralSetting
 
         {/* Odessa Section */}
         <div className="border-b pb-6">
-          <h4 className="text-md font-medium text-gray-900 mb-4">Odessa (Ucraina)</h4>
+          <h4 className="text-md font-medium text-gray-900 mb-4">{t('pricing.odessa')}</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Taxe Portuare (USD)
+                {t('pricing.portTaxes')}
               </label>
               <input
                 type="number"
@@ -330,7 +324,7 @@ export function GeneralSettingsTab({ settings, loading, onSave }: GeneralSetting
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Transport Terestru (USD)
+                {t('pricing.terrestrialTransport')}
               </label>
               <input
                 type="number"
@@ -350,11 +344,11 @@ export function GeneralSettingsTab({ settings, loading, onSave }: GeneralSetting
 
         {/* General Costs */}
         <div className="border-b pb-6">
-          <h4 className="text-md font-medium text-gray-900 mb-4">Costuri Generale</h4>
+          <h4 className="text-md font-medium text-gray-900 mb-4">{t('pricing.generalCosts')}</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Taxe Vamale (USD)
+                {t('pricing.customsTaxes')}
               </label>
               <input
                 type="number"
@@ -367,7 +361,9 @@ export function GeneralSettingsTab({ settings, loading, onSave }: GeneralSetting
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Comision (USD)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('pricing.commission')}
+              </label>
               <input
                 type="number"
                 value={formData.commission}
@@ -380,7 +376,7 @@ export function GeneralSettingsTab({ settings, loading, onSave }: GeneralSetting
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Asigurare (USD)
+                {t('pricing.insurance')}
               </label>
               <input
                 type="number"
@@ -397,10 +393,10 @@ export function GeneralSettingsTab({ settings, loading, onSave }: GeneralSetting
 
         {/* Profit Margin */}
         <div>
-          <h4 className="text-md font-medium text-gray-900 mb-4">Marja de Profit</h4>
+          <h4 className="text-md font-medium text-gray-900 mb-4">{t('pricing.profitMargin')}</h4>
           <div className="max-w-xs">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Procent Profit (%)
+              {t('pricing.profitPercent')}
             </label>
             <input
               type="number"
@@ -422,7 +418,7 @@ export function GeneralSettingsTab({ settings, loading, onSave }: GeneralSetting
             disabled={loading}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
-            {loading ? 'Se salvează...' : 'Salvează Setările'}
+            {loading ? t('actions.saving') : t('pricing.saveSettings')}
           </button>
         </div>
       </form>

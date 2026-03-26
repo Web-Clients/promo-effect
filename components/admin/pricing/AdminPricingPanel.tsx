@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   getBasePrices,
   createBasePrice,
@@ -31,6 +32,7 @@ import { PortAdjustmentsTab } from './PortAdjustmentsTab';
 import { GeneralSettingsTab } from './GeneralSettingsTab';
 
 export function AdminPricingPanel() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>('base-prices');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -121,10 +123,10 @@ export function AdminPricingPanel() {
     try {
       if (editingBasePrice) {
         await updateBasePrice(editingBasePrice.id, data);
-        showMessage('Prețul de bază a fost actualizat');
+        showMessage(t('pricing.basePriceSaved'));
       } else {
         await createBasePrice(data);
-        showMessage('Prețul de bază a fost creat');
+        showMessage(t('pricing.basePriceCreated'));
       }
       setShowBasePriceForm(false);
       setEditingBasePrice(null);
@@ -138,11 +140,11 @@ export function AdminPricingPanel() {
   };
 
   const handleDeleteBasePrice = async (id: string) => {
-    if (!confirm('Sigur doriți să ștergeți acest preț de bază?')) return;
+    if (!confirm(t('pricing.basePriceDeleteConfirm'))) return;
     setLoading(true);
     try {
       await deleteBasePrice(id);
-      showMessage('Prețul de bază a fost șters');
+      showMessage(t('pricing.basePriceDeleted'));
       loadBasePrices();
       loadStats();
     } catch (err: any) {
@@ -161,10 +163,10 @@ export function AdminPricingPanel() {
     try {
       if (editingPortAdjustment) {
         await updatePortAdjustment(editingPortAdjustment.id, data);
-        showMessage('Ajustarea portului a fost actualizată');
+        showMessage(t('pricing.portAdjSaved'));
       } else {
         await createPortAdjustment(data);
-        showMessage('Ajustarea portului a fost creată');
+        showMessage(t('pricing.portAdjCreated'));
       }
       setShowPortAdjustmentForm(false);
       setEditingPortAdjustment(null);
@@ -178,11 +180,11 @@ export function AdminPricingPanel() {
   };
 
   const handleDeletePortAdjustment = async (id: string) => {
-    if (!confirm('Sigur doriți să ștergeți această ajustare?')) return;
+    if (!confirm(t('pricing.portAdjDeleteConfirm'))) return;
     setLoading(true);
     try {
       await deletePortAdjustment(id);
-      showMessage('Ajustarea portului a fost ștearsă');
+      showMessage(t('pricing.portAdjDeleted'));
       loadPortAdjustments();
       loadStats();
     } catch (err: any) {
@@ -200,7 +202,7 @@ export function AdminPricingPanel() {
     setLoading(true);
     try {
       await updateAdminSettings(data);
-      showMessage('Setările au fost salvate');
+      showMessage(t('pricing.savedSuccess'));
       loadAdminSettings();
     } catch (err: any) {
       showMessage(err.message, true);
@@ -213,33 +215,33 @@ export function AdminPricingPanel() {
     <div className="max-w-7xl mx-auto p-6">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Administrare Prețuri</h1>
-        <p className="mt-2 text-gray-600">
-          Gestionați prețurile de bază, ajustările de port și setările generale
-        </p>
+        <h1 className="text-3xl font-bold text-gray-900">{t('pricing.title')}</h1>
+        <p className="mt-2 text-gray-600">{t('pricing.subtitle')}</p>
       </div>
 
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
-            <div className="text-sm font-medium text-gray-500">Total Prețuri</div>
+            <div className="text-sm font-medium text-gray-500">{t('pricing.totalPrices')}</div>
             <div className="mt-1 text-3xl font-semibold text-gray-900">{stats.totalBasePrices}</div>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
-            <div className="text-sm font-medium text-gray-500">Prețuri Active</div>
+            <div className="text-sm font-medium text-gray-500">{t('pricing.activePrices')}</div>
             <div className="mt-1 text-3xl font-semibold text-green-600">
               {stats.activeBasePrices}
             </div>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
-            <div className="text-sm font-medium text-gray-500">Ajustări Port</div>
+            <div className="text-sm font-medium text-gray-500">{t('pricing.portAdjustments')}</div>
             <div className="mt-1 text-3xl font-semibold text-gray-900">
               {stats.totalPortAdjustments}
             </div>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
-            <div className="text-sm font-medium text-gray-500">Companii Transport</div>
+            <div className="text-sm font-medium text-gray-500">
+              {t('pricing.shippingCompanies')}
+            </div>
             <div className="mt-1 text-3xl font-semibold text-blue-600">
               {stats.shippingLinesCount}
             </div>
@@ -270,7 +272,7 @@ export function AdminPricingPanel() {
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            Prețuri de Bază
+            {t('pricing.tabBasePrices')}
           </button>
           <button
             onClick={() => setActiveTab('port-adjustments')}
@@ -280,7 +282,7 @@ export function AdminPricingPanel() {
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            Ajustări Port Origine
+            {t('pricing.tabPortAdjustments')}
           </button>
           <button
             onClick={() => setActiveTab('settings')}
@@ -290,7 +292,7 @@ export function AdminPricingPanel() {
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            Setări Generale
+            {t('pricing.tabSettings')}
           </button>
         </nav>
       </div>

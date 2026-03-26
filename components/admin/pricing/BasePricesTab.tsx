@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { BasePrice, BasePriceInput } from '../../../services/adminPricing';
 import { SHIPPING_LINES, ORIGIN_PORTS, DEST_PORTS, CONTAINER_TYPES } from './constants';
 
@@ -41,6 +42,7 @@ export function BasePricesTab({
   onSave,
   onCancel,
 }: BasePricesTabProps) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<BasePriceInput>(defaultFormData());
 
   useEffect(() => {
@@ -74,13 +76,13 @@ export function BasePricesTab({
     return (
       <div className="bg-white rounded-lg shadow p-6">
         <h3 className="text-lg font-medium mb-4">
-          {editingItem ? 'Editare Preț de Bază' : 'Adăugare Preț de Bază'}
+          {editingItem ? t('pricing.editBasePrice') : t('pricing.addBasePrice')}
         </h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Companie Transport
+                {t('pricing.shippingCompany')}
               </label>
               <select
                 value={formData.shippingLine}
@@ -88,7 +90,7 @@ export function BasePricesTab({
                 required
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="">Selectați...</option>
+                <option value="">{t('pricing.selectOption')}</option>
                 {SHIPPING_LINES.map((line) => (
                   <option key={line} value={line}>
                     {line}
@@ -98,14 +100,16 @@ export function BasePricesTab({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Port Origine</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('pricing.portOrigin')}
+              </label>
               <select
                 value={formData.portOrigin}
                 onChange={(e) => setFormData({ ...formData, portOrigin: e.target.value })}
                 required
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="">Selectați...</option>
+                <option value="">{t('pricing.selectOption')}</option>
                 {ORIGIN_PORTS.map((port) => (
                   <option key={port} value={port}>
                     {port}
@@ -116,7 +120,7 @@ export function BasePricesTab({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Port Destinație
+                {t('pricing.portDestination')}
               </label>
               <select
                 value={formData.portDestination}
@@ -133,7 +137,9 @@ export function BasePricesTab({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tip Container</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('pricing.containerType')}
+              </label>
               <select
                 value={formData.containerType}
                 onChange={(e) => setFormData({ ...formData, containerType: e.target.value })}
@@ -150,7 +156,7 @@ export function BasePricesTab({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Preț de Bază (USD)
+                {t('pricing.basePriceUSD')}
               </label>
               <input
                 type="number"
@@ -166,7 +172,9 @@ export function BasePricesTab({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Zile Tranzit</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('pricing.transitDays')}
+              </label>
               <input
                 type="number"
                 value={formData.transitDays || ''}
@@ -177,11 +185,13 @@ export function BasePricesTab({
                 placeholder="Auto"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
               />
-              <p className="text-xs text-gray-400 mt-1">Lăsați gol pentru calcul automat</p>
+              <p className="text-xs text-gray-400 mt-1">{t('pricing.transitDaysHint')}</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Valid Din</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('pricing.validFrom')}
+              </label>
               <input
                 type="date"
                 value={formData.validFrom}
@@ -192,7 +202,9 @@ export function BasePricesTab({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Valid Până La</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('pricing.validUntil')}
+              </label>
               <input
                 type="date"
                 value={formData.validUntil}
@@ -212,22 +224,20 @@ export function BasePricesTab({
               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
             <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">
-              Preț activ
+              {t('pricing.priceActive')}
             </label>
           </div>
 
           {/* Per-Line Cost Overrides */}
           <div className="border-t pt-4 mt-4">
             <h4 className="text-sm font-medium text-gray-900 mb-2">
-              Costuri Specifice Linie (opțional)
+              {t('pricing.lineSpecificCosts')}
             </h4>
-            <p className="text-xs text-gray-500 mb-3">
-              Lăsați câmpurile goale pentru a folosi valorile globale din Setări Generale
-            </p>
+            <p className="text-xs text-gray-500 mb-3">{t('pricing.lineSpecificHint')}</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Taxe Portuare (USD)
+                  {t('pricing.portTaxes')}
                 </label>
                 <input
                   type="number"
@@ -246,7 +256,7 @@ export function BasePricesTab({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Transport Terestru (USD)
+                  {t('pricing.terrestrialTransport')}
                 </label>
                 <input
                   type="number"
@@ -266,7 +276,7 @@ export function BasePricesTab({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Taxe Vamale (USD)
+                  {t('pricing.customsTaxes')}
                 </label>
                 <input
                   type="number"
@@ -285,7 +295,7 @@ export function BasePricesTab({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Comision (USD)
+                  {t('pricing.commission')}
                 </label>
                 <input
                   type="number"
@@ -311,14 +321,14 @@ export function BasePricesTab({
               onClick={onCancel}
               className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
             >
-              Anulează
+              {t('actions.cancel')}
             </button>
             <button
               type="submit"
               disabled={loading}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? 'Se salvează...' : 'Salvează'}
+              {loading ? t('actions.saving') : t('actions.save')}
             </button>
           </div>
         </form>
@@ -329,12 +339,12 @@ export function BasePricesTab({
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-medium">Prețuri de Bază (Freight)</h3>
+        <h3 className="text-lg font-medium">{t('pricing.basePricesTitle')}</h3>
         <button
           onClick={onShowForm}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
         >
-          + Adaugă Preț
+          + {t('pricing.addPrice')}
         </button>
       </div>
 
@@ -344,31 +354,31 @@ export function BasePricesTab({
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Companie
+                  {t('pricing.companyCol')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Port Origine
+                  {t('pricing.portOriginCol')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Port Dest.
+                  {t('pricing.portDestCol')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Container
+                  {t('pricing.containerCol')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  Preț (USD)
+                  {t('pricing.priceCol')}
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                  Zile
+                  {t('pricing.daysCol')}
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                  Taxe Linie
+                  {t('pricing.lineTaxesCol')}
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                  Status
+                  {t('common.status')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  Acțiuni
+                  {t('common.actions')}
                 </th>
               </tr>
             </thead>
@@ -376,7 +386,7 @@ export function BasePricesTab({
               {basePrices.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
-                    Nu există prețuri de bază. Adăugați primul preț.
+                    {t('pricing.noBasePrices')}
                   </td>
                 </tr>
               ) : (
@@ -430,7 +440,7 @@ export function BasePricesTab({
                             : 'bg-gray-100 text-gray-800'
                         }`}
                       >
-                        {price.isActive ? 'Activ' : 'Inactiv'}
+                        {price.isActive ? t('status.active') : t('status.inactive')}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -438,13 +448,13 @@ export function BasePricesTab({
                         onClick={() => onEdit(price)}
                         className="text-blue-600 hover:text-blue-800 mr-3"
                       >
-                        Editează
+                        {t('actions.edit')}
                       </button>
                       <button
                         onClick={() => onDelete(price.id)}
                         className="text-red-600 hover:text-red-800"
                       >
-                        Șterge
+                        {t('actions.delete')}
                       </button>
                     </td>
                   </tr>

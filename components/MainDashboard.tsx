@@ -1,8 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { User, UserRole } from '../types';
 import KPICard from './KpiCard';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+} from 'recharts';
 import { ShipIcon, PackageIcon, DollarSignIcon, AlertCircleIcon } from './icons';
 import { Card } from './ui/Card';
 import bookingsService, { BookingStatsResponse } from '../services/bookings';
@@ -11,7 +23,8 @@ interface MainDashboardProps {
   user: User;
 }
 
-const generateSparkline = () => Array.from({ length: 10 }, () => ({ value: Math.floor(Math.random() * 100) }));
+const generateSparkline = () =>
+  Array.from({ length: 10 }, () => ({ value: Math.floor(Math.random() * 100) }));
 
 interface KpiData {
   title: string;
@@ -24,7 +37,10 @@ interface KpiData {
 
 const MainDashboard = ({ user }: MainDashboardProps) => {
   const navigate = useNavigate();
-  const isAdminOrManager = [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER].includes(user.role);
+  const { t } = useTranslation();
+  const isAdminOrManager = [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER].includes(
+    user.role
+  );
 
   const [stats, setStats] = useState<BookingStatsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,51 +71,84 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
   }, [user, navigate]);
 
   // Calculate KPIs from real stats
-  const kpis: KpiData[] = isLoading || !stats ? [
-    { title: 'Total Rezervări', value: '...', icon: PackageIcon, change: '...', trend: 'up', sparklineData: generateSparkline() },
-    { title: 'În Tranzit', value: '...', icon: ShipIcon, change: '...', trend: 'up', sparklineData: generateSparkline() },
-    { title: 'Venit Total', value: '...', icon: DollarSignIcon, change: '...', trend: 'up', sparklineData: generateSparkline() },
-    { title: 'Livrate', value: '...', icon: AlertCircleIcon, change: '...', trend: 'down', sparklineData: generateSparkline() },
-  ] : [
-    {
-      title: 'Total Rezervări',
-      value: stats.total,
-      icon: PackageIcon,
-      change: '+12%',
-      trend: 'up',
-      sparklineData: generateSparkline()
-    },
-    {
-      title: 'În Tranzit',
-      value: stats.byStatus['IN_TRANSIT'] || 0,
-      icon: ShipIcon,
-      change: '+5%',
-      trend: 'up',
-      sparklineData: generateSparkline()
-    },
-    {
-      title: 'Venit Total',
-      value: `$${(stats.totalRevenue / 1000).toFixed(0)}k`,
-      icon: DollarSignIcon,
-      change: '+8%',
-      trend: 'up',
-      sparklineData: generateSparkline()
-    },
-    {
-      title: 'Livrate',
-      value: stats.byStatus['DELIVERED'] || 0,
-      icon: AlertCircleIcon,
-      change: '+15%',
-      trend: 'up',
-      sparklineData: generateSparkline()
-    },
-  ];
+  const kpis: KpiData[] =
+    isLoading || !stats
+      ? [
+          {
+            title: t('dashboard.totalBookings'),
+            value: '...',
+            icon: PackageIcon,
+            change: '...',
+            trend: 'up',
+            sparklineData: generateSparkline(),
+          },
+          {
+            title: t('dashboard.inTransit'),
+            value: '...',
+            icon: ShipIcon,
+            change: '...',
+            trend: 'up',
+            sparklineData: generateSparkline(),
+          },
+          {
+            title: t('dashboard.totalRevenue'),
+            value: '...',
+            icon: DollarSignIcon,
+            change: '...',
+            trend: 'up',
+            sparklineData: generateSparkline(),
+          },
+          {
+            title: t('dashboard.delivered'),
+            value: '...',
+            icon: AlertCircleIcon,
+            change: '...',
+            trend: 'down',
+            sparklineData: generateSparkline(),
+          },
+        ]
+      : [
+          {
+            title: t('dashboard.totalBookings'),
+            value: stats.total,
+            icon: PackageIcon,
+            change: '+12%',
+            trend: 'up',
+            sparklineData: generateSparkline(),
+          },
+          {
+            title: t('dashboard.inTransit'),
+            value: stats.byStatus['IN_TRANSIT'] || 0,
+            icon: ShipIcon,
+            change: '+5%',
+            trend: 'up',
+            sparklineData: generateSparkline(),
+          },
+          {
+            title: t('dashboard.totalRevenue'),
+            value: `$${(stats.totalRevenue / 1000).toFixed(0)}k`,
+            icon: DollarSignIcon,
+            change: '+8%',
+            trend: 'up',
+            sparklineData: generateSparkline(),
+          },
+          {
+            title: t('dashboard.delivered'),
+            value: stats.byStatus['DELIVERED'] || 0,
+            icon: AlertCircleIcon,
+            change: '+15%',
+            trend: 'up',
+            sparklineData: generateSparkline(),
+          },
+        ];
 
   // Generate chart data from stats
-  const containersByLine = stats ? Object.entries(stats.byStatus).map(([name, count]) => ({
-    name: name.replace('_', ' '),
-    count
-  })) : [];
+  const containersByLine = stats
+    ? Object.entries(stats.byStatus).map(([name, count]) => ({
+        name: name.replace('_', ' '),
+        count,
+      }))
+    : [];
 
   const weeklyRevenue = [
     { name: 'S1', revenue: stats ? stats.totalRevenue * 0.2 : 0 },
@@ -114,10 +163,10 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-primary-800 dark:text-white font-heading">
-            Bun venit, {user.name}!
+            {t('dashboard.welcomeMessage', { name: user.name })}
           </h1>
           <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-            Iată sumarul activității logistice pentru astăzi
+            {t('dashboard.activitySummary')}
           </p>
         </div>
         <div className="flex items-center gap-2 text-sm text-neutral-500">
@@ -125,14 +174,18 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
             <span className="w-2 h-2 rounded-full bg-accent-500 mr-2 animate-pulse"></span>
             Live
           </span>
-          <span>Actualizat acum</span>
+          <span>{t('dashboard.updatedNow')}</span>
         </div>
       </div>
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         {kpis.map((kpi, index) => (
-          <div key={kpi.title} className="animate-slide-up" style={{ animationDelay: `${index * 100}ms` }}>
+          <div
+            key={kpi.title}
+            className="animate-slide-up"
+            style={{ animationDelay: `${index * 100}ms` }}
+          >
             <KPICard {...kpi} />
           </div>
         ))}
@@ -144,12 +197,19 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
           {/* Weekly Revenue Chart */}
           <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 p-5">
             <div className="flex items-center justify-between mb-4">
-              <h4 className="text-base font-semibold text-primary-800 dark:text-white">Venit Săptămânal</h4>
-              <span className="text-xs text-neutral-400 bg-neutral-100 dark:bg-neutral-700 px-2 py-1 rounded-md">Ultimele 4 săptămâni</span>
+              <h4 className="text-base font-semibold text-primary-800 dark:text-white">
+                {t('dashboard.weeklyRevenue')}
+              </h4>
+              <span className="text-xs text-neutral-400 bg-neutral-100 dark:bg-neutral-700 px-2 py-1 rounded-md">
+                {t('dashboard.lastFourWeeks')}
+              </span>
             </div>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={weeklyRevenue} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                <LineChart
+                  data={weeklyRevenue}
+                  margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
+                >
                   <defs>
                     <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#0A2540" stopOpacity={0.2} />
@@ -157,18 +217,37 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" opacity={0.5} />
-                  <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
+                  <XAxis
+                    dataKey="name"
+                    stroke="var(--text-secondary)"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="var(--text-secondary)"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: '#0A2540',
                       border: 'none',
                       borderRadius: '8px',
                       color: 'white',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                     }}
                   />
-                  <Line type="monotone" dataKey="revenue" name="Venit" stroke="#0A2540" strokeWidth={3} dot={{ fill: '#0A2540', strokeWidth: 2, r: 4 }} activeDot={{ r: 6, fill: '#00C29A' }} />
+                  <Line
+                    type="monotone"
+                    dataKey="revenue"
+                    name={t('dashboard.revenue')}
+                    stroke="#0A2540"
+                    strokeWidth={3}
+                    dot={{ fill: '#0A2540', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, fill: '#00C29A' }}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -177,12 +256,19 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
           {/* Status Distribution Chart */}
           <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 p-5">
             <div className="flex items-center justify-between mb-4">
-              <h4 className="text-base font-semibold text-primary-800 dark:text-white">Status Rezervări</h4>
-              <span className="text-xs text-neutral-400 bg-neutral-100 dark:bg-neutral-700 px-2 py-1 rounded-md">Distribuție</span>
+              <h4 className="text-base font-semibold text-primary-800 dark:text-white">
+                {t('dashboard.bookingsStatus')}
+              </h4>
+              <span className="text-xs text-neutral-400 bg-neutral-100 dark:bg-neutral-700 px-2 py-1 rounded-md">
+                {t('dashboard.distribution')}
+              </span>
             </div>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={containersByLine} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                <BarChart
+                  data={containersByLine}
+                  margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
+                >
                   <defs>
                     <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#00C29A" />
@@ -190,25 +276,43 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" opacity={0.5} />
-                  <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={10} tickLine={false} axisLine={false} angle={-20} textAnchor="end" height={60} />
-                  <YAxis stroke="var(--text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
+                  <XAxis
+                    dataKey="name"
+                    stroke="var(--text-secondary)"
+                    fontSize={10}
+                    tickLine={false}
+                    axisLine={false}
+                    angle={-20}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis
+                    stroke="var(--text-secondary)"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: '#0A2540',
                       border: 'none',
                       borderRadius: '8px',
                       color: 'white',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                     }}
                   />
-                  <Bar dataKey="count" fill="url(#barGradient)" name="Număr" radius={[4, 4, 0, 0]} />
+                  <Bar
+                    dataKey="count"
+                    fill="url(#barGradient)"
+                    name={t('dashboard.count')}
+                    radius={[4, 4, 0, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 };

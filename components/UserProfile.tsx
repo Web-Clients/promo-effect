@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { User } from '../types';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -11,6 +12,7 @@ import authService from '../services/auth';
 
 const UserProfile = ({ user }: { user: User }) => {
   const { addToast } = useToast();
+  const { t } = useTranslation();
 
   // Mock states for form inputs
   const [profile, setProfile] = useState({
@@ -49,17 +51,17 @@ const UserProfile = ({ user }: { user: User }) => {
 
   const handleProfileSave = (e: React.FormEvent) => {
     e.preventDefault();
-    addToast('Profilul a fost actualizat cu succes!', 'success');
+    addToast(t('profile.profileUpdated'), 'success');
   };
 
   const handlePasswordChange = (e: React.FormEvent) => {
     e.preventDefault();
-    addToast('Parola a fost schimbată cu succes!', 'success');
+    addToast(t('profile.passwordChanged'), 'success');
   };
 
   const handleNotificationsSave = (e: React.FormEvent) => {
     e.preventDefault();
-    addToast('Preferințele de notificare au fost salvate!', 'success');
+    addToast(t('profile.notificationsSaved'), 'success');
   };
 
   const handleEnable2FA = async () => {
@@ -69,9 +71,9 @@ const UserProfile = ({ user }: { user: User }) => {
       setQrCodeUrl(result.qrCodeUrl);
       setBackupCodes(result.backupCodes);
       setShowQrCode(true);
-      addToast('QR cod generat! Scanează-l cu aplicația de autentificare.', 'success');
+      addToast(t('profile.qrGenerated'), 'success');
     } catch (error: any) {
-      addToast(error.message || 'Eroare la activarea 2FA', 'error');
+      addToast(error.message || t('errors.saveFailed'), 'error');
     } finally {
       setTwoFactorLoading(false);
     }
@@ -79,7 +81,7 @@ const UserProfile = ({ user }: { user: User }) => {
 
   const handleVerify2FA = async () => {
     if (verificationCode.length !== 6) {
-      addToast('Introdu un cod valid de 6 cifre', 'error');
+      addToast(t('profile.invalidCode'), 'error');
       return;
     }
 
@@ -89,9 +91,9 @@ const UserProfile = ({ user }: { user: User }) => {
       setTwoFactorEnabled(true);
       setShowQrCode(false);
       setVerificationCode('');
-      addToast('2FA activat cu succes!', 'success');
+      addToast(t('profile.twoFactorActivated'), 'success');
     } catch (error: any) {
-      addToast(error.message || 'Cod invalid. Încearcă din nou.', 'error');
+      addToast(error.message || t('profile.invalidCode'), 'error');
     } finally {
       setTwoFactorLoading(false);
     }
@@ -99,7 +101,7 @@ const UserProfile = ({ user }: { user: User }) => {
 
   const handleDisable2FA = async () => {
     if (!disablePassword) {
-      addToast('Introdu parola pentru a dezactiva 2FA', 'error');
+      addToast(t('profile.enterPasswordFor2FA'), 'error');
       return;
     }
 
@@ -110,9 +112,9 @@ const UserProfile = ({ user }: { user: User }) => {
       setDisablePassword('');
       setQrCodeUrl(null);
       setBackupCodes([]);
-      addToast('2FA dezactivat cu succes', 'success');
+      addToast(t('profile.twoFactorDeactivated'), 'success');
     } catch (error: any) {
-      addToast(error.message || 'Eroare la dezactivarea 2FA', 'error');
+      addToast(error.message || t('errors.saveFailed'), 'error');
     } finally {
       setTwoFactorLoading(false);
     }
@@ -122,10 +124,10 @@ const UserProfile = ({ user }: { user: User }) => {
     <div className="space-y-5">
       <div>
         <h3 className="text-2xl font-semibold text-neutral-800 dark:text-neutral-100">
-          Profilul Meu
+          {t('profile.title')}
         </h3>
         <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-          Gestionează informațiile contului tău.
+          {t('profile.subtitle')}
         </p>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -145,17 +147,17 @@ const UserProfile = ({ user }: { user: User }) => {
               variant="secondary"
               size="sm"
               className="w-full mt-6"
-              onClick={() => addToast('Funcționalitate neimplementată.')}
+              onClick={() => addToast(t('profile.notImplemented'))}
             >
-              Editează Profilul
+              {t('profile.editProfile')}
             </Button>
             <div className="text-left mt-6 space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-neutral-500">Status Cont:</span>
-                <Badge variant="green">Activ</Badge>
+                <span className="text-neutral-500">{t('profile.accountStatus')}</span>
+                <Badge variant="green">{t('status.active')}</Badge>
               </div>
               <div className="flex justify-between">
-                <span className="text-neutral-500">Membru din:</span>
+                <span className="text-neutral-500">{t('profile.memberSince')}</span>
                 <span className="font-medium">20 Ian, 2024</span>
               </div>
             </div>
@@ -164,23 +166,23 @@ const UserProfile = ({ user }: { user: User }) => {
         <div className="lg:col-span-2">
           <Tabs defaultValue="settings">
             <TabsList>
-              <TabsTrigger value="settings">Setări Profil</TabsTrigger>
-              <TabsTrigger value="security">Securitate</TabsTrigger>
-              <TabsTrigger value="notifications">Notificări</TabsTrigger>
+              <TabsTrigger value="settings">{t('profile.tabSettings')}</TabsTrigger>
+              <TabsTrigger value="security">{t('profile.tabSecurity')}</TabsTrigger>
+              <TabsTrigger value="notifications">{t('profile.tabNotifications')}</TabsTrigger>
             </TabsList>
             <TabsContent value="settings">
               <Card>
                 <form onSubmit={handleProfileSave} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-medium">Nume</label>
+                      <label className="text-sm font-medium">{t('profile.firstName')}</label>
                       <Input
                         value={profile.firstName}
                         onChange={(e) => setProfile({ ...profile, firstName: e.target.value })}
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-medium">Prenume</label>
+                      <label className="text-sm font-medium">{t('profile.lastName')}</label>
                       <Input
                         value={profile.lastName}
                         onChange={(e) => setProfile({ ...profile, lastName: e.target.value })}
@@ -188,18 +190,18 @@ const UserProfile = ({ user }: { user: User }) => {
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Email</label>
+                    <label className="text-sm font-medium">{t('profile.email')}</label>
                     <Input value={user.email} disabled />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Număr de Telefon</label>
+                    <label className="text-sm font-medium">{t('profile.phoneNumber')}</label>
                     <Input
                       value={profile.phone}
                       onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
                     />
                   </div>
                   <div className="text-right">
-                    <Button type="submit">Salvează Modificările</Button>
+                    <Button type="submit">{t('profile.saveChanges')}</Button>
                   </div>
                 </form>
               </Card>
@@ -208,32 +210,30 @@ const UserProfile = ({ user }: { user: User }) => {
               <Card>
                 <form onSubmit={handlePasswordChange} className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium">Parola Curentă</label>
+                    <label className="text-sm font-medium">{t('profile.currentPassword')}</label>
                     <Input type="password" placeholder="••••••••" />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Parola Nouă</label>
+                    <label className="text-sm font-medium">{t('profile.newPassword')}</label>
                     <Input type="password" placeholder="••••••••" />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Confirmă Parola Nouă</label>
+                    <label className="text-sm font-medium">{t('profile.confirmNewPassword')}</label>
                     <Input type="password" placeholder="••••••••" />
                   </div>
                   <div className="text-right">
-                    <Button type="submit">Schimbă Parola</Button>
+                    <Button type="submit">{t('profile.changePassword')}</Button>
                   </div>
                 </form>
                 <div className="border-t my-6"></div>
                 <div className="space-y-4">
-                  <h4 className="text-base font-semibold mb-2">Autentificare cu 2 Factori (2FA)</h4>
+                  <h4 className="text-base font-semibold mb-2">{t('profile.twoFactor')}</h4>
 
                   {!twoFactorEnabled && !showQrCode && (
                     <div className="flex items-center justify-between p-3 bg-neutral-50 dark:bg-neutral-700/50 rounded-lg">
                       <div>
-                        <p className="font-medium text-sm">Activează 2FA</p>
-                        <p className="text-xs text-neutral-500">
-                          Adaugă un strat suplimentar de securitate contului tău.
-                        </p>
+                        <p className="font-medium text-sm">{t('profile.enable2FA')}</p>
+                        <p className="text-xs text-neutral-500">{t('profile.enable2FADesc')}</p>
                       </div>
                       <Button
                         variant="primary"
@@ -242,7 +242,7 @@ const UserProfile = ({ user }: { user: User }) => {
                         disabled={twoFactorLoading}
                         loading={twoFactorLoading}
                       >
-                        Activează
+                        {t('profile.activate')}
                       </Button>
                     </div>
                   )}
@@ -250,10 +250,9 @@ const UserProfile = ({ user }: { user: User }) => {
                   {showQrCode && !twoFactorEnabled && (
                     <Card className="p-6 space-y-4">
                       <div>
-                        <h5 className="font-semibold mb-2">Pasul 1: Scanează QR codul</h5>
+                        <h5 className="font-semibold mb-2">{t('profile.step1')}</h5>
                         <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
-                          Deschide aplicația de autentificare (Google Authenticator, Microsoft
-                          Authenticator, etc.) și scanează acest QR cod:
+                          {t('profile.step1Desc')}
                         </p>
                         {qrCodeUrl && (
                           <div className="flex justify-center mb-4">
@@ -267,10 +266,9 @@ const UserProfile = ({ user }: { user: User }) => {
                       </div>
 
                       <div>
-                        <h5 className="font-semibold mb-2">Pasul 2: Verifică codul</h5>
+                        <h5 className="font-semibold mb-2">{t('profile.step2')}</h5>
                         <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
-                          Introdu codul de 6 cifre din aplicația de autentificare pentru a activa
-                          2FA:
+                          {t('profile.step2Desc')}
                         </p>
                         <div className="flex gap-2">
                           <Input
@@ -292,7 +290,7 @@ const UserProfile = ({ user }: { user: User }) => {
                             disabled={verificationCode.length !== 6 || twoFactorLoading}
                             loading={twoFactorLoading}
                           >
-                            Verifică
+                            {t('profile.verify')}
                           </Button>
                         </div>
                       </div>
@@ -300,11 +298,10 @@ const UserProfile = ({ user }: { user: User }) => {
                       {backupCodes.length > 0 && (
                         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
                           <p className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-2">
-                            ⚠️ Salvează aceste coduri de backup într-un loc sigur!
+                            ⚠️ {t('profile.backupCodesTitle')}
                           </p>
                           <p className="text-xs text-amber-700 dark:text-amber-400 mb-3">
-                            Poți folosi aceste coduri pentru a te autentifica dacă pierzi accesul la
-                            aplicația de autentificare.
+                            {t('profile.backupCodesDesc')}
                           </p>
                           <div className="grid grid-cols-2 gap-2 font-mono text-sm">
                             {backupCodes.map((code, idx) => (
@@ -329,7 +326,7 @@ const UserProfile = ({ user }: { user: User }) => {
                           setVerificationCode('');
                         }}
                       >
-                        Anulează
+                        {t('actions.cancel')}
                       </Button>
                     </Card>
                   )}
@@ -339,24 +336,24 @@ const UserProfile = ({ user }: { user: User }) => {
                       <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
                         <div>
                           <p className="font-medium text-sm text-green-800 dark:text-green-300">
-                            2FA este activat
+                            {t('profile.twoFactorEnabled')}
                           </p>
                           <p className="text-xs text-green-600 dark:text-green-400">
-                            Contul tău este protejat cu autentificare cu doi factori.
+                            {t('profile.twoFactorEnabledDesc')}
                           </p>
                         </div>
                         <Badge variant="green">Activ</Badge>
                       </div>
 
                       <Card className="p-4">
-                        <h5 className="font-semibold mb-3">Dezactivează 2FA</h5>
+                        <h5 className="font-semibold mb-3">{t('profile.disable2FA')}</h5>
                         <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
-                          Pentru a dezactiva 2FA, introdu parola ta actuală:
+                          {t('profile.disable2FADesc')}
                         </p>
                         <div className="flex gap-2">
                           <Input
                             type="password"
-                            placeholder="Parola ta actuală"
+                            placeholder={t('profile.currentPasswordPlaceholder')}
                             value={disablePassword}
                             onChange={(e) => setDisablePassword(e.target.value)}
                             className="flex-1"
@@ -367,7 +364,7 @@ const UserProfile = ({ user }: { user: User }) => {
                             disabled={!disablePassword || twoFactorLoading}
                             loading={twoFactorLoading}
                           >
-                            Dezactivează
+                            {t('profile.deactivate')}
                           </Button>
                         </div>
                       </Card>
@@ -381,10 +378,8 @@ const UserProfile = ({ user }: { user: User }) => {
                 <form onSubmit={handleNotificationsSave} className="space-y-4">
                   <div className="flex items-center justify-between p-3 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-700/50">
                     <div>
-                      <p className="font-medium text-sm">Alerte pe Email</p>
-                      <p className="text-xs text-neutral-500">
-                        Primește notificări importante direct pe email.
-                      </p>
+                      <p className="font-medium text-sm">{t('profile.emailAlerts')}</p>
+                      <p className="text-xs text-neutral-500">{t('profile.emailAlertsDesc')}</p>
                     </div>
                     <Switch
                       checked={notifications.email}
@@ -393,8 +388,10 @@ const UserProfile = ({ user }: { user: User }) => {
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-700/50">
                     <div>
-                      <p className="font-medium text-sm">Notificări SMS</p>
-                      <p className="text-xs text-neutral-500">Primește alerte urgente prin SMS.</p>
+                      <p className="font-medium text-sm">{t('profile.smsNotifications')}</p>
+                      <p className="text-xs text-neutral-500">
+                        {t('profile.smsNotificationsDesc')}
+                      </p>
                     </div>
                     <Switch
                       checked={notifications.sms}
@@ -403,9 +400,9 @@ const UserProfile = ({ user }: { user: User }) => {
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-700/50">
                     <div>
-                      <p className="font-medium text-sm">Newsletter Săptămânal</p>
+                      <p className="font-medium text-sm">{t('profile.weeklyNewsletter')}</p>
                       <p className="text-xs text-neutral-500">
-                        Primește un sumar al activității și noutăți.
+                        {t('profile.weeklyNewsletterDesc')}
                       </p>
                     </div>
                     <Switch
@@ -414,7 +411,7 @@ const UserProfile = ({ user }: { user: User }) => {
                     />
                   </div>
                   <div className="text-right pt-2">
-                    <Button type="submit">Salvează Preferințele</Button>
+                    <Button type="submit">{t('profile.savePreferences')}</Button>
                   </div>
                 </form>
               </Card>

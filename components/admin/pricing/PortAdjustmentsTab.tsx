@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PortAdjustment, PortAdjustmentInput } from '../../../services/adminPricing';
 import { ORIGIN_PORTS } from './constants';
 
@@ -31,6 +32,7 @@ export function PortAdjustmentsTab({
   onSave,
   onCancel,
 }: PortAdjustmentsTabProps) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState<PortAdjustmentInput>(defaultFormData());
 
   useEffect(() => {
@@ -54,18 +56,20 @@ export function PortAdjustmentsTab({
     return (
       <div className="bg-white rounded-lg shadow p-6">
         <h3 className="text-lg font-medium mb-4">
-          {editingItem ? 'Editare Ajustare Port' : 'Adăugare Ajustare Port'}
+          {editingItem ? t('pricing.editPortAdjustment') : t('pricing.addPortAdjustment')}
         </h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Port Origine</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t('pricing.portOrigin')}
+            </label>
             <select
               value={formData.portName}
               onChange={(e) => setFormData({ ...formData, portName: e.target.value })}
               required
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="">Selectați...</option>
+              <option value="">{t('pricing.selectOption')}</option>
               {ORIGIN_PORTS.map((port) => (
                 <option key={port} value={port}>
                   {port}
@@ -76,7 +80,7 @@ export function PortAdjustmentsTab({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Ajustare Preț (USD)
+              {t('pricing.adjustment')}
             </label>
             <input
               type="number"
@@ -88,19 +92,19 @@ export function PortAdjustmentsTab({
               step="0.01"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
             />
-            <p className="mt-1 text-sm text-gray-500">
-              Valoare pozitivă pentru adăugare, negativă pentru reducere
-            </p>
+            <p className="mt-1 text-sm text-gray-500">{t('pricing.adjustmentHint')}</p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t('pricing.notesCol')}
+            </label>
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={3}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Note opționale..."
+              placeholder={t('pricing.notesOptional')}
             />
           </div>
 
@@ -110,14 +114,14 @@ export function PortAdjustmentsTab({
               onClick={onCancel}
               className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
             >
-              Anulează
+              {t('actions.cancel')}
             </button>
             <button
               type="submit"
               disabled={loading}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? 'Se salvează...' : 'Salvează'}
+              {loading ? t('actions.saving') : t('actions.save')}
             </button>
           </div>
         </form>
@@ -129,16 +133,14 @@ export function PortAdjustmentsTab({
     <div>
       <div className="flex justify-between items-center mb-4">
         <div>
-          <h3 className="text-lg font-medium">Ajustări Port Origine</h3>
-          <p className="text-sm text-gray-500">
-            Ajustări de preț bazate pe portul de origine din China
-          </p>
+          <h3 className="text-lg font-medium">{t('pricing.portAdjustmentsTitle')}</h3>
+          <p className="text-sm text-gray-500">{t('pricing.portAdjustmentsDesc')}</p>
         </div>
         <button
           onClick={onShowForm}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
         >
-          + Adaugă Ajustare
+          + {t('pricing.addAdjustment')}
         </button>
       </div>
 
@@ -147,16 +149,16 @@ export function PortAdjustmentsTab({
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Port
+                {t('pricing.portCol')}
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                Ajustare (USD)
+                {t('pricing.adjustmentCol')}
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Note
+                {t('pricing.notesCol')}
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                Acțiuni
+                {t('common.actions')}
               </th>
             </tr>
           </thead>
@@ -164,7 +166,7 @@ export function PortAdjustmentsTab({
             {portAdjustments.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
-                  Nu există ajustări de port. Adăugați prima ajustare.
+                  {t('pricing.noPortAdjustments')}
                 </td>
               </tr>
             ) : (
@@ -182,13 +184,13 @@ export function PortAdjustmentsTab({
                       onClick={() => onEdit(adj)}
                       className="text-blue-600 hover:text-blue-800 mr-3"
                     >
-                      Editează
+                      {t('actions.edit')}
                     </button>
                     <button
                       onClick={() => onDelete(adj.id)}
                       className="text-red-600 hover:text-red-800"
                     >
-                      Șterge
+                      {t('actions.delete')}
                     </button>
                   </td>
                 </tr>

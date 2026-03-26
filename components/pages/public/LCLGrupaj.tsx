@@ -17,6 +17,7 @@ const LCLGrupaj = ({ onLoginRedirect }: { onLoginRedirect: () => void }) => (
             src="/assets/generated/trade_routes_neon_1773224386483.png"
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
             alt="Hub Network"
+            loading="lazy"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#050608] via-transparent" />
           <div className="absolute bottom-6 left-6 space-y-2">

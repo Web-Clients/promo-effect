@@ -58,6 +58,7 @@ const Depozitare = ({ onLoginRedirect }: { onLoginRedirect: () => void }) => (
             src="/assets/generated/modern_warehouse_tech_1773224152286.png"
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
             alt="AI Warehouse"
+            loading="lazy"
           />
           <div className="absolute inset-0 bg-primary-500/5 mix-blend-overlay" />
           <div className="absolute top-6 left-6 px-4 py-1 bg-white/5 backdrop-blur-md rounded-full border border-white/10 text-[10px] text-white font-black italic uppercase tracking-widest">

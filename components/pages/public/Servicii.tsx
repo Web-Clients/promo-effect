@@ -75,6 +75,7 @@ const Servicii = ({ onLoginRedirect }: { onLoginRedirect: () => void }) => (
             src="/assets/generated/modern_warehouse_tech_1773224152286.png"
             className="w-full h-full object-cover grayscale opacity-50"
             alt="Warehousing"
+            loading="lazy"
           />
         </div>
       </div>

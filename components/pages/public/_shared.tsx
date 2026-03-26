@@ -21,7 +21,12 @@ export const PageHero = ({ subtitle, title, description, image }: any) => (
   <section className="relative h-[60vh] flex items-center justify-center overflow-hidden">
     <div className="absolute inset-0 z-0">
       <div className="absolute inset-0 bg-gradient-to-b from-[#050608]/80 via-[#050608]/40 to-[#050608] z-10" />
-      <img src={image} className="w-full h-full object-cover grayscale opacity-40" alt={title} />
+      <img
+        src={image}
+        className="w-full h-full object-cover grayscale opacity-40"
+        alt={title}
+        loading="lazy"
+      />
     </div>
     <div className="relative z-20 text-center max-w-4xl px-6">
       <motion.span

@@ -57,6 +57,7 @@ const ConsultantaChina = ({ onLoginRedirect }: { onLoginRedirect: () => void }) 
             src="/assets/generated/consultation_futuristic_1773224405458.png"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
             alt="Sourcing Audit"
+            loading="lazy"
           />
           <div className="absolute inset-0 bg-primary-500/5" />
         </div>

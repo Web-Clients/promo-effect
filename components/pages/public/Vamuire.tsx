@@ -18,6 +18,7 @@ const Vamuire = ({ onLoginRedirect }: { onLoginRedirect: () => void }) => (
             src="/assets/generated/smart_logistics_dashboard_mockup_1773224135612.png"
             className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-1000"
             alt="Customs HUD"
+            loading="lazy"
           />
           <div className="absolute inset-0 bg-primary-500/10 pointer-events-none" />
           <div className="absolute top-4 right-4 px-3 py-1 bg-primary-600 rounded text-[8px] text-white font-black italic uppercase tracking-[0.2em]">

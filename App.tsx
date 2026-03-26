@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, Navigate, Outlet, useLocation } from 'react-router-dom';
 import Login from './components/Login';
 import Register from './components/Register';
@@ -7,28 +7,36 @@ import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
 import LandingPage from './components/LandingPage';
 import DashboardLayout from './components/DashboardLayout';
-import MainDashboard from './components/MainDashboard';
-import BookingsList from './components/BookingsList';
-import BookingDetail from './components/BookingDetail';
-import TrackingView from './components/TrackingView';
-import PriceCalculator from './components/PriceCalculator';
-import EmailParserAssistant from './components/EmailParserAssistant';
-import AIEmailParser from './components/AIEmailParser';
-import ClientsList from './components/ClientsList';
-import InvoicesList from './components/InvoicesList';
-import ReportsPage from './components/ReportsPage';
-import AdminSettingsPage from './components/AdminSettingsPage';
-import AdminPricingPanel from './components/AdminPricingPanel';
-import AgentsPanel from './components/AgentsPanel';
-import UserProfile from './components/UserProfile';
-import AdminDashboard from './components/AdminDashboard';
-import AgentPricesDashboard from './components/AgentPricesDashboard';
-import AdminPriceApproval from './components/AdminPriceApproval';
-import AdminPortsManager from './components/AdminPortsManager';
-import ContainersInTransit from './components/ContainersInTransit';
-import ShippingLinesPage from './components/ShippingLinesPage';
-import TransportRatesPage from './components/TransportRatesPage';
-import UserManagement from './components/UserManagement';
+
+// Lazy-loaded dashboard components (loaded on demand)
+const MainDashboard = lazy(() => import('./components/MainDashboard'));
+const BookingsList = lazy(() => import('./components/BookingsList'));
+const BookingDetail = lazy(() => import('./components/BookingDetail'));
+const TrackingView = lazy(() => import('./components/TrackingView'));
+const PriceCalculator = lazy(() => import('./components/PriceCalculator'));
+const EmailParserAssistant = lazy(() => import('./components/EmailParserAssistant'));
+const AIEmailParser = lazy(() => import('./components/AIEmailParser'));
+const ClientsList = lazy(() => import('./components/ClientsList'));
+const InvoicesList = lazy(() => import('./components/InvoicesList'));
+const ReportsPage = lazy(() => import('./components/ReportsPage'));
+const AdminSettingsPage = lazy(() => import('./components/AdminSettingsPage'));
+const AdminPricingPanel = lazy(() => import('./components/AdminPricingPanel'));
+const AgentsPanel = lazy(() => import('./components/AgentsPanel'));
+const UserProfile = lazy(() => import('./components/UserProfile'));
+const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+const AgentPricesDashboard = lazy(() => import('./components/AgentPricesDashboard'));
+const AdminPriceApproval = lazy(() => import('./components/AdminPriceApproval'));
+const AdminPortsManager = lazy(() => import('./components/AdminPortsManager'));
+const ContainersInTransit = lazy(() => import('./components/ContainersInTransit'));
+const ShippingLinesPage = lazy(() => import('./components/ShippingLinesPage'));
+const TransportRatesPage = lazy(() => import('./components/TransportRatesPage'));
+const UserManagement = lazy(() => import('./components/UserManagement'));
+
+const DashboardFallback = () => (
+  <div className="flex items-center justify-center h-64">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+  </div>
+);
 import { User, Booking } from './types';
 import { ToastProvider } from './components/ui/Toast';
 import authService from './services/auth';
@@ -259,31 +267,33 @@ const App = () => {
               </ProtectedRoute>
             }
           >
-            <Route index element={<MainDashboard user={user!} />} />
-            <Route path="bookings" element={<BookingsList user={user!} />} />
-            <Route path="bookings/:bookingId" element={<BookingDetail user={user!} />} />
-            <Route path="tracking" element={<TrackingView />} />
-            <Route path="containers-transit" element={<ContainersInTransit />} />
-            <Route path="calculator" element={<PriceCalculator user={user!} />} />
-            <Route
-              path="emailParser"
-              element={<EmailParserAssistant onBookingCreate={handleNewBooking} />}
-            />
-            <Route path="ai-parser" element={<AIEmailParser />} />
-            <Route path="clients" element={<ClientsList />} />
-            <Route path="invoices" element={<InvoicesList />} />
-            <Route path="reports" element={<ReportsPage />} />
-            <Route path="adminSettings" element={<AdminSettingsPage />} />
-            <Route path="admin-pricing" element={<AdminPricingPanel />} />
-            <Route path="shipping-lines" element={<ShippingLinesPage />} />
-            <Route path="transport-rates" element={<TransportRatesPage />} />
-            <Route path="agents" element={<AgentsPanel />} />
-            <Route path="admin-panel" element={<AdminDashboard />} />
-            <Route path="my-prices" element={<AgentPricesDashboard />} />
-            <Route path="price-approval" element={<AdminPriceApproval />} />
-            <Route path="ports-manager" element={<AdminPortsManager />} />
-            <Route path="user-management" element={<UserManagement currentUser={user!} />} />
-            <Route path="userProfile" element={<UserProfile user={user!} />} />
+            <Suspense fallback={<DashboardFallback />}>
+              <Route index element={<MainDashboard user={user!} />} />
+              <Route path="bookings" element={<BookingsList user={user!} />} />
+              <Route path="bookings/:bookingId" element={<BookingDetail user={user!} />} />
+              <Route path="tracking" element={<TrackingView />} />
+              <Route path="containers-transit" element={<ContainersInTransit />} />
+              <Route path="calculator" element={<PriceCalculator user={user!} />} />
+              <Route
+                path="emailParser"
+                element={<EmailParserAssistant onBookingCreate={handleNewBooking} />}
+              />
+              <Route path="ai-parser" element={<AIEmailParser />} />
+              <Route path="clients" element={<ClientsList />} />
+              <Route path="invoices" element={<InvoicesList />} />
+              <Route path="reports" element={<ReportsPage />} />
+              <Route path="adminSettings" element={<AdminSettingsPage />} />
+              <Route path="admin-pricing" element={<AdminPricingPanel />} />
+              <Route path="shipping-lines" element={<ShippingLinesPage />} />
+              <Route path="transport-rates" element={<TransportRatesPage />} />
+              <Route path="agents" element={<AgentsPanel />} />
+              <Route path="admin-panel" element={<AdminDashboard />} />
+              <Route path="my-prices" element={<AgentPricesDashboard />} />
+              <Route path="price-approval" element={<AdminPriceApproval />} />
+              <Route path="ports-manager" element={<AdminPortsManager />} />
+              <Route path="user-management" element={<UserManagement currentUser={user!} />} />
+              <Route path="userProfile" element={<UserProfile user={user!} />} />
+            </Suspense>
           </Route>
 
           <Route path="*" element={<NotFoundPage />} />

@@ -177,11 +177,19 @@ app.use(
   })
 );
 
-// TODO: Implement a proper error handling middleware
+// Error handling middleware
 // FIX: Using explicitly imported Request, Response, and NextFunction types to fix 'status' property not found error.
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!' });
+app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+  console.error(`[${new Date().toISOString()}] ${req.method} ${req.path}:`, err.message);
+
+  const statusCode = (err as any).statusCode || 500;
+  const message = process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message;
+
+  res.status(statusCode).json({
+    success: false,
+    error: message,
+    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
+  });
 });
 
 export default app;

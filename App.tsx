@@ -33,6 +33,8 @@ import { User, Booking } from './types';
 import { ToastProvider } from './components/ui/Toast';
 import authService from './services/auth';
 import { tokenManager } from './services/api';
+import { ErrorBoundary } from './components/shared/ErrorBoundary';
+import NotFoundPage from './components/pages/NotFoundPage';
 import {
   Servicii,
   Preturi,
@@ -175,106 +177,118 @@ const App = () => {
   return (
     <ToastProvider>
       <RouteObserver />
-      <Routes>
-        <Route path="/" element={<LandingPage onLoginRedirect={() => navigate('/login')} />} />
-        <Route
-          path="/login"
-          element={user ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />}
-        />
-        <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <Register />} />
-        <Route path="/verify-email" element={<VerifyEmail />} />
-        <Route
-          path="/forgot-password"
-          element={user ? <Navigate to="/dashboard" /> : <ForgotPassword />}
-        />
-        <Route
-          path="/reset-password"
-          element={user ? <Navigate to="/dashboard" /> : <ResetPassword />}
-        />
-
-        {/* Public Pages */}
-        <Route path="/servicii" element={<Servicii onLoginRedirect={() => navigate('/login')} />} />
-        <Route path="/preturi" element={<Preturi onLoginRedirect={() => navigate('/login')} />} />
-        <Route
-          path="/calcul-prompt"
-          element={<CalculPrompt onLoginRedirect={() => navigate('/login')} />}
-        />
-        <Route path="/despre" element={<Despre onLoginRedirect={() => navigate('/login')} />} />
-        <Route path="/contact" element={<Contact onLoginRedirect={() => navigate('/login')} />} />
-        <Route path="/resurse" element={<Resurse onLoginRedirect={() => navigate('/login')} />} />
-        <Route
-          path="/ghid-import"
-          element={<GhidImport onLoginRedirect={() => navigate('/login')} />}
-        />
-        <Route path="/faq" element={<FAQ onLoginRedirect={() => navigate('/login')} />} />
-        <Route path="/termeni" element={<Termeni onLoginRedirect={() => navigate('/login')} />} />
-        <Route path="/politica" element={<Politica onLoginRedirect={() => navigate('/login')} />} />
-        <Route path="/cookies" element={<Cookies onLoginRedirect={() => navigate('/login')} />} />
-
-        {/* Services Detail Pages */}
-        <Route
-          path="/servicii/fcl"
-          element={<FCLTransport onLoginRedirect={() => navigate('/login')} />}
-        />
-        <Route
-          path="/servicii/lcl"
-          element={<LCLGrupaj onLoginRedirect={() => navigate('/login')} />}
-        />
-        <Route
-          path="/servicii/consultanta"
-          element={<ConsultantaChina onLoginRedirect={() => navigate('/login')} />}
-        />
-        <Route
-          path="/servicii/vamuire"
-          element={<Vamuire onLoginRedirect={() => navigate('/login')} />}
-        />
-        <Route
-          path="/servicii/depozitare"
-          element={<Depozitare onLoginRedirect={() => navigate('/login')} />}
-        />
-
-        {/* Company Detail Pages */}
-        <Route path="/cariere" element={<Cariere onLoginRedirect={() => navigate('/login')} />} />
-
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute user={user}>
-              <DashboardLayout user={user!} onLogout={handleLogout} onNewBooking={handleNewBooking}>
-                <Outlet />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<MainDashboard user={user!} />} />
-          <Route path="bookings" element={<BookingsList user={user!} />} />
-          <Route path="bookings/:bookingId" element={<BookingDetail user={user!} />} />
-          <Route path="tracking" element={<TrackingView />} />
-          <Route path="containers-transit" element={<ContainersInTransit />} />
-          <Route path="calculator" element={<PriceCalculator user={user!} />} />
+      <ErrorBoundary>
+        <Routes>
+          <Route path="/" element={<LandingPage onLoginRedirect={() => navigate('/login')} />} />
           <Route
-            path="emailParser"
-            element={<EmailParserAssistant onBookingCreate={handleNewBooking} />}
+            path="/login"
+            element={user ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />}
           />
-          <Route path="ai-parser" element={<AIEmailParser />} />
-          <Route path="clients" element={<ClientsList />} />
-          <Route path="invoices" element={<InvoicesList />} />
-          <Route path="reports" element={<ReportsPage />} />
-          <Route path="adminSettings" element={<AdminSettingsPage />} />
-          <Route path="admin-pricing" element={<AdminPricingPanel />} />
-          <Route path="shipping-lines" element={<ShippingLinesPage />} />
-          <Route path="transport-rates" element={<TransportRatesPage />} />
-          <Route path="agents" element={<AgentsPanel />} />
-          <Route path="admin-panel" element={<AdminDashboard />} />
-          <Route path="my-prices" element={<AgentPricesDashboard />} />
-          <Route path="price-approval" element={<AdminPriceApproval />} />
-          <Route path="ports-manager" element={<AdminPortsManager />} />
-          <Route path="user-management" element={<UserManagement currentUser={user!} />} />
-          <Route path="userProfile" element={<UserProfile user={user!} />} />
-        </Route>
+          <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <Register />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route
+            path="/forgot-password"
+            element={user ? <Navigate to="/dashboard" /> : <ForgotPassword />}
+          />
+          <Route
+            path="/reset-password"
+            element={user ? <Navigate to="/dashboard" /> : <ResetPassword />}
+          />
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Public Pages */}
+          <Route
+            path="/servicii"
+            element={<Servicii onLoginRedirect={() => navigate('/login')} />}
+          />
+          <Route path="/preturi" element={<Preturi onLoginRedirect={() => navigate('/login')} />} />
+          <Route
+            path="/calcul-prompt"
+            element={<CalculPrompt onLoginRedirect={() => navigate('/login')} />}
+          />
+          <Route path="/despre" element={<Despre onLoginRedirect={() => navigate('/login')} />} />
+          <Route path="/contact" element={<Contact onLoginRedirect={() => navigate('/login')} />} />
+          <Route path="/resurse" element={<Resurse onLoginRedirect={() => navigate('/login')} />} />
+          <Route
+            path="/ghid-import"
+            element={<GhidImport onLoginRedirect={() => navigate('/login')} />}
+          />
+          <Route path="/faq" element={<FAQ onLoginRedirect={() => navigate('/login')} />} />
+          <Route path="/termeni" element={<Termeni onLoginRedirect={() => navigate('/login')} />} />
+          <Route
+            path="/politica"
+            element={<Politica onLoginRedirect={() => navigate('/login')} />}
+          />
+          <Route path="/cookies" element={<Cookies onLoginRedirect={() => navigate('/login')} />} />
+
+          {/* Services Detail Pages */}
+          <Route
+            path="/servicii/fcl"
+            element={<FCLTransport onLoginRedirect={() => navigate('/login')} />}
+          />
+          <Route
+            path="/servicii/lcl"
+            element={<LCLGrupaj onLoginRedirect={() => navigate('/login')} />}
+          />
+          <Route
+            path="/servicii/consultanta"
+            element={<ConsultantaChina onLoginRedirect={() => navigate('/login')} />}
+          />
+          <Route
+            path="/servicii/vamuire"
+            element={<Vamuire onLoginRedirect={() => navigate('/login')} />}
+          />
+          <Route
+            path="/servicii/depozitare"
+            element={<Depozitare onLoginRedirect={() => navigate('/login')} />}
+          />
+
+          {/* Company Detail Pages */}
+          <Route path="/cariere" element={<Cariere onLoginRedirect={() => navigate('/login')} />} />
+
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute user={user}>
+                <DashboardLayout
+                  user={user!}
+                  onLogout={handleLogout}
+                  onNewBooking={handleNewBooking}
+                >
+                  <Outlet />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<MainDashboard user={user!} />} />
+            <Route path="bookings" element={<BookingsList user={user!} />} />
+            <Route path="bookings/:bookingId" element={<BookingDetail user={user!} />} />
+            <Route path="tracking" element={<TrackingView />} />
+            <Route path="containers-transit" element={<ContainersInTransit />} />
+            <Route path="calculator" element={<PriceCalculator user={user!} />} />
+            <Route
+              path="emailParser"
+              element={<EmailParserAssistant onBookingCreate={handleNewBooking} />}
+            />
+            <Route path="ai-parser" element={<AIEmailParser />} />
+            <Route path="clients" element={<ClientsList />} />
+            <Route path="invoices" element={<InvoicesList />} />
+            <Route path="reports" element={<ReportsPage />} />
+            <Route path="adminSettings" element={<AdminSettingsPage />} />
+            <Route path="admin-pricing" element={<AdminPricingPanel />} />
+            <Route path="shipping-lines" element={<ShippingLinesPage />} />
+            <Route path="transport-rates" element={<TransportRatesPage />} />
+            <Route path="agents" element={<AgentsPanel />} />
+            <Route path="admin-panel" element={<AdminDashboard />} />
+            <Route path="my-prices" element={<AgentPricesDashboard />} />
+            <Route path="price-approval" element={<AdminPriceApproval />} />
+            <Route path="ports-manager" element={<AdminPortsManager />} />
+            <Route path="user-management" element={<UserManagement currentUser={user!} />} />
+            <Route path="userProfile" element={<UserProfile user={user!} />} />
+          </Route>
+
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </ErrorBoundary>
     </ToastProvider>
   );
 };

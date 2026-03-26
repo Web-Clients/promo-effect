@@ -33,11 +33,25 @@ import { User, Booking } from './types';
 import { ToastProvider } from './components/ui/Toast';
 import authService from './services/auth';
 import { tokenManager } from './services/api';
-import { 
-  Servicii, Preturi, Despre, Contact, Resurse, GhidImport, FAQ, Termeni, Politica,
-  FCLTransport, LCLGrupaj, ConsultantaChina, Vamuire, Depozitare, Cariere, Cookies,
-  CalculPrompt
-} from './components/PublicPages';
+import {
+  Servicii,
+  Preturi,
+  Despre,
+  Contact,
+  Resurse,
+  GhidImport,
+  FAQ,
+  Termeni,
+  Politica,
+  FCLTransport,
+  LCLGrupaj,
+  ConsultantaChina,
+  Vamuire,
+  Depozitare,
+  Cariere,
+  Cookies,
+  CalculPrompt,
+} from './components/pages/public';
 
 // Helper component to update document title and handle external script awareness
 const RouteObserver = () => {
@@ -56,11 +70,14 @@ const RouteObserver = () => {
     else if (path.includes('/dashboard/reports')) title = 'Rapoarte | Promo-Efect';
     else if (path.includes('/dashboard/adminSettings')) title = 'Setări Admin | Promo-Efect';
     else if (path.includes('/dashboard/shipping-lines')) title = 'Linii Maritime | Promo-Efect';
-    else if (path.includes('/dashboard/transport-rates')) title = 'Transport Terestru | Promo-Efect';
-    else if (path.includes('/dashboard/admin-pricing')) title = 'Administrare Prețuri | Promo-Efect';
+    else if (path.includes('/dashboard/transport-rates'))
+      title = 'Transport Terestru | Promo-Efect';
+    else if (path.includes('/dashboard/admin-pricing'))
+      title = 'Administrare Prețuri | Promo-Efect';
     else if (path.includes('/dashboard/agents')) title = 'Agenți Chinezi | Promo-Efect';
     else if (path.includes('/dashboard/admin-panel')) title = 'Panou Admin | Promo-Efect';
-    else if (path.includes('/dashboard/user-management')) title = 'Gestionare Utilizatori | Promo-Efect';
+    else if (path.includes('/dashboard/user-management'))
+      title = 'Gestionare Utilizatori | Promo-Efect';
     else if (path.includes('/dashboard/userProfile')) title = 'Profil Utilizator | Promo-Efect';
     else if (path === '/dashboard') title = 'Panou de Control | Promo-Efect';
     else if (path === '/login') title = 'Autentificare | Promo-Efect';
@@ -75,7 +92,7 @@ const RouteObserver = () => {
   return null;
 };
 
-const ProtectedRoute = ({ user, children }: { user: User | null, children: React.ReactNode }) => {
+const ProtectedRoute = ({ user, children }: { user: User | null; children: React.ReactNode }) => {
   if (!user) {
     return <Navigate to="/login" replace />;
   }
@@ -118,10 +135,13 @@ const App = () => {
     rehydrate();
   }, []);
 
-  const handleLogin = useCallback((loggedInUser: User) => {
-    setUser(loggedInUser);
-    navigate('/dashboard');
-  }, [navigate]);
+  const handleLogin = useCallback(
+    (loggedInUser: User) => {
+      setUser(loggedInUser);
+      navigate('/dashboard');
+    },
+    [navigate]
+  );
 
   const handleLogout = useCallback(() => {
     // Clear persisted auth too
@@ -130,9 +150,12 @@ const App = () => {
     navigate('/');
   }, [navigate]);
 
-  const handleNewBooking = useCallback((initialData?: Partial<Booking>) => {
-    navigate('/dashboard/bookings/new', { state: { initialData } });
-  }, [navigate]);
+  const handleNewBooking = useCallback(
+    (initialData?: Partial<Booking>) => {
+      navigate('/dashboard/bookings/new', { state: { initialData } });
+    },
+    [navigate]
+  );
 
   if (isLoading) {
     return (
@@ -140,7 +163,9 @@ const App = () => {
         <div className="min-h-screen flex items-center justify-center bg-neutral-100 dark:bg-neutral-900">
           <div className="flex flex-col items-center gap-3">
             <div className="w-10 h-10 border-4 border-primary-800 border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-neutral-500 dark:text-neutral-400">Se verifică sesiunea...</p>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+              Se verifică sesiunea...
+            </p>
           </div>
         </div>
       </ToastProvider>
@@ -152,32 +177,62 @@ const App = () => {
       <RouteObserver />
       <Routes>
         <Route path="/" element={<LandingPage onLoginRedirect={() => navigate('/login')} />} />
-        <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />} />
+        <Route
+          path="/login"
+          element={user ? <Navigate to="/dashboard" /> : <Login onLogin={handleLogin} />}
+        />
         <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <Register />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
-        <Route path="/forgot-password" element={user ? <Navigate to="/dashboard" /> : <ForgotPassword />} />
-        <Route path="/reset-password" element={user ? <Navigate to="/dashboard" /> : <ResetPassword />} />
+        <Route
+          path="/forgot-password"
+          element={user ? <Navigate to="/dashboard" /> : <ForgotPassword />}
+        />
+        <Route
+          path="/reset-password"
+          element={user ? <Navigate to="/dashboard" /> : <ResetPassword />}
+        />
 
         {/* Public Pages */}
         <Route path="/servicii" element={<Servicii onLoginRedirect={() => navigate('/login')} />} />
         <Route path="/preturi" element={<Preturi onLoginRedirect={() => navigate('/login')} />} />
-        <Route path="/calcul-prompt" element={<CalculPrompt onLoginRedirect={() => navigate('/login')} />} />
+        <Route
+          path="/calcul-prompt"
+          element={<CalculPrompt onLoginRedirect={() => navigate('/login')} />}
+        />
         <Route path="/despre" element={<Despre onLoginRedirect={() => navigate('/login')} />} />
         <Route path="/contact" element={<Contact onLoginRedirect={() => navigate('/login')} />} />
         <Route path="/resurse" element={<Resurse onLoginRedirect={() => navigate('/login')} />} />
-        <Route path="/ghid-import" element={<GhidImport onLoginRedirect={() => navigate('/login')} />} />
+        <Route
+          path="/ghid-import"
+          element={<GhidImport onLoginRedirect={() => navigate('/login')} />}
+        />
         <Route path="/faq" element={<FAQ onLoginRedirect={() => navigate('/login')} />} />
         <Route path="/termeni" element={<Termeni onLoginRedirect={() => navigate('/login')} />} />
         <Route path="/politica" element={<Politica onLoginRedirect={() => navigate('/login')} />} />
         <Route path="/cookies" element={<Cookies onLoginRedirect={() => navigate('/login')} />} />
-        
+
         {/* Services Detail Pages */}
-        <Route path="/servicii/fcl" element={<FCLTransport onLoginRedirect={() => navigate('/login')} />} />
-        <Route path="/servicii/lcl" element={<LCLGrupaj onLoginRedirect={() => navigate('/login')} />} />
-        <Route path="/servicii/consultanta" element={<ConsultantaChina onLoginRedirect={() => navigate('/login')} />} />
-        <Route path="/servicii/vamuire" element={<Vamuire onLoginRedirect={() => navigate('/login')} />} />
-        <Route path="/servicii/depozitare" element={<Depozitare onLoginRedirect={() => navigate('/login')} />} />
-        
+        <Route
+          path="/servicii/fcl"
+          element={<FCLTransport onLoginRedirect={() => navigate('/login')} />}
+        />
+        <Route
+          path="/servicii/lcl"
+          element={<LCLGrupaj onLoginRedirect={() => navigate('/login')} />}
+        />
+        <Route
+          path="/servicii/consultanta"
+          element={<ConsultantaChina onLoginRedirect={() => navigate('/login')} />}
+        />
+        <Route
+          path="/servicii/vamuire"
+          element={<Vamuire onLoginRedirect={() => navigate('/login')} />}
+        />
+        <Route
+          path="/servicii/depozitare"
+          element={<Depozitare onLoginRedirect={() => navigate('/login')} />}
+        />
+
         {/* Company Detail Pages */}
         <Route path="/cariere" element={<Cariere onLoginRedirect={() => navigate('/login')} />} />
 
@@ -197,7 +252,10 @@ const App = () => {
           <Route path="tracking" element={<TrackingView />} />
           <Route path="containers-transit" element={<ContainersInTransit />} />
           <Route path="calculator" element={<PriceCalculator user={user!} />} />
-          <Route path="emailParser" element={<EmailParserAssistant onBookingCreate={handleNewBooking} />} />
+          <Route
+            path="emailParser"
+            element={<EmailParserAssistant onBookingCreate={handleNewBooking} />}
+          />
           <Route path="ai-parser" element={<AIEmailParser />} />
           <Route path="clients" element={<ClientsList />} />
           <Route path="invoices" element={<InvoicesList />} />

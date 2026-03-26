@@ -1,5 +1,6 @@
 // FIX: Explicitly import Request, Response, and NextFunction to avoid type collisions with other libraries (e.g., DOM types).
 import express, { Request, Response, NextFunction } from 'express';
+import logger from './utils/logger';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
@@ -181,7 +182,10 @@ app.use(
 // Error handling middleware
 // FIX: Using explicitly imported Request, Response, and NextFunction types to fix 'status' property not found error.
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
-  console.error(`[${new Date().toISOString()}] ${req.method} ${req.path}:`, err.message);
+  logger.error(`${req.method} ${req.path}: ${err.message}`, {
+    stack: err.stack,
+    statusCode: (err as any).statusCode,
+  });
 
   const statusCode = (err as any).statusCode || 500;
   const message = process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message;

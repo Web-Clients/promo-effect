@@ -70,10 +70,7 @@ export interface AgentPrice {
 // AGENTS CRUD
 // ============================================
 
-export async function getAgents(filters?: {
-  status?: string;
-  search?: string;
-}): Promise<Agent[]> {
+export async function getAgents(filters?: { status?: string; search?: string }): Promise<Agent[]> {
   const params: Record<string, string> = {};
   if (filters?.status) params.status = filters.status;
   if (filters?.search) params.search = filters.search;
@@ -123,12 +120,19 @@ export async function getAgentPrices(agentId: string): Promise<AgentPrice[]> {
   return response.data.prices;
 }
 
-export async function createAgentPrice(agentId: string, data: any): Promise<AgentPrice> {
+export async function createAgentPrice(
+  agentId: string,
+  data: Record<string, unknown>
+): Promise<AgentPrice> {
   const response = await api.post(`/agents/${agentId}/prices`, data);
   return response.data;
 }
 
-export async function updateAgentPrice(agentId: string, priceId: string, data: any): Promise<AgentPrice> {
+export async function updateAgentPrice(
+  agentId: string,
+  priceId: string,
+  data: Record<string, unknown>
+): Promise<AgentPrice> {
   const response = await api.put(`/agents/${agentId}/prices/${priceId}`, data);
   return response.data;
 }
@@ -137,7 +141,7 @@ export async function deleteAgentPrice(agentId: string, priceId: string): Promis
   await api.delete(`/agents/${agentId}/prices/${priceId}`);
 }
 
-export async function getAgentBookings(agentId: string): Promise<any[]> {
+export async function getAgentBookings(agentId: string): Promise<unknown[]> {
   const response = await api.get(`/agents/${agentId}/bookings`);
   return response.data.bookings;
 }

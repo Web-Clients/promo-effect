@@ -97,7 +97,7 @@ const usersService = {
   /**
    * Get user activity
    */
-  async getUserActivity(id: string, page = 1, limit = 20): Promise<any> {
+  async getUserActivity(id: string, page = 1, limit = 20): Promise<unknown> {
     const response = await api.get(`/v1/users/${id}/activity?page=${page}&limit=${limit}`);
     return response.data;
   },

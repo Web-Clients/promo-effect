@@ -6,7 +6,7 @@ import calculatorService, {
   ContainerEntry,
 } from '../../services/calculator';
 import { User, UserRole } from '../../types';
-import { CalcParams, UseCalculatorReturn, Incoterm, FinalDestination } from './types';
+import { CalcParams, UseCalculatorReturn } from './types';
 
 export function useCalculator(user?: User): UseCalculatorReturn {
   const isAdmin = !!(

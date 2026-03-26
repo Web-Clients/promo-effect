@@ -18,8 +18,8 @@ const { mockPost, mockGet, mockTokenManager } = vi.hoisted(() => {
 
 vi.mock('../../services/api', () => ({
   default: {
-    post: (...args: any[]) => mockPost(...args),
-    get: (...args: any[]) => mockGet(...args),
+    post: (...args: unknown[]) => mockPost(...args),
+    get: (...args: unknown[]) => mockGet(...args),
   },
   tokenManager: mockTokenManager,
 }));

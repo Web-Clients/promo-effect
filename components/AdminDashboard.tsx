@@ -11,7 +11,6 @@ import adminDashboardService, {
   DashboardStats,
   RecentBooking,
   RecentUser,
-  RecentActivity,
   SystemHealth,
 } from '../services/adminDashboard';
 import { cn } from '../lib/utils';

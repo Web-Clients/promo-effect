@@ -194,19 +194,6 @@ export function AgentsPanel() {
     }
   };
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'ACTIVE':
-        return 'Activ';
-      case 'INACTIVE':
-        return 'Inactiv';
-      case 'SUSPENDED':
-        return 'Suspendat';
-      default:
-        return status;
-    }
-  };
-
   return (
     <div className="max-w-7xl mx-auto p-6">
       {/* Header */}

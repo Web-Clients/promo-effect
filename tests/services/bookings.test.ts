@@ -12,10 +12,10 @@ const { mockPost, mockGet, mockPut, mockDelete } = vi.hoisted(() => {
 
 vi.mock('../../services/api', () => ({
   default: {
-    post: (...args: any[]) => mockPost(...args),
-    get: (...args: any[]) => mockGet(...args),
-    put: (...args: any[]) => mockPut(...args),
-    delete: (...args: any[]) => mockDelete(...args),
+    post: (...args: unknown[]) => mockPost(...args),
+    get: (...args: unknown[]) => mockGet(...args),
+    put: (...args: unknown[]) => mockPut(...args),
+    delete: (...args: unknown[]) => mockDelete(...args),
   },
 }));
 

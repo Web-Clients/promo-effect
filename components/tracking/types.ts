@@ -55,7 +55,7 @@ export function getEventTypeLabel(eventType: string): string {
 
 export function convertToTimelineEvents(
   events: TrackingEvent[],
-  currentStatus: string
+  _currentStatus: string
 ): TrackingEventForTimeline[] {
   if (!events || events.length === 0) return [];
 

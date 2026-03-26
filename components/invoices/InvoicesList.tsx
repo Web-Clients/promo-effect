@@ -25,7 +25,7 @@ const InvoicesList: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [stats, setStats] = useState<InvoiceStats | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
-  const [bookings, setBookings] = useState<any[]>([]);
+  const [bookings] = useState<unknown[]>([]);
 
   // UI states
   const [isLoading, setIsLoading] = useState(true);

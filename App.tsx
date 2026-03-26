@@ -133,7 +133,7 @@ const App = () => {
         // Validate token on backend
         const validatedUser = await authService.getCurrentUser();
         setUser(validatedUser);
-      } catch (err: any) {
+      } catch {
         // Token invalid/expired or backend unreachable with 401/403
         tokenManager.clearTokens();
         setUser(null);

@@ -83,7 +83,7 @@ const EmailParserAssistant = ({ onBookingCreate }: EmailParserAssistantProps) =>
         setParsedResult(JSON.stringify(jsonResult, null, 2));
         setParsedObject(jsonResult);
       }
-    } catch (e) {
+    } catch {
       setError('Am primit un răspuns JSON invalid de la AI.');
       setParsedResult(result);
     }

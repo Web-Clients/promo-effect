@@ -5,6 +5,14 @@
 
 import api from './api';
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    return String((error as { message: unknown }).message);
+  }
+  return fallback;
+}
+
 // Types
 export interface Client {
   id: string;
@@ -70,7 +78,7 @@ export interface ClientStats {
 export const getClients = async (filters?: ClientFilters): Promise<ClientListResponse> => {
   try {
     const params = new URLSearchParams();
-    
+
     if (filters?.page) params.append('page', filters.page.toString());
     if (filters?.limit) params.append('limit', filters.limit.toString());
     if (filters?.search) params.append('search', filters.search);
@@ -78,10 +86,10 @@ export const getClients = async (filters?: ClientFilters): Promise<ClientListRes
 
     const url = `/clients${params.toString() ? `?${params.toString()}` : ''}`;
     const response = await api.get<ClientListResponse>(url);
-    
+
     return response.data;
-  } catch (error: any) {
-    throw new Error(error.message || 'Nu s-au putut încărca clienții');
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error, 'Nu s-au putut încărca clienții'), { cause: error });
   }
 };
 
@@ -92,8 +100,8 @@ export const getClientById = async (id: string): Promise<Client> => {
   try {
     const response = await api.get<Client>(`/clients/${id}`);
     return response.data;
-  } catch (error: any) {
-    throw new Error(error.message || 'Nu s-a putut încărca clientul');
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error, 'Nu s-a putut încărca clientul'), { cause: error });
   }
 };
 
@@ -104,8 +112,8 @@ export const getClientStats = async (): Promise<ClientStats> => {
   try {
     const response = await api.get<ClientStats>('/clients/stats');
     return response.data;
-  } catch (error: any) {
-    throw new Error(error.message || 'Nu s-au putut încărca statisticile');
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error, 'Nu s-au putut încărca statisticile'), { cause: error });
   }
 };
 
@@ -116,8 +124,8 @@ export const createClient = async (data: CreateClientData): Promise<Client> => {
   try {
     const response = await api.post<Client>('/clients', data);
     return response.data;
-  } catch (error: any) {
-    throw new Error(error.message || 'Nu s-a putut crea clientul');
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error, 'Nu s-a putut crea clientul'), { cause: error });
   }
 };
 
@@ -128,8 +136,8 @@ export const updateClient = async (id: string, data: UpdateClientData): Promise<
   try {
     const response = await api.put<Client>(`/clients/${id}`, data);
     return response.data;
-  } catch (error: any) {
-    throw new Error(error.message || 'Nu s-a putut actualiza clientul');
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error, 'Nu s-a putut actualiza clientul'), { cause: error });
   }
 };
 
@@ -140,8 +148,8 @@ export const deleteClient = async (id: string): Promise<{ message: string }> => 
   try {
     const response = await api.delete<{ message: string }>(`/clients/${id}`);
     return response.data;
-  } catch (error: any) {
-    throw new Error(error.message || 'Nu s-a putut șterge clientul');
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error, 'Nu s-a putut șterge clientul'), { cause: error });
   }
 };
 

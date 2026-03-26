@@ -92,11 +92,11 @@ api.interceptors.request.use(
 // Response interceptor - Handle 401 and auto-refresh token
 let isRefreshing = false;
 let failedQueue: Array<{
-  resolve: (value?: any) => void;
-  reject: (reason?: any) => void;
+  resolve: (value?: unknown) => void;
+  reject: (reason?: unknown) => void;
 }> = [];
 
-const processQueue = (error: any, token: string | null = null) => {
+const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
@@ -195,10 +195,8 @@ api.interceptors.response.use(
     // Handle other errors
     if (error.response) {
       // Server responded with error status
-      const message =
-        (error.response.data as any)?.error ||
-        (error.response.data as any)?.message ||
-        'A apărut o eroare pe server';
+      const responseData = error.response.data as { error?: string; message?: string } | undefined;
+      const message = responseData?.error || responseData?.message || 'A apărut o eroare pe server';
 
       return Promise.reject({
         status: error.response.status,
@@ -227,13 +225,16 @@ api.interceptors.response.use(
 export interface ApiError {
   status: number;
   message: string;
-  data: any;
+  data: unknown;
 }
 
 // Helper function to handle API errors in components
-export const handleApiError = (error: any): string => {
-  if (error.message) {
+export const handleApiError = (error: unknown): string => {
+  if (error instanceof Error) {
     return error.message;
+  }
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    return String((error as { message: unknown }).message);
   }
   return 'A apărut o eroare neprevăzută';
 };

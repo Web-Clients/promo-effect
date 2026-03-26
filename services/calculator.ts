@@ -4,6 +4,12 @@
  */
 
 import api from './api';
+import type { AxiosError } from 'axios';
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  const axiosErr = error as AxiosError<{ error?: string }>;
+  return axiosErr?.response?.data?.error ?? (error instanceof Error ? error.message : fallback);
+}
 
 // Container entry for multiple containers support
 export interface ContainerEntry {
@@ -82,15 +88,12 @@ export interface CalculatorResult {
 /**
  * Calculate prices for ALL 6 shipping lines and return top 5 sorted by price
  */
-export const calculatePrices = async (
-  data: CalculatePriceData
-): Promise<CalculatorResult> => {
+export const calculatePrices = async (data: CalculatePriceData): Promise<CalculatorResult> => {
   try {
     const response = await api.post<CalculatorResult>('/calculator/calculate', data);
     return response.data;
-  } catch (error: any) {
-    const errorMessage = error.response?.data?.error || error.message || 'Nu s-au putut calcula prețurile';
-    throw new Error(errorMessage);
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error, 'Nu s-au putut calcula prețurile'), { cause: error });
   }
 };
 
@@ -101,8 +104,8 @@ export const getAvailablePorts = async (): Promise<string[]> => {
   try {
     const response = await api.get<{ ports: string[] }>('/calculator/ports');
     return response.data.ports;
-  } catch (error: any) {
-    throw new Error(error.message || 'Nu s-au putut încărca porturile');
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error, 'Nu s-au putut încărca porturile'), { cause: error });
   }
 };
 
@@ -113,8 +116,10 @@ export const getAvailableContainerTypes = async (): Promise<string[]> => {
   try {
     const response = await api.get<{ containerTypes: string[] }>('/calculator/container-types');
     return response.data.containerTypes;
-  } catch (error: any) {
-    throw new Error(error.message || 'Nu s-au putut încărca tipurile de containere');
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error, 'Nu s-au putut încărca tipurile de containere'), {
+      cause: error,
+    });
   }
 };
 
@@ -125,8 +130,10 @@ export const getAvailableWeightRanges = async (): Promise<string[]> => {
   try {
     const response = await api.get<{ weightRanges: string[] }>('/calculator/weight-ranges');
     return response.data.weightRanges;
-  } catch (error: any) {
-    throw new Error(error.message || 'Nu s-au putut încărca intervalele de greutate');
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error, 'Nu s-au putut încărca intervalele de greutate'), {
+      cause: error,
+    });
   }
 };
 
@@ -137,8 +144,10 @@ export const getAvailableDestinations = async (): Promise<string[]> => {
   try {
     const response = await api.get<{ destinations: string[] }>('/calculator/destinations');
     return response.data.destinations;
-  } catch (error: any) {
-    throw new Error(error.message || 'Nu s-au putut încărca porturile de destinație');
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error, 'Nu s-au putut încărca porturile de destinație'), {
+      cause: error,
+    });
   }
 };
 
@@ -166,13 +175,17 @@ export interface PlaceOrderRequest {
 /**
  * Place order with selected offer
  */
-export const placeOrder = async (data: PlaceOrderRequest): Promise<{ success: boolean; bookingId: string; message: string }> => {
+export const placeOrder = async (
+  data: PlaceOrderRequest
+): Promise<{ success: boolean; bookingId: string; message: string }> => {
   try {
-    const response = await api.post<{ success: boolean; bookingId: string; message: string }>('/calculator/place-order', data);
+    const response = await api.post<{ success: boolean; bookingId: string; message: string }>(
+      '/calculator/place-order',
+      data
+    );
     return response.data;
-  } catch (error: any) {
-    const errorMessage = error.response?.data?.error || error.message || 'Nu s-a putut plasa comanda';
-    throw new Error(errorMessage);
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error, 'Nu s-a putut plasa comanda'), { cause: error });
   }
 };
 

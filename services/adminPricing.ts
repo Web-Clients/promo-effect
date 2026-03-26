@@ -122,7 +122,10 @@ export async function createBasePrice(data: BasePriceInput): Promise<BasePrice> 
   return response.data;
 }
 
-export async function updateBasePrice(id: string, data: Partial<BasePriceInput>): Promise<BasePrice> {
+export async function updateBasePrice(
+  id: string,
+  data: Partial<BasePriceInput>
+): Promise<BasePrice> {
   const response = await api.put(`/admin-pricing/base-prices/${id}`, data);
   return response.data;
 }
@@ -131,7 +134,9 @@ export async function deleteBasePrice(id: string): Promise<void> {
   await api.delete(`/admin-pricing/base-prices/${id}`);
 }
 
-export async function bulkCreateBasePrices(prices: BasePriceInput[]): Promise<{ results: any[] }> {
+export async function bulkCreateBasePrices(
+  prices: BasePriceInput[]
+): Promise<{ results: unknown[] }> {
   const response = await api.post('/admin-pricing/base-prices/bulk', { prices });
   return response.data;
 }
@@ -174,7 +179,10 @@ export async function createPortAdjustment(data: PortAdjustmentInput): Promise<P
   return response.data;
 }
 
-export async function updatePortAdjustment(id: string, data: Partial<PortAdjustmentInput>): Promise<PortAdjustment> {
+export async function updatePortAdjustment(
+  id: string,
+  data: Partial<PortAdjustmentInput>
+): Promise<PortAdjustment> {
   const response = await api.put(`/admin-pricing/port-adjustments/${id}`, data);
   return response.data;
 }

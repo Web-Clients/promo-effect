@@ -1,12 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { ErrorBoundary } from '../../../components/shared/ErrorBoundary';
 
 vi.mock('react-i18next', () => ({
-  withTranslation: () => (Component: React.ComponentType<any>) => {
-    const Wrapped = (props: any) => (
+  withTranslation: () => (Component: React.ComponentType<Record<string, unknown>>) => {
+    const Wrapped = (props: Record<string, unknown>) => (
       <Component
         {...props}
         t={(key: string) => {

@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import React from 'react';
+import { UserRole } from '../../types';
+import type { User } from '../../types';
+import type { PriceOffer } from '../../services/calculator';
 
 // Hoist mocks so they're available in the factory
 const { mockCalculateService } = vi.hoisted(() => {
@@ -100,32 +104,47 @@ describe('useCalculator', () => {
     it('is true for SUPER_ADMIN role', () => {
       const { result } = renderHook(() =>
         useCalculator({
-          id: '1',
+          id: 1,
           email: 'admin@test.com',
           name: 'Admin',
-          role: 'SUPER_ADMIN',
-        } as any)
+          role: UserRole.SUPER_ADMIN,
+        } as User)
       );
       expect(result.current.isAdmin).toBe(true);
     });
 
     it('is true for ADMIN role', () => {
       const { result } = renderHook(() =>
-        useCalculator({ id: '1', email: 'admin@test.com', name: 'Admin', role: 'ADMIN' } as any)
+        useCalculator({
+          id: 1,
+          email: 'admin@test.com',
+          name: 'Admin',
+          role: UserRole.ADMIN,
+        } as User)
       );
       expect(result.current.isAdmin).toBe(true);
     });
 
     it('is true for MANAGER role', () => {
       const { result } = renderHook(() =>
-        useCalculator({ id: '1', email: 'mgr@test.com', name: 'Manager', role: 'MANAGER' } as any)
+        useCalculator({
+          id: 1,
+          email: 'mgr@test.com',
+          name: 'Manager',
+          role: UserRole.MANAGER,
+        } as User)
       );
       expect(result.current.isAdmin).toBe(true);
     });
 
     it('is false for CLIENT role', () => {
       const { result } = renderHook(() =>
-        useCalculator({ id: '1', email: 'client@test.com', name: 'Client', role: 'CLIENT' } as any)
+        useCalculator({
+          id: 1,
+          email: 'client@test.com',
+          name: 'Client',
+          role: UserRole.CLIENT,
+        } as User)
       );
       expect(result.current.isAdmin).toBe(false);
     });
@@ -272,7 +291,7 @@ describe('useCalculator', () => {
         result.current.updateContainer(0, 'quantity', 0);
       });
 
-      const fakeEvent = { preventDefault: vi.fn() } as any;
+      const fakeEvent = { preventDefault: vi.fn() } as unknown as React.FormEvent;
 
       await act(async () => {
         await result.current.handleCalculate(fakeEvent);
@@ -292,7 +311,7 @@ describe('useCalculator', () => {
         await Promise.resolve();
       });
 
-      const fakeEvent = { preventDefault: vi.fn() } as any;
+      const fakeEvent = { preventDefault: vi.fn() } as unknown as React.FormEvent;
 
       await act(async () => {
         await result.current.handleCalculate(fakeEvent);
@@ -313,7 +332,7 @@ describe('useCalculator', () => {
         await Promise.resolve();
       });
 
-      const fakeEvent = { preventDefault: vi.fn() } as any;
+      const fakeEvent = { preventDefault: vi.fn() } as unknown as React.FormEvent;
 
       await act(async () => {
         await result.current.handleCalculate(fakeEvent);
@@ -328,7 +347,11 @@ describe('useCalculator', () => {
     it('sets selectedOffer, selectedOfferData and shows supplier form', async () => {
       const { result } = renderHook(() => useCalculator());
 
-      const mockOffer = { rank: 1, shippingLine: 'MSC', basePriceId: 'price-1' } as any;
+      const mockOffer = {
+        rank: 1,
+        shippingLine: 'MSC',
+        basePriceId: 'price-1',
+      } as unknown as PriceOffer;
 
       act(() => {
         result.current.handleSelectOffer(mockOffer, 0);

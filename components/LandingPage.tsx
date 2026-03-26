@@ -1,38 +1,23 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import {
-  motion,
-  AnimatePresence,
-  useScroll,
-  useTransform,
-  useSpring,
-  useMotionValue,
-} from 'framer-motion';
+import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import { Button } from './ui/Button';
-import { PromoEffectLogo } from '@/components/PromoEffectLogo';
 import { PublicHeader } from './PublicHeader';
 import { PublicFooter } from './PublicFooter';
 import {
-  MailIcon,
-  ShipIcon,
-  CalculatorIcon,
   BellIcon,
   LayoutDashboardIcon,
   CheckIcon,
   ClockIcon,
   StarIcon,
-  UserCheckIcon,
   XIcon,
   CheckCircleIcon,
   PhoneIcon,
   MapPinIcon,
   GlobeIcon,
-  BarChart3Icon,
   ZapIcon,
   ShieldCheckIcon,
-  ChevronDownIcon,
-  SearchIcon,
   PackageIcon,
   TrendingUpIcon,
   AnchorIcon,
@@ -41,7 +26,6 @@ import {
   PlusIcon,
   MinusIcon,
   QuoteIcon,
-  RouteIcon,
 } from './icons';
 import { LogisticsMap } from './LogisticsMap';
 

@@ -12,7 +12,6 @@ import {
   BarChartIcon,
   SettingsIcon,
   CalculatorIcon,
-  MailIcon,
   SparklesIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -21,7 +20,6 @@ import {
   MoonIcon,
   PlusIcon,
   LogOutIcon,
-  MoreHorizontalIcon,
   UserIcon,
   DollarSignIcon,
   GlobeIcon,
@@ -45,12 +43,9 @@ const Avatar = ({ children, className }: React.PropsWithChildren<{ className?: s
     {children}
   </div>
 );
-const AvatarImage = ({ src }: { src?: string }) => (
-  <img className="aspect-square h-full w-full" src={src} />
-);
 const AvatarFallback = ({
   children,
-  className,
+  className: _className,
 }: React.PropsWithChildren<{ className?: string }>) => (
   <span className="flex h-full w-full items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-700 text-neutral-500 dark:text-neutral-400">
     {children}

@@ -76,7 +76,7 @@ export interface RecentActivity {
   id: string;
   description: string;
   timestamp: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface SystemHealth {
@@ -91,7 +91,9 @@ class AdminDashboardService {
    * Get dashboard statistics
    */
   async getStats(): Promise<DashboardStats> {
-    const response = await api.get<{ success: boolean; data: DashboardStats }>('/admin/dashboard/stats');
+    const response = await api.get<{ success: boolean; data: DashboardStats }>(
+      '/admin/dashboard/stats'
+    );
     return response.data.data;
   }
 
@@ -99,9 +101,12 @@ class AdminDashboardService {
    * Get recent bookings
    */
   async getRecentBookings(limit: number = 10): Promise<RecentBooking[]> {
-    const response = await api.get<{ success: boolean; data: RecentBooking[] }>('/admin/dashboard/recent-bookings', {
-      params: { limit },
-    });
+    const response = await api.get<{ success: boolean; data: RecentBooking[] }>(
+      '/admin/dashboard/recent-bookings',
+      {
+        params: { limit },
+      }
+    );
     return response.data.data;
   }
 
@@ -109,9 +114,12 @@ class AdminDashboardService {
    * Get recent users
    */
   async getRecentUsers(limit: number = 10): Promise<RecentUser[]> {
-    const response = await api.get<{ success: boolean; data: RecentUser[] }>('/admin/dashboard/recent-users', {
-      params: { limit },
-    });
+    const response = await api.get<{ success: boolean; data: RecentUser[] }>(
+      '/admin/dashboard/recent-users',
+      {
+        params: { limit },
+      }
+    );
     return response.data.data;
   }
 
@@ -119,9 +127,12 @@ class AdminDashboardService {
    * Get recent activity
    */
   async getRecentActivity(limit: number = 20): Promise<RecentActivity[]> {
-    const response = await api.get<{ success: boolean; data: RecentActivity[] }>('/admin/dashboard/activity', {
-      params: { limit },
-    });
+    const response = await api.get<{ success: boolean; data: RecentActivity[] }>(
+      '/admin/dashboard/activity',
+      {
+        params: { limit },
+      }
+    );
     return response.data.data;
   }
 
@@ -129,7 +140,9 @@ class AdminDashboardService {
    * Get system health
    */
   async getSystemHealth(): Promise<SystemHealth> {
-    const response = await api.get<{ success: boolean; data: SystemHealth }>('/admin/dashboard/health');
+    const response = await api.get<{ success: boolean; data: SystemHealth }>(
+      '/admin/dashboard/health'
+    );
     return response.data.data;
   }
 }

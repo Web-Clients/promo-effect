@@ -10,13 +10,11 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   LineChart,
   Line,
 } from 'recharts';
 import { ShipIcon, PackageIcon, DollarSignIcon, AlertCircleIcon } from './icons';
-import { Card } from './ui/Card';
 import bookingsService, { BookingStatsResponse } from '../services/bookings';
 
 interface MainDashboardProps {

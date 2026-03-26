@@ -12,7 +12,7 @@ import agentPortalService, {
   AgentPriceInput,
   AgentStats,
 } from '../services/agentPortal';
-import portsService, { Port } from '../services/ports';
+import portsService from '../services/ports';
 import { cn } from '../lib/utils';
 
 // Icons

@@ -36,7 +36,7 @@ export const searchHsCodes = async (query: string, limit: number = 20): Promise<
       params: { q: query, limit },
     });
     return response.data.results;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to search HS codes:', error);
     return [];
   }
@@ -49,7 +49,7 @@ export const getHsCodeByCode = async (code: string): Promise<HsCode | null> => {
   try {
     const response = await api.get<HsCode>(`/hscodes/code/${code}`);
     return response.data;
-  } catch (error: any) {
+  } catch {
     return null;
   }
 };
@@ -69,7 +69,7 @@ export const calculateDuty = async (
       currency,
     });
     return response.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to calculate duty:', error);
     return null;
   }
@@ -78,11 +78,15 @@ export const calculateDuty = async (
 /**
  * Get all chapters for category navigation
  */
-export const getChapters = async (): Promise<{ chapter: string; description: string; count: number }[]> => {
+export const getChapters = async (): Promise<
+  { chapter: string; description: string; count: number }[]
+> => {
   try {
-    const response = await api.get<{ chapters: { chapter: string; description: string; count: number }[] }>('/hscodes/chapters');
+    const response = await api.get<{
+      chapters: { chapter: string; description: string; count: number }[];
+    }>('/hscodes/chapters');
     return response.data.chapters;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to get chapters:', error);
     return [];
   }

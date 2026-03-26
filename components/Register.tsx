@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import authService from '../services/auth';
 
 const Register = () => {
-  const navigate = useNavigate();
   const { t } = useTranslation();
   const [formData, setFormData] = useState({
     email: '',

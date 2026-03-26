@@ -17,25 +17,34 @@ const PlusIcon = () => (
 
 const TrashIcon = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+    />
   </svg>
 );
 
 const EditIcon = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+    />
   </svg>
 );
 
 const ShipIcon = () => (
   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-  </svg>
-);
-
-const RefreshIcon = () => (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+    />
   </svg>
 );
 
@@ -65,7 +74,7 @@ const PortModal: React.FC<PortModalProps> = ({ port, portType, onClose, onSave }
         code: code.trim() || undefined,
         country: country.trim(),
         type: portType,
-        isActive
+        isActive,
       });
       onClose();
     } catch (err: any) {
@@ -143,19 +152,17 @@ const PortModal: React.FC<PortModalProps> = ({ port, portType, onClose, onSave }
                   onChange={(e) => setIsActive(e.target.checked)}
                   className="rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500"
                 />
-                <label htmlFor="isActive" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label
+                  htmlFor="isActive"
+                  className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
                   Port activ
                 </label>
               </div>
             )}
 
             <div className="flex gap-3 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                className="flex-1"
-              >
+              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
                 Anulare
               </Button>
               <Button
@@ -163,7 +170,7 @@ const PortModal: React.FC<PortModalProps> = ({ port, portType, onClose, onSave }
                 disabled={isLoading || !name.trim() || !country.trim()}
                 className="flex-1"
               >
-                {isLoading ? 'Se salveaza...' : (port ? 'Salveaza' : 'Adauga')}
+                {isLoading ? 'Se salveaza...' : port ? 'Salveaza' : 'Adauga'}
               </Button>
             </div>
           </form>
@@ -191,7 +198,7 @@ const AdminPortsManager: React.FC = () => {
     try {
       const [origin, destination] = await Promise.all([
         portsService.getOriginPorts(showInactive),
-        portsService.getDestinationPorts(showInactive)
+        portsService.getDestinationPorts(showInactive),
       ]);
       setOriginPorts(origin);
       setDestinationPorts(destination);
@@ -224,7 +231,7 @@ const AdminPortsManager: React.FC = () => {
         name: data.name,
         code: data.code,
         country: data.country,
-        isActive: data.isActive
+        isActive: data.isActive,
       });
     } else {
       await portsService.create(data);
@@ -243,18 +250,6 @@ const AdminPortsManager: React.FC = () => {
     }
   };
 
-  const handleSeedPorts = async () => {
-    if (!confirm('Aceasta actiune va adauga porturile standard (China + Constanta/Odessa). Continuati?')) return;
-
-    try {
-      const result = await portsService.seed();
-      alert(`Au fost adaugate ${result.created} porturi noi.`);
-      await loadPorts();
-    } catch (err: any) {
-      alert(err.response?.data?.error || err.message || 'Eroare la seed');
-    }
-  };
-
   const renderPortsTable = (ports: Port[], type: 'ORIGIN' | 'DESTINATION') => {
     const title = type === 'ORIGIN' ? 'Porturi de origine (China)' : 'Porturi de destinatie';
 
@@ -265,11 +260,7 @@ const AdminPortsManager: React.FC = () => {
             <ShipIcon />
             {title}
           </h3>
-          <Button
-            size="sm"
-            onClick={() => handleAddPort(type)}
-            className="flex items-center gap-1"
-          >
+          <Button size="sm" onClick={() => handleAddPort(type)} className="flex items-center gap-1">
             <PlusIcon />
             Adauga
           </Button>
@@ -284,31 +275,44 @@ const AdminPortsManager: React.FC = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <th className="text-left py-3 px-2 font-medium text-gray-700 dark:text-gray-300">Nume</th>
-                  <th className="text-left py-3 px-2 font-medium text-gray-700 dark:text-gray-300">Cod</th>
-                  <th className="text-left py-3 px-2 font-medium text-gray-700 dark:text-gray-300">Tara</th>
-                  <th className="text-left py-3 px-2 font-medium text-gray-700 dark:text-gray-300">Status</th>
-                  <th className="text-right py-3 px-2 font-medium text-gray-700 dark:text-gray-300">Actiuni</th>
+                  <th className="text-left py-3 px-2 font-medium text-gray-700 dark:text-gray-300">
+                    Nume
+                  </th>
+                  <th className="text-left py-3 px-2 font-medium text-gray-700 dark:text-gray-300">
+                    Cod
+                  </th>
+                  <th className="text-left py-3 px-2 font-medium text-gray-700 dark:text-gray-300">
+                    Tara
+                  </th>
+                  <th className="text-left py-3 px-2 font-medium text-gray-700 dark:text-gray-300">
+                    Status
+                  </th>
+                  <th className="text-right py-3 px-2 font-medium text-gray-700 dark:text-gray-300">
+                    Actiuni
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {ports.map((port) => (
-                  <tr key={port.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <tr
+                    key={port.id}
+                    className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                  >
                     <td className="py-3 px-2 text-gray-900 dark:text-white font-medium">
                       {port.name}
                     </td>
                     <td className="py-3 px-2 text-gray-600 dark:text-gray-400">
                       {port.code || '-'}
                     </td>
-                    <td className="py-3 px-2 text-gray-600 dark:text-gray-400">
-                      {port.country}
-                    </td>
+                    <td className="py-3 px-2 text-gray-600 dark:text-gray-400">{port.country}</td>
                     <td className="py-3 px-2">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        port.isActive
-                          ? 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400'
-                          : 'bg-gray-100 text-gray-800 dark:bg-gray-500/20 dark:text-gray-400'
-                      }`}>
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                          port.isActive
+                            ? 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400'
+                            : 'bg-gray-100 text-gray-800 dark:bg-gray-500/20 dark:text-gray-400'
+                        }`}
+                      >
                         {port.isActive ? 'Activ' : 'Inactiv'}
                       </span>
                     </td>
@@ -353,9 +357,7 @@ const AdminPortsManager: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Gestionare Porturi
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Gestionare Porturi</h2>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
             Adaugati si gestionati porturile de origine si destinatie
           </p>

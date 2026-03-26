@@ -1,12 +1,17 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware, requireRole } from '../../middleware/auth.middleware';
-import trackingService, { TrackingEventInput, TrackingEventTypes, EventTypeLabels } from './tracking.service';
+import trackingService, {
+  TrackingEventInput,
+  TrackingEventTypes,
+  EventTypeLabels,
+} from './tracking.service';
 import { TrackingWebhookService } from './tracking-webhook.service';
 import { searatesIntegration } from '../../integrations/searates.integration';
 import prisma from '../../lib/prisma';
 import { webhookLimiter, emailParseLimiter } from '../../middleware/rateLimit.middleware';
 import notificationService from '../../services/notification.service';
 import trackGPSService from '../../services/trackgps.service';
+import { parseEmailWithGemini, isGeminiConfigured } from '../../services/gemini.service';
 
 const router = Router();
 const webhookService = new TrackingWebhookService();
@@ -136,9 +141,10 @@ router.get('/search/:containerNumber', authMiddleware, async (req: Request, res:
       );
 
       // Auto-refresh from SeaRates if data is stale (no status or last sync > 4 hours ago)
-      const needsRefresh = !container.currentStatus ||
+      const needsRefresh =
+        !container.currentStatus ||
         !container.lastSyncAt ||
-        (new Date().getTime() - new Date(container.lastSyncAt).getTime() > 4 * 60 * 60 * 1000);
+        new Date().getTime() - new Date(container.lastSyncAt).getTime() > 4 * 60 * 60 * 1000;
 
       if (needsRefresh && searatesIntegration.isConfigured()) {
         console.log(`[Tracking] Auto-refreshing ${containerNumber} from SeaRates...`);
@@ -161,7 +167,9 @@ router.get('/search/:containerNumber', authMiddleware, async (req: Request, res:
     } catch (localError: any) {
       // If not found locally, try SeaRates API
       if (localError.message === 'Container not found' && searatesIntegration.isConfigured()) {
-        console.log(`[Tracking] Container ${containerNumber} not found locally, trying SeaRates API...`);
+        console.log(
+          `[Tracking] Container ${containerNumber} not found locally, trying SeaRates API...`
+        );
 
         const searatesData = await searatesIntegration.getContainerTracking(
           containerNumber.toUpperCase(),
@@ -189,17 +197,18 @@ router.get('/search/:containerNumber', authMiddleware, async (req: Request, res:
               origin: searatesData.originPort || 'Unknown',
               destination: searatesData.destinationPort || 'Unknown',
             },
-            trackingEvents: searatesData.events?.map((event, index) => ({
-              id: `event-${index}`,
-              containerId: `searates-${containerNumber}`,
-              eventType: event.eventCode || event.type || 'UPDATE',
-              eventDate: event.occurredAt,
-              location: event.location?.name || 'Unknown',
-              portName: event.facility?.name,
-              vessel: event.vessel?.name,
-              notes: event.description,
-              createdAt: event.occurredAt,
-            })) || [],
+            trackingEvents:
+              searatesData.events?.map((event, index) => ({
+                id: `event-${index}`,
+                containerId: `searates-${containerNumber}`,
+                eventType: event.eventCode || event.type || 'UPDATE',
+                eventDate: event.occurredAt,
+                location: event.location?.name || 'Unknown',
+                portName: event.facility?.name,
+                vessel: event.vessel?.name,
+                notes: event.description,
+                createdAt: event.occurredAt,
+              })) || [],
             _source: 'SEARATES_API',
             _shippingLine: {
               code: searatesData.shippingLine,
@@ -257,7 +266,8 @@ router.post(
     try {
       const { id } = req.params;
       const user = (req as any).user;
-      const { eventType, eventDate, location, portName, vessel, latitude, longitude, notes } = req.body;
+      const { eventType, eventDate, location, portName, vessel, latitude, longitude, notes } =
+        req.body;
 
       // Validation
       if (!eventType) {
@@ -314,7 +324,8 @@ router.put(
     try {
       const { eventId } = req.params;
       const user = (req as any).user;
-      const { eventType, eventDate, location, portName, vessel, latitude, longitude, notes } = req.body;
+      const { eventType, eventDate, location, portName, vessel, latitude, longitude, notes } =
+        req.body;
 
       const eventData: Partial<TrackingEventInput> = {
         eventType,
@@ -378,7 +389,9 @@ router.post('/webhook', webhookLimiter, async (req: Request, res: Response) => {
   try {
     // Get signature - handle both string and string[] types
     const signatureHeader = req.headers['x-signature'] || req.headers['x-searates-signature'];
-    const signature = Array.isArray(signatureHeader) ? signatureHeader[0] : (signatureHeader as string | undefined);
+    const signature = Array.isArray(signatureHeader)
+      ? signatureHeader[0]
+      : (signatureHeader as string | undefined);
 
     // Get provider - handle both string and string[] types
     const providerHeader = req.headers['x-provider'] || 'SEARATES';
@@ -435,12 +448,27 @@ router.post(
         return res.status(400).json({ error: 'Email content is required' });
       }
 
-      // TODO: Implement AI parsing using Gemini/OpenAI
-      // This should extract: B/L number, container number, shipping line, ports, dates, etc.
+      if (!isGeminiConfigured()) {
+        return res.status(503).json({
+          error: 'AI parsing is not configured. Please add GEMINI_API_KEY to backend .env',
+        });
+      }
 
-      res.status(501).json({
-        message: 'Email parsing not yet implemented',
-        // TODO: Return parsed data
+      // Parse email using Gemini AI
+      const parsed = await parseEmailWithGemini(emailContent);
+
+      if (parsed.error) {
+        return res.status(422).json({
+          success: false,
+          error: parsed.error,
+          confidence: parsed.confidence,
+        });
+      }
+
+      res.json({
+        success: true,
+        data: parsed,
+        confidence: parsed.confidence,
       });
     } catch (error: any) {
       console.error('Parse email error:', error);
@@ -522,11 +550,11 @@ router.get('/vessel/:vesselName', authMiddleware, async (req: Request, res: Resp
       })),
       latestPosition: latestEvents[0]
         ? {
-          latitude: latestEvents[0].latitude,
-          longitude: latestEvents[0].longitude,
-          location: latestEvents[0].location,
-          eventDate: latestEvents[0].eventDate,
-        }
+            latitude: latestEvents[0].latitude,
+            longitude: latestEvents[0].longitude,
+            location: latestEvents[0].location,
+            eventDate: latestEvents[0].eventDate,
+          }
         : null,
     };
 
@@ -777,7 +805,8 @@ router.get('/external/:containerNumber', authMiddleware, async (req: Request, re
     const containerRegex = /^[A-Z]{4}\d{7}$/;
     if (!containerRegex.test(containerNumber.toUpperCase())) {
       return res.status(400).json({
-        error: 'Invalid container number format. Expected: 4 letters + 7 digits (e.g., MSCU1234567)',
+        error:
+          'Invalid container number format. Expected: 4 letters + 7 digits (e.g., MSCU1234567)',
       });
     }
 
@@ -814,13 +843,14 @@ router.get('/external/:containerNumber', authMiddleware, async (req: Request, re
       voyage: trackingData.voyage,
       eta: trackingData.eta,
       ata: trackingData.ata,
-      events: trackingData.events?.map((e) => ({
-        type: searatesIntegration.mapEventType(e.type),
-        date: e.occurredAt,
-        location: e.location?.name || e.location,
-        vessel: e.vessel?.name,
-        description: e.description,
-      })) || [],
+      events:
+        trackingData.events?.map((e) => ({
+          type: searatesIntegration.mapEventType(e.type),
+          date: e.occurredAt,
+          location: e.location?.name || e.location,
+          vessel: e.vessel?.name,
+          description: e.description,
+        })) || [],
       fetchedAt: new Date().toISOString(),
     });
   } catch (error: any) {
@@ -911,7 +941,7 @@ router.get('/public/:containerNumber', async (req: Request, res: Response) => {
     const trackingData = await searatesIntegration.getContainerTracking(
       containerNumber.toUpperCase(),
       {
-        sealine: sealine as string || 'auto',
+        sealine: (sealine as string) || 'auto',
         includeRoute: route === 'true',
         forceUpdate: false,
       }
@@ -949,18 +979,19 @@ router.get('/public/:containerNumber', async (req: Request, res: Response) => {
         ata: trackingData.ata,
         etd: trackingData.etd,
         atd: trackingData.atd,
-        events: trackingData.events?.map(event => ({
-          type: event.type,
-          eventCode: event.eventCode,
-          eventName: event.eventName,
-          status: event.status,
-          date: event.occurredAt,
-          isActual: event.isActual,
-          location: event.location,
-          facility: event.facility,
-          vessel: event.vessel,
-          voyage: event.voyage,
-        })) || [],
+        events:
+          trackingData.events?.map((event) => ({
+            type: event.type,
+            eventCode: event.eventCode,
+            eventName: event.eventName,
+            status: event.status,
+            date: event.occurredAt,
+            isActual: event.isActual,
+            location: event.location,
+            facility: event.facility,
+            vessel: event.vessel,
+            voyage: event.voyage,
+          })) || [],
         route: trackingData.route,
       },
       fetchedAt: new Date().toISOString(),
@@ -1297,12 +1328,14 @@ router.put(
           trackingVehicleName: booking.trackingVehicleName,
           trackingStartedAt: booking.trackingStartedAt,
         },
-        initialLocation: location ? {
-          latitude: location.latitude,
-          longitude: location.longitude,
-          speed: location.speed,
-          timestamp: location.gpsDate,
-        } : null,
+        initialLocation: location
+          ? {
+              latitude: location.latitude,
+              longitude: location.longitude,
+              speed: location.speed,
+              timestamp: location.gpsDate,
+            }
+          : null,
       });
     } catch (error: any) {
       console.error('Assign vehicle error:', error);
@@ -1393,13 +1426,15 @@ router.get(
         bookingId,
         vehicleId: booking.trackingVehicleId,
         vehicleName: booking.trackingVehicleName,
-        location: result.location ? {
-          latitude: result.location.latitude,
-          longitude: result.location.longitude,
-          speed: result.location.speed,
-          course: result.location.course,
-          timestamp: result.location.gpsDate,
-        } : null,
+        location: result.location
+          ? {
+              latitude: result.location.latitude,
+              longitude: result.location.longitude,
+              speed: result.location.speed,
+              course: result.location.course,
+              timestamp: result.location.gpsDate,
+            }
+          : null,
       });
     } catch (error: any) {
       console.error('Get booking GPS location error:', error);

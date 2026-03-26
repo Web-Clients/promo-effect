@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { User, UserRole } from '../types';
 import { Button } from './ui/Button';
 import {
@@ -16,14 +17,14 @@ import bookingsService, { BookingResponse } from '../services/bookings';
 import invoicesService from '../services/invoices';
 import { cn } from '../lib/utils';
 
-const statusTextMap: { [key: string]: string } = {
-  DRAFT: 'Ciorna',
-  PENDING: 'In Asteptare',
-  SUBMITTED: 'Trimisa',
-  CONFIRMED: 'Confirmata',
-  IN_TRANSIT: 'In Tranzit',
-  DELIVERED: 'Livrata',
-  CANCELLED: 'Anulata',
+const STATUS_I18N_KEYS: { [key: string]: string } = {
+  DRAFT: 'status.pending',
+  PENDING: 'status.pending',
+  SUBMITTED: 'status.processing',
+  CONFIRMED: 'status.confirmed',
+  IN_TRANSIT: 'status.inTransit',
+  DELIVERED: 'status.delivered',
+  CANCELLED: 'status.cancelled',
 };
 
 // Status colors for new design
@@ -39,11 +40,11 @@ const statusColors: { [key: string]: string } = {
 
 // Tab definitions for the consolidated view
 const BOOKING_TABS = [
-  { key: 'all', label: 'Toate' },
-  { key: 'loading', label: 'La Incarcare' },
-  { key: 'transit', label: 'In Drum' },
-  { key: 'port', label: 'Port' },
-  { key: 'delivered', label: 'Livrate' },
+  { key: 'all', labelKey: 'bookings.tabAll' },
+  { key: 'loading', labelKey: 'bookings.tabLoading' },
+  { key: 'transit', labelKey: 'bookings.tabTransit' },
+  { key: 'port', labelKey: 'bookings.tabPort' },
+  { key: 'delivered', labelKey: 'bookings.tabDelivered' },
 ] as const;
 
 type TabKey = (typeof BOOKING_TABS)[number]['key'];
@@ -90,6 +91,7 @@ function hasTelexRelease(b: BookingResponse): boolean {
 }
 
 const BookingsList = ({ user }: { user: User }) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabKey>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
@@ -299,24 +301,26 @@ const BookingsList = ({ user }: { user: User }) => {
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
               <span className="font-medium text-sm whitespace-nowrap">
                 {selectedRows.length}{' '}
-                {selectedRows.length === 1 ? 'rezervare selectata' : 'rezervari selectate'}
+                {selectedRows.length === 1
+                  ? t('bookings.bulkSelected_one')
+                  : t('bookings.bulkSelected_other')}
               </span>
               <div className="flex items-center gap-2 flex-wrap justify-center">
                 <Button variant="secondary" size="sm" onClick={() => bulkAction('export')}>
-                  <DownloadIcon className="mr-2 h-4 w-4" /> Exporta
+                  <DownloadIcon className="mr-2 h-4 w-4" /> {t('bookings.exportAction')}
                 </Button>
                 <Button variant="secondary" size="sm" onClick={() => bulkAction('changeStatus')}>
-                  <RefreshCwIcon className="mr-2 h-4 w-4" /> Schimba Starea
+                  <RefreshCwIcon className="mr-2 h-4 w-4" /> {t('bookings.changeStatus')}
                 </Button>
                 <Button
                   variant="secondary"
                   size="sm"
                   onClick={() => bulkAction('generateInvoices')}
                 >
-                  <FileTextIcon className="mr-2 h-4 w-4" /> Genereaza Facturi
+                  <FileTextIcon className="mr-2 h-4 w-4" /> {t('bookings.generateInvoices')}
                 </Button>
                 <Button variant="danger" size="sm" onClick={() => bulkAction('delete')}>
-                  <TrashIcon className="mr-2 h-4 w-4" /> Sterge
+                  <TrashIcon className="mr-2 h-4 w-4" /> {t('bookings.deleteAction')}
                 </Button>
                 <button
                   onClick={() => setSelectedRows([])}
@@ -334,10 +338,10 @@ const BookingsList = ({ user }: { user: User }) => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-primary-800 dark:text-white font-heading">
-            Rezervari
+            {t('bookings.title')}
           </h1>
           <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-            Gestioneaza toate rezervarile de transport
+            {t('bookings.subtitle')}
           </p>
         </div>
         <Button
@@ -346,7 +350,7 @@ const BookingsList = ({ user }: { user: User }) => {
           className="hidden md:inline-flex"
         >
           <PlusIcon className="mr-2 h-4 w-4" />
-          Rezervare Noua
+          {t('bookings.newBooking')}
         </Button>
       </div>
 
@@ -368,7 +372,7 @@ const BookingsList = ({ user }: { user: User }) => {
                   : 'bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-600'
               )}
             >
-              {tab.label}
+              {t(tab.labelKey)}
               <span
                 className={cn(
                   'inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-semibold',
@@ -389,7 +393,7 @@ const BookingsList = ({ user }: { user: User }) => {
             <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
             <input
               type="text"
-              placeholder="Cauta dupa BL, container, client..."
+              placeholder={t('bookings.searchPlaceholder')}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               className="w-full pl-12 pr-4 py-3 bg-neutral-50 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all"
@@ -422,7 +426,7 @@ const BookingsList = ({ user }: { user: User }) => {
       {isLoading ? (
         <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 p-12 flex flex-col items-center justify-center">
           <div className="w-10 h-10 border-4 border-primary-800 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-neutral-500 dark:text-neutral-400">Se incarca rezervarile...</p>
+          <p className="text-neutral-500 dark:text-neutral-400">{t('bookings.loadingBookings')}</p>
         </div>
       ) : filteredBookings.length === 0 ? (
         /* Empty State */
@@ -431,17 +435,17 @@ const BookingsList = ({ user }: { user: User }) => {
             <FileTextIcon className="h-8 w-8 text-neutral-400" />
           </div>
           <h3 className="text-lg font-semibold text-primary-800 dark:text-white mb-2">
-            Nu exista rezervari
+            {t('bookings.noBookings')}
           </h3>
           <p className="text-neutral-500 dark:text-neutral-400 text-center max-w-md mb-4">
             {activeTab !== 'all'
-              ? `Nu exista rezervari in categoria "${BOOKING_TABS.find((t) => t.key === activeTab)?.label}"`
-              : 'Incepeti prin a crea prima rezervare'}
+              ? `${t('bookings.noBookingsInTab')} "${t(BOOKING_TABS.find((tab) => tab.key === activeTab)?.labelKey ?? '')}"`
+              : t('bookings.createFirst')}
           </p>
           {activeTab === 'all' && (
             <Button variant="accent" onClick={() => navigate('/dashboard/bookings/new')}>
               <PlusIcon className="mr-2 h-4 w-4" />
-              Creati Prima Rezervare
+              {t('bookings.createFirstBtn')}
             </Button>
           )}
         </div>
@@ -463,33 +467,33 @@ const BookingsList = ({ user }: { user: User }) => {
                     />
                   </th>
                   <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-                    Data
+                    {t('bookings.date')}
                   </th>
                   <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-                    BL Nr
+                    {t('bookings.blNumber')}
                   </th>
                   <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-                    Port Dest.
+                    {t('bookings.portDest')}
                   </th>
                   <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-                    Linie
+                    {t('bookings.shippingLineShort')}
                   </th>
                   <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-                    Container Nr
+                    {t('bookings.containerNumber')}
                   </th>
                   <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-                    Greutate
+                    {t('bookings.weight')}
                   </th>
                   <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-                    Tip
+                    {t('bookings.type')}
                   </th>
                   {user.role !== UserRole.CLIENT && (
                     <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-                      Beneficiar
+                      {t('bookings.beneficiary')}
                     </th>
                   )}
                   <th className="text-right p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-                    Pret
+                    {t('bookings.price')}
                   </th>
                   <th className="text-center p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
                     TLX
@@ -498,7 +502,7 @@ const BookingsList = ({ user }: { user: User }) => {
                     DOC
                   </th>
                   <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-                    Status
+                    {t('bookings.status')}
                   </th>
                 </tr>
               </thead>
@@ -618,7 +622,7 @@ const BookingsList = ({ user }: { user: User }) => {
                             statusColors[b.status] || statusColors['DRAFT']
                           )}
                         >
-                          {statusTextMap[b.status] || b.status}
+                          {STATUS_I18N_KEYS[b.status] ? t(STATUS_I18N_KEYS[b.status]) : b.status}
                         </span>
                       </td>
                     </tr>
@@ -631,15 +635,19 @@ const BookingsList = ({ user }: { user: User }) => {
           {/* Table Footer */}
           <div className="px-4 py-3 border-t border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-700/30 flex items-center justify-between">
             <span className="text-sm text-neutral-500 dark:text-neutral-400">
-              {filteredBookings.length} {filteredBookings.length === 1 ? 'rezervare' : 'rezervari'}
-              {activeTab !== 'all' && ` din ${bookings.length} total`}
+              {filteredBookings.length}{' '}
+              {filteredBookings.length === 1
+                ? t('bookings.countSingular')
+                : t('bookings.countPlural')}
+              {activeTab !== 'all' &&
+                ` ${t('common.of')} ${bookings.length} ${t('common.total').toLowerCase()}`}
             </span>
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" disabled>
-                Anterior
+                {t('bookings.paginationPrev')}
               </Button>
               <Button variant="ghost" size="sm" disabled>
-                Urmator
+                {t('bookings.paginationNext')}
               </Button>
             </div>
           </div>

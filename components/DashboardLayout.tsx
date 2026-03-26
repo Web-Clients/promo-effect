@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { User, UserRole, Booking } from '../types';
 import { cn } from '../lib/utils';
 import {
@@ -65,6 +66,7 @@ interface NavItem {
 }
 
 const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLayoutProps) => {
+  const { t } = useTranslation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
 
@@ -88,31 +90,36 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
 
   const navigation: NavItem[] = [
     {
-      name: 'Panou de control',
+      name: t('nav.dashboard'),
       path: '/dashboard',
       icon: LayoutDashboardIcon,
       visible: true,
       end: true,
     },
-    { name: 'Rezervări', path: 'bookings', icon: PackageIcon, visible: true },
-    { name: 'Urmărire', path: 'tracking', icon: ShipIcon, visible: true },
-    { name: 'Marfă în Drum', path: 'containers-transit', icon: MapPinIcon, visible: true },
-    { name: 'Calculator Preț', path: 'calculator', icon: CalculatorIcon, visible: true },
-    { name: 'Profilul Meu', path: 'userProfile', icon: UserIcon, visible: true },
-    { name: 'Clienți', path: 'clients', icon: UsersIcon, visible: isAdminOrManager },
-    { name: 'Facturi', path: 'invoices', icon: FileTextIcon, visible: isAdminOrManager },
-    { name: 'AI Email Parser', path: 'ai-parser', icon: SparklesIcon, visible: isAdminOrManager },
-    { name: 'Rapoarte', path: 'reports', icon: BarChartIcon, visible: isAdminOrManager },
-    { name: 'Administrare Prețuri', path: 'admin-pricing', icon: DollarSignIcon, visible: isAdmin },
-    { name: 'Linii Maritime', path: 'shipping-lines', icon: ShipIcon, visible: isAdmin },
-    { name: 'Transport Terestru', path: 'transport-rates', icon: TruckIcon, visible: isAdmin },
-    { name: 'Agenți Chinezi', path: 'agents', icon: GlobeIcon, visible: isAdmin },
-    { name: 'Gestionare Porturi', path: 'ports-manager', icon: AnchorIcon, visible: isAdmin },
-    { name: 'Panou Admin', path: 'admin-panel', icon: UserCheckIcon, visible: isAdmin },
-    { name: 'Utilizatori', path: 'user-management', icon: UsersIcon, visible: isAdmin },
-    { name: 'Setări Admin', path: 'adminSettings', icon: SettingsIcon, visible: isAdmin },
+    { name: t('nav.bookings'), path: 'bookings', icon: PackageIcon, visible: true },
+    { name: t('nav.tracking'), path: 'tracking', icon: ShipIcon, visible: true },
     {
-      name: 'Prețurile Mele',
+      name: t('nav.containersTransit'),
+      path: 'containers-transit',
+      icon: MapPinIcon,
+      visible: true,
+    },
+    { name: t('nav.calculator'), path: 'calculator', icon: CalculatorIcon, visible: true },
+    { name: t('nav.myProfile'), path: 'userProfile', icon: UserIcon, visible: true },
+    { name: t('nav.clients'), path: 'clients', icon: UsersIcon, visible: isAdminOrManager },
+    { name: t('nav.invoices'), path: 'invoices', icon: FileTextIcon, visible: isAdminOrManager },
+    { name: t('nav.aiParser'), path: 'ai-parser', icon: SparklesIcon, visible: isAdminOrManager },
+    { name: t('nav.reports'), path: 'reports', icon: BarChartIcon, visible: isAdminOrManager },
+    { name: t('nav.adminPricing'), path: 'admin-pricing', icon: DollarSignIcon, visible: isAdmin },
+    { name: t('nav.shippingLines'), path: 'shipping-lines', icon: ShipIcon, visible: isAdmin },
+    { name: t('nav.transportRates'), path: 'transport-rates', icon: TruckIcon, visible: isAdmin },
+    { name: t('nav.chineseAgents'), path: 'agents', icon: GlobeIcon, visible: isAdmin },
+    { name: t('nav.portsManager'), path: 'ports-manager', icon: AnchorIcon, visible: isAdmin },
+    { name: t('nav.adminPanel'), path: 'admin-panel', icon: UserCheckIcon, visible: isAdmin },
+    { name: t('nav.userManagement'), path: 'user-management', icon: UsersIcon, visible: isAdmin },
+    { name: t('nav.adminSettings'), path: 'adminSettings', icon: SettingsIcon, visible: isAdmin },
+    {
+      name: t('nav.myPrices'),
       path: 'my-prices',
       icon: DollarSignIcon,
       visible: user.role === UserRole.AGENT,
@@ -224,7 +231,7 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
             {sidebarOpen ? (
               <>
                 <ChevronLeftIcon className="h-5 w-5" />
-                <span className="text-sm">Restrânge</span>
+                <span className="text-sm">{t('nav.collapse')}</span>
               </>
             ) : (
               <ChevronRightIcon className="h-5 w-5" />
@@ -265,7 +272,7 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
                 <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
                 <input
                   type="text"
-                  placeholder="Caută rezervări, containere, clienți..."
+                  placeholder={t('common.searchPlaceholder')}
                   className="w-full pl-10 pr-4 py-2.5 bg-neutral-100 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-sm"
                 />
               </div>
@@ -291,13 +298,13 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
                 className="hidden sm:inline-flex items-center justify-center text-sm font-medium transition-all h-10 px-4 bg-accent-500 text-white shadow-sm hover:bg-accent-600 hover:shadow-md rounded-lg"
               >
                 <PlusIcon className="mr-2 h-4 w-4" />
-                Rezervare Nouă
+                {t('actions.newBooking')}
               </button>
 
               <button
                 onClick={onLogout}
                 className="p-2.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
-                title="Deconectare"
+                title={t('actions.logout')}
               >
                 <LogOutIcon className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
               </button>
@@ -313,7 +320,7 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
         <button
           onClick={() => onNewBooking()}
           className="bg-accent-500 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:bg-accent-600 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent-500 hover:scale-105"
-          aria-label="Rezervare Nouă"
+          aria-label={t('actions.newBooking')}
         >
           <PlusIcon className="h-7 w-7" />
         </button>

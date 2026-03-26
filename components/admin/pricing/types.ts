@@ -9,6 +9,7 @@ export interface WeightRange {
   enabled: boolean;
   freightSurcharge: number;
   terrestrialSurcharge: number;
+  containerType?: string; // Optional: if set, interval applies only to this container type
 }
 
 export type Tab = 'base-prices' | 'port-adjustments' | 'settings';

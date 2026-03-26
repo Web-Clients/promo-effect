@@ -13,134 +13,21 @@
 import prisma from '../../lib/prisma';
 import notificationService from '../../services/notification.service';
 import { extractTextFromPDF } from '../../services/pdf-parser.service';
+import {
+  ParsedEmail,
+  EmailAttachment,
+  ExtractedBookingData,
+  EmailProcessingResult,
+  REGEX_PATTERNS,
+  SHIPPING_LINE_MAP,
+} from './email.types';
 
-// ===== EMAIL PARSING TYPES =====
-
-export interface ParsedEmail {
-  id: string;
-  from: string;
-  subject: string;
-  date: Date;
-  body: string;
-  attachments: EmailAttachment[];
-}
-
-export interface EmailAttachment {
-  filename: string;
-  mimeType: string;
-  size: number;
-  data?: string; // base64 encoded
-}
-
-export interface ExtractedBookingData {
-  // Container info
-  containerNumber?: string;       // e.g., TEMU1234567
-  blNumber?: string;              // Bill of Lading
-
-  // Shipping info
-  shippingLine?: string;          // e.g., MSC, Maersk, etc.
-  vesselName?: string;            // e.g., "MSC Oscar"
-  voyageNumber?: string;          // e.g., "VY123E"
-
-  // Port info
-  portOrigin?: string;            // e.g., Shanghai, Ningbo
-  portDestination?: string;       // e.g., Constanta
-
-  // Dates
-  etd?: Date;                     // Estimated Time of Departure
-  eta?: Date;                     // Estimated Time of Arrival
-  cargoReadyDate?: Date;
-
-  // Cargo info
-  containerType?: string;         // 20ft, 40ft, 40ft_HC
-  cargoWeight?: string;           // e.g., "10-20t"
-  cargoDescription?: string;
-
-  // Supplier info
-  supplierName?: string;
-  supplierPhone?: string;
-  supplierEmail?: string;
-
-  // Parsing metadata
-  confidence: number;             // 0-100, confidence score
-  extractionMethod: 'REGEX' | 'AI' | 'MANUAL';
-  rawEmailId: string;
-}
-
-export interface EmailProcessingResult {
-  emailId: string;
-  status: 'SUCCESS' | 'NEEDS_REVIEW' | 'FAILED';
-  extractedData?: ExtractedBookingData;
-  bookingId?: string;             // If booking was auto-created
-  containerId?: string;           // If container was found or created
-  error?: string;
-  processingTime: number;         // ms
-}
-
-// ===== REGEX PATTERNS FOR EMAIL PARSING =====
-
-const REGEX_PATTERNS = {
-  // Container number: 4 letters + 7 digits (e.g., TEMU1234567, MSCU1234567)
-  containerNumber: /\b([A-Z]{4}[0-9]{7})\b/gi,
-
-  // B/L number: Various formats
-  blNumber: /\b(BL[A-Z0-9\-]{6,15}|[A-Z]{4}[0-9]{9,12}|MEDUEN[0-9]+)\b/gi,
-
-  // Weight patterns
-  weight: /(\d+(?:\.\d+)?)\s*(?:kg|KG|ton|t|MT|metric\s*ton)/gi,
-  weightRange: /\b(\d+-\d+t|\d+\s*-\s*\d+\s*ton)\b/gi,
-
-  // Date patterns (various formats)
-  dateISO: /\b(\d{4}-\d{2}-\d{2})\b/g,
-  dateEU: /\b(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})\b/g,
-  dateText: /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}\b/gi,
-
-  // Port names (Chinese ports)
-  chinesePorts: /\b(Shanghai|Ningbo|Qingdao|Shenzhen|Guangzhou|Tianjin|Xiamen|Dalian|Fuzhou|Yantian)\b/gi,
-  europeanPorts: /\b(Constanta|Constanța|Rotterdam|Hamburg|Piraeus|Gdansk|Felixstowe)\b/gi,
-
-  // Shipping lines
-  shippingLines: /\b(MSC|Maersk|Hapag[-\s]?Lloyd|Cosco|CMA\s*CGM|Evergreen|OOCL|Yang\s*Ming|ZIM|ONE)\b/gi,
-
-  // Vessel name (usually "M/V" or "MV" prefix)
-  vesselName: /(?:M\/V|MV|VESSEL:?|Ship:?)\s*([A-Z][A-Za-z0-9\s\-]+)/gi,
-
-  // Voyage number
-  voyageNumber: /(?:VOY|VOYAGE|VY)[\.:\s]*([A-Z0-9\-]+[EWN]?)/gi,
-
-  // Container type
-  containerType: /\b(20(?:\s*(?:ft|'|GP|DC))?|40(?:\s*(?:ft|'|GP|DC|HC|HQ))?)\b/gi,
-
-  // Phone numbers (Chinese format)
-  phoneChina: /(?:\+?86[\s\-]?)?1[3-9]\d{9}/g,
-  phoneIntl: /\+\d{1,3}[\s\-]?\d{6,14}/g,
-
-  // Email addresses
-  email: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi,
-};
-
-// ===== SHIPPING LINE NORMALIZATION =====
-
-const SHIPPING_LINE_MAP: Record<string, string> = {
-  'msc': 'MSC',
-  'maersk': 'Maersk',
-  'hapag-lloyd': 'Hapag-Lloyd',
-  'hapag lloyd': 'Hapag-Lloyd',
-  'cosco': 'Cosco',
-  'cma cgm': 'CMA CGM',
-  'cmacgm': 'CMA CGM',
-  'evergreen': 'Evergreen',
-  'oocl': 'OOCL',
-  'yang ming': 'Yangming',
-  'yangming': 'Yangming',
-  'zim': 'ZIM',
-  'one': 'ONE',
-};
+// Re-export types for backward compatibility
+export { ParsedEmail, EmailAttachment, ExtractedBookingData, EmailProcessingResult };
 
 // ===== EMAIL SERVICE CLASS =====
 
 export class EmailService {
-
   /**
    * Parse a single email and extract booking data using regex
    */
@@ -224,7 +111,7 @@ export class EmailService {
       const etdContext = /ETD|departure|sailing|depart/i;
       const etaContext = /ETA|arrival|arrive/i;
 
-      dateMatches.forEach(dateStr => {
+      dateMatches.forEach((dateStr) => {
         const contextBefore = content.substring(
           Math.max(0, content.indexOf(dateStr) - 30),
           content.indexOf(dateStr)
@@ -244,10 +131,8 @@ export class EmailService {
     const emailMatches = content.match(REGEX_PATTERNS.email);
     if (emailMatches) {
       // Filter out common addresses
-      const supplierEmail = emailMatches.find(e =>
-        !e.includes('promo-efect') &&
-        !e.includes('gmail.com') &&
-        !e.includes('yahoo.com')
+      const supplierEmail = emailMatches.find(
+        (e) => !e.includes('promo-efect') && !e.includes('gmail.com') && !e.includes('yahoo.com')
       );
       if (supplierEmail) {
         extracted.supplierEmail = supplierEmail;
@@ -415,19 +300,24 @@ ${email.body.substring(0, 5000)}
                 voyageNumber: pdfResult.voyageNumber || extractedData.voyageNumber,
                 portOrigin: pdfResult.portOfLoading || extractedData.portOrigin,
                 portDestination: pdfResult.portOfDischarge || extractedData.portDestination,
-                etd: pdfResult.departureDate ? new Date(pdfResult.departureDate) : extractedData.etd,
+                etd: pdfResult.departureDate
+                  ? new Date(pdfResult.departureDate)
+                  : extractedData.etd,
                 eta: pdfResult.eta ? new Date(pdfResult.eta) : extractedData.eta,
                 containerType: pdfResult.containerType || extractedData.containerType,
                 cargoWeight: pdfResult.weight || extractedData.cargoWeight,
                 cargoDescription: pdfResult.cargoDescription || extractedData.cargoDescription,
-                supplierName: pdfResult.shipperName || pdfResult.supplierName || extractedData.supplierName,
+                supplierName:
+                  pdfResult.shipperName || pdfResult.supplierName || extractedData.supplierName,
                 supplierPhone: pdfResult.supplierPhone || extractedData.supplierPhone,
                 supplierEmail: pdfResult.supplierEmail || extractedData.supplierEmail,
                 confidence: pdfResult.confidence || 85,
                 extractionMethod: 'AI',
                 rawEmailId: email.id,
               };
-              console.log(`[EmailService] PDF AI parsing: confidence=${pdfResult.confidence}%, BL=${pdfResult.billOfLading}, container=${pdfResult.containerNumber}`);
+              console.log(
+                `[EmailService] PDF AI parsing: confidence=${pdfResult.confidence}%, BL=${pdfResult.billOfLading}, container=${pdfResult.containerNumber}`
+              );
             }
           }
         } catch (pdfAiError) {
@@ -489,10 +379,15 @@ ${email.body.substring(0, 5000)}
       if (existingContainer) {
         const containerWithBooking = existingContainer as any;
         // Compare extracted data with existing data
-        const hasSignificantChanges = 
-          (extractedData.eta && existingContainer.eta && 
-           Math.abs(new Date(extractedData.eta).getTime() - new Date(existingContainer.eta).getTime()) > 24 * 60 * 60 * 1000) ||
-          (extractedData.portOrigin && containerWithBooking.booking?.portOrigin !== extractedData.portOrigin);
+        const hasSignificantChanges =
+          (extractedData.eta &&
+            existingContainer.eta &&
+            Math.abs(
+              new Date(extractedData.eta).getTime() - new Date(existingContainer.eta).getTime()
+            ) >
+              24 * 60 * 60 * 1000) ||
+          (extractedData.portOrigin &&
+            containerWithBooking.booking?.portOrigin !== extractedData.portOrigin);
 
         if (hasSignificantChanges) {
           // Notify operator for review
@@ -514,15 +409,23 @@ ${email.body.substring(0, 5000)}
               });
             }
           } catch (error) {
-            console.error(`[EmailService] Failed to send notification about container ${existingContainer.containerNumber}:`, error);
+            console.error(
+              `[EmailService] Failed to send notification about container ${existingContainer.containerNumber}:`,
+              error
+            );
           }
-          console.log(`[EmailService] Container ${existingContainer.containerNumber} has significant changes, needs review`);
+          console.log(
+            `[EmailService] Container ${existingContainer.containerNumber} has significant changes, needs review`
+          );
         } else {
           // Update container with data from BL
           const updateData: any = { updatedAt: new Date() };
           if (extractedData.eta) updateData.eta = new Date(extractedData.eta);
-          if (extractedData.blNumber && !existingContainer.blNumber) updateData.blNumber = extractedData.blNumber.toUpperCase();
-          if (extractedData.cargoWeight) updateData.weightGross = parseFloat(extractedData.cargoWeight.replace(/[^0-9.]/g, '')) || undefined;
+          if (extractedData.blNumber && !existingContainer.blNumber)
+            updateData.blNumber = extractedData.blNumber.toUpperCase();
+          if (extractedData.cargoWeight)
+            updateData.weightGross =
+              parseFloat(extractedData.cargoWeight.replace(/[^0-9.]/g, '')) || undefined;
           if (extractedData.cargoDescription) updateData.content = extractedData.cargoDescription;
           if (extractedData.portOrigin) updateData.currentLocation = extractedData.portOrigin;
 
@@ -559,11 +462,12 @@ ${email.body.substring(0, 5000)}
       // Auto-create if we have container number + BL (key identifiers), OR high confidence with port info
       const hasContainerKey = !!(extractedData.containerNumber && extractedData.blNumber);
       const hasMinData = !!(extractedData.containerNumber || extractedData.blNumber);
-      const shouldAutoCreate = autoCreateBooking && hasMinData &&
+      const shouldAutoCreate =
+        autoCreateBooking &&
+        hasMinData &&
         (hasContainerKey || extractedData.confidence >= minConfidenceForAutoCreate);
 
       if (shouldAutoCreate) {
-        // Check minimum required fields - just need container number or BL
         if (extractedData.containerNumber || extractedData.blNumber) {
           // Find or create client based on email
           let client = await prisma.client.findFirst({
@@ -571,14 +475,12 @@ ${email.body.substring(0, 5000)}
           });
 
           if (!client) {
-            // Try to find client by supplier email or name
             if (extractedData.supplierEmail) {
               client = await prisma.client.findFirst({
                 where: { email: extractedData.supplierEmail },
               });
             }
 
-            // If still not found, use default client
             if (!client) {
               client = await prisma.client.findFirst({
                 where: { status: 'ACTIVE' },
@@ -619,12 +521,17 @@ ${email.body.substring(0, 5000)}
               const container = await prisma.container.create({
                 data: {
                   bookingId: booking.id,
-                  containerNumber: extractedData.containerNumber?.toUpperCase() || `TEMP-${Date.now()}`,
+                  containerNumber:
+                    extractedData.containerNumber?.toUpperCase() || `TEMP-${Date.now()}`,
                   blNumber: extractedData.blNumber?.toUpperCase(),
                   type: extractedData.containerType || '40ft',
-                  weightGross: extractedData.cargoWeight ? parseFloat(extractedData.cargoWeight.replace(/[^0-9.]/g, '')) : undefined,
+                  weightGross: extractedData.cargoWeight
+                    ? parseFloat(extractedData.cargoWeight.replace(/[^0-9.]/g, ''))
+                    : undefined,
                   content: extractedData.cargoDescription,
-                  temperatureSetting: extractedData.containerType?.includes('Reefer') ? 2 : undefined,
+                  temperatureSetting: extractedData.containerType?.includes('Reefer')
+                    ? 2
+                    : undefined,
                   currentStatus: 'PENDING_REVIEW', // Needs operator validation
                   eta: extractedData.eta ? new Date(extractedData.eta) : undefined,
                   urgent: false,
@@ -665,9 +572,14 @@ ${email.body.substring(0, 5000)}
                   });
                 }
               } catch (error) {
-                console.error(`[EmailService] Failed to send notification about new container ${container.containerNumber}:`, error);
+                console.error(
+                  `[EmailService] Failed to send notification about new container ${container.containerNumber}:`,
+                  error
+                );
               }
-              console.log(`[EmailService] Created container ${container.containerNumber} from email, needs review`);
+              console.log(
+                `[EmailService] Created container ${container.containerNumber} from email, needs review`
+              );
             }
 
             // Log to audit
@@ -709,7 +621,6 @@ ${email.body.substring(0, 5000)}
         extractedData,
         processingTime: Date.now() - startTime,
       };
-
     } catch (error: any) {
       console.error('Email processing failed:', error);
       return {
@@ -732,8 +643,6 @@ ${email.body.substring(0, 5000)}
     autoCreatedBookings: number;
     averageConfidence: number;
   }> {
-    // This would query from a email_processing_log table
-    // For now, return mock stats
     const logs = await prisma.auditLog.findMany({
       where: {
         entityType: 'BOOKING',
@@ -741,7 +650,7 @@ ${email.body.substring(0, 5000)}
       },
     });
 
-    const emailCreated = logs.filter(l => {
+    const emailCreated = logs.filter((l) => {
       const changes = l.changes as any;
       return changes?.source === 'EMAIL_AUTO_CREATE';
     });
@@ -801,11 +710,13 @@ ${email.body.substring(0, 5000)}
   /**
    * Get incoming emails with filtering and pagination
    */
-  async getIncomingEmails(options: {
-    status?: string;
-    limit?: number;
-    offset?: number;
-  } = {}): Promise<any[]> {
+  async getIncomingEmails(
+    options: {
+      status?: string;
+      limit?: number;
+      offset?: number;
+    } = {}
+  ): Promise<any[]> {
     const { status, limit = 50, offset = 0 } = options;
 
     const where = status ? { status } : {};
@@ -859,7 +770,11 @@ ${email.body.substring(0, 5000)}
   /**
    * Mark email as processed in queue
    */
-  async markEmailProcessed(messageId: string, status: 'PROCESSED' | 'FAILED', error?: string): Promise<void> {
+  async markEmailProcessed(
+    messageId: string,
+    status: 'PROCESSED' | 'FAILED',
+    error?: string
+  ): Promise<void> {
     await (prisma as any).incomingEmail.update({
       where: { messageId },
       data: {

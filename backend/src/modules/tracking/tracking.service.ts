@@ -2,122 +2,25 @@ import { Container, TrackingEvent } from '@prisma/client';
 import prisma from '../../lib/prisma';
 import { searatesIntegration } from '../../integrations/searates.integration';
 import notificationService from '../../services/notification.service';
+import {
+  TrackingEventInput,
+  ContainerFilters,
+  ContainerWithTracking,
+  TrackingEventTypes,
+  EventTypeLabels,
+  EventOrder,
+  EventToStatus,
+} from './tracking.types';
 
-// ============================================
-// TYPES
-// ============================================
-
-export interface TrackingEventInput {
-  eventType: string;
-  eventDate: Date;
-  location: string;
-  portName?: string;
-  vessel?: string;
-  latitude?: number;
-  longitude?: number;
-  notes?: string;
-}
-
-export interface ContainerFilters {
-  page?: number;
-  limit?: number;
-  status?: string;
-  search?: string;
-  clientId?: string;
-  bookingId?: string;
-}
-
-export interface ContainerWithTracking extends Container {
-  trackingEvents: TrackingEvent[];
-  booking: {
-    id: string;
-    clientId: string;
-    portOrigin: string;
-    portDestination: string;
-    shippingLine: string;
-    status: string;
-    client: {
-      id: string;
-      companyName: string;
-    };
-  };
-  daysInTransit?: number;
-  daysDelayed?: number;
-  isDelayed?: boolean;
-}
-
-// ============================================
-// TRACKING EVENT TYPES
-// ============================================
-
-export const TrackingEventTypes = {
-  BOOKING_CONFIRMED: 'BOOKING_CONFIRMED',
-  GATE_IN: 'GATE_IN',
-  LOADED_ON_VESSEL: 'LOADED_ON_VESSEL',
-  VESSEL_DEPARTURE: 'VESSEL_DEPARTURE',
-  IN_TRANSIT: 'IN_TRANSIT',
-  TRANSSHIPMENT: 'TRANSSHIPMENT',
-  VESSEL_ARRIVAL: 'VESSEL_ARRIVAL',
-  DISCHARGED: 'DISCHARGED',
-  CUSTOMS_INSPECTION: 'CUSTOMS_INSPECTION',
-  CUSTOMS_RELEASED: 'CUSTOMS_RELEASED',
-  AVAILABLE_FOR_PICKUP: 'AVAILABLE_FOR_PICKUP',
-  GATE_OUT: 'GATE_OUT',
-  DELIVERED: 'DELIVERED',
-  EMPTY_RETURNED: 'EMPTY_RETURNED',
-} as const;
-
-export const EventTypeLabels: Record<string, string> = {
-  BOOKING_CONFIRMED: 'Rezervare Confirmată',
-  GATE_IN: 'Intrare în Terminal',
-  LOADED_ON_VESSEL: 'Încărcat pe Navă',
-  VESSEL_DEPARTURE: 'Navă Plecată',
-  IN_TRANSIT: 'În Tranzit',
-  TRANSSHIPMENT: 'Transbordare',
-  VESSEL_ARRIVAL: 'Sosire Navă',
-  DISCHARGED: 'Descărcat',
-  CUSTOMS_INSPECTION: 'Inspecție Vamală',
-  CUSTOMS_RELEASED: 'Eliberat din Vamă',
-  AVAILABLE_FOR_PICKUP: 'Disponibil pentru Ridicare',
-  GATE_OUT: 'Ieșire din Terminal',
-  DELIVERED: 'Livrat',
-  EMPTY_RETURNED: 'Container Gol Returnat',
-};
-
-// Event order for validation (lower = earlier in process)
-const EventOrder: Record<string, number> = {
-  BOOKING_CONFIRMED: 1,
-  GATE_IN: 2,
-  LOADED_ON_VESSEL: 3,
-  VESSEL_DEPARTURE: 4,
-  IN_TRANSIT: 5,
-  TRANSSHIPMENT: 6,
-  VESSEL_ARRIVAL: 7,
-  DISCHARGED: 8,
-  CUSTOMS_INSPECTION: 9,
-  CUSTOMS_RELEASED: 10,
-  AVAILABLE_FOR_PICKUP: 11,
-  GATE_OUT: 12,
-  DELIVERED: 13,
-  EMPTY_RETURNED: 14,
-};
-
-// Status mapping based on event type
-const EventToStatus: Record<string, string> = {
-  BOOKING_CONFIRMED: 'CONFIRMED',
-  GATE_IN: 'GATE_IN',
-  LOADED_ON_VESSEL: 'LOADED',
-  VESSEL_DEPARTURE: 'DEPARTED',
-  IN_TRANSIT: 'IN_TRANSIT',
-  TRANSSHIPMENT: 'IN_TRANSIT',
-  VESSEL_ARRIVAL: 'ARRIVED',
-  DISCHARGED: 'DISCHARGED',
-  CUSTOMS_INSPECTION: 'CUSTOMS',
-  CUSTOMS_RELEASED: 'CUSTOMS_CLEARED',
-  AVAILABLE_FOR_PICKUP: 'READY_FOR_PICKUP',
-  GATE_OUT: 'GATE_OUT',
-  DELIVERED: 'DELIVERED',
-  EMPTY_RETURNED: 'COMPLETED',
+// Re-export types for backward compatibility
+export {
+  TrackingEventInput,
+  ContainerFilters,
+  ContainerWithTracking,
+  TrackingEventTypes,
+  EventTypeLabels,
+  EventOrder,
+  EventToStatus,
 };
 
 // ============================================
@@ -129,14 +32,7 @@ class TrackingService {
    * Get all containers with filtering and pagination
    */
   async getContainers(filters: ContainerFilters, userRole?: string, userClientId?: string) {
-    const {
-      page = 1,
-      limit = 20,
-      status,
-      search,
-      clientId,
-      bookingId,
-    } = filters;
+    const { page = 1, limit = 20, status, search, clientId, bookingId } = filters;
 
     const skip = (page - 1) * limit;
 
@@ -201,20 +97,24 @@ class TrackingService {
     ]);
 
     // Add calculated fields and map booking to match frontend interface
-    const containersWithCalc = containers.map(container => ({
+    const containersWithCalc = containers.map((container) => ({
       ...container,
-      booking: container.booking ? {
-        id: container.booking.id,
-        bookingNumber: container.booking.id,
-        origin: container.booking.portOrigin,
-        destination: container.booking.portDestination,
-        shippingLine: container.booking.shippingLine,
-        status: container.booking.status,
-        client: container.booking.client ? {
-          id: container.booking.client.id,
-          name: container.booking.client.companyName,
-        } : undefined,
-      } : undefined,
+      booking: container.booking
+        ? {
+            id: container.booking.id,
+            bookingNumber: container.booking.id,
+            origin: container.booking.portOrigin,
+            destination: container.booking.portDestination,
+            shippingLine: container.booking.shippingLine,
+            status: container.booking.status,
+            client: container.booking.client
+              ? {
+                  id: container.booking.client.id,
+                  name: container.booking.client.companyName,
+                }
+              : undefined,
+          }
+        : undefined,
       latestEvent: container.trackingEvents[0] || null,
       daysInTransit: this.calculateDaysInTransit(container),
       isDelayed: this.checkIfDelayed(container),
@@ -278,18 +178,22 @@ class TrackingService {
     return {
       ...container,
       // Map booking fields to match frontend Container interface
-      booking: container.booking ? {
-        id: container.booking.id,
-        bookingNumber: container.booking.id,
-        origin: (container.booking as any).portOrigin,
-        destination: (container.booking as any).portDestination,
-        shippingLine: (container.booking as any).shippingLine,
-        status: (container.booking as any).status,
-        client: (container.booking as any).client ? {
-          id: (container.booking as any).client.id,
-          name: (container.booking as any).client.companyName,
-        } : undefined,
-      } : undefined,
+      booking: container.booking
+        ? {
+            id: container.booking.id,
+            bookingNumber: container.booking.id,
+            origin: (container.booking as any).portOrigin,
+            destination: (container.booking as any).portDestination,
+            shippingLine: (container.booking as any).shippingLine,
+            status: (container.booking as any).status,
+            client: (container.booking as any).client
+              ? {
+                  id: (container.booking as any).client.id,
+                  name: (container.booking as any).client.companyName,
+                }
+              : undefined,
+          }
+        : undefined,
       daysInTransit: this.calculateDaysInTransit(container),
       isDelayed: this.checkIfDelayed(container),
       daysDelayed: this.calculateDaysDelayed(container),
@@ -345,18 +249,22 @@ class TrackingService {
     return {
       ...container,
       // Map booking fields to match frontend Container interface
-      booking: container.booking ? {
-        id: container.booking.id,
-        bookingNumber: container.booking.id,
-        origin: container.booking.portOrigin,
-        destination: container.booking.portDestination,
-        shippingLine: container.booking.shippingLine,
-        status: container.booking.status,
-        client: container.booking.client ? {
-          id: container.booking.client.id,
-          name: container.booking.client.companyName,
-        } : undefined,
-      } : undefined,
+      booking: container.booking
+        ? {
+            id: container.booking.id,
+            bookingNumber: container.booking.id,
+            origin: container.booking.portOrigin,
+            destination: container.booking.portDestination,
+            shippingLine: container.booking.shippingLine,
+            status: container.booking.status,
+            client: container.booking.client
+              ? {
+                  id: container.booking.client.id,
+                  name: container.booking.client.companyName,
+                }
+              : undefined,
+          }
+        : undefined,
       daysInTransit: this.calculateDaysInTransit(container),
       isDelayed: this.checkIfDelayed(container),
       daysDelayed: this.calculateDaysDelayed(container),
@@ -418,7 +326,11 @@ class TrackingService {
   /**
    * Update tracking event
    */
-  async updateTrackingEvent(eventId: string, eventData: Partial<TrackingEventInput>, updatedBy: string) {
+  async updateTrackingEvent(
+    eventId: string,
+    eventData: Partial<TrackingEventInput>,
+    updatedBy: string
+  ) {
     const event = await prisma.trackingEvent.findUnique({
       where: { id: eventId },
     });
@@ -515,7 +427,7 @@ class TrackingService {
       },
     });
 
-    return containers.map(c => ({
+    return containers.map((c) => ({
       id: c.id,
       containerNumber: c.containerNumber,
       status: c.currentStatus,
@@ -550,7 +462,7 @@ class TrackingService {
       },
     });
 
-    return events.map(e => ({
+    return events.map((e) => ({
       lat: e.latitude,
       lng: e.longitude,
       location: e.location,
@@ -572,7 +484,9 @@ class TrackingService {
     const [total, inTransit, arrived, delivered, delayed] = await Promise.all([
       prisma.container.count({ where }),
       prisma.container.count({ where: { ...where, currentStatus: 'IN_TRANSIT' } }),
-      prisma.container.count({ where: { ...where, currentStatus: { in: ['ARRIVED', 'DISCHARGED'] } } }),
+      prisma.container.count({
+        where: { ...where, currentStatus: { in: ['ARRIVED', 'DISCHARGED'] } },
+      }),
       prisma.container.count({ where: { ...where, currentStatus: 'DELIVERED' } }),
       prisma.container.count({
         where: {
@@ -653,7 +567,10 @@ class TrackingService {
       if (container.booking?.departureDate) {
         const departure = new Date(container.booking.departureDate);
         const now = new Date();
-        return Math.max(0, Math.floor((now.getTime() - departure.getTime()) / (1000 * 60 * 60 * 24)));
+        return Math.max(
+          0,
+          Math.floor((now.getTime() - departure.getTime()) / (1000 * 60 * 60 * 24))
+        );
       }
       return 0;
     }
@@ -661,7 +578,10 @@ class TrackingService {
     const departureDate = new Date(departureEvent.eventDate);
     const endDate = container.actualArrival ? new Date(container.actualArrival) : new Date();
 
-    return Math.max(0, Math.floor((endDate.getTime() - departureDate.getTime()) / (1000 * 60 * 60 * 24)));
+    return Math.max(
+      0,
+      Math.floor((endDate.getTime() - departureDate.getTime()) / (1000 * 60 * 60 * 24))
+    );
   }
 
   /**
@@ -669,7 +589,8 @@ class TrackingService {
    */
   private checkIfDelayed(container: any): boolean {
     if (!container.eta) return false;
-    if (container.currentStatus === 'DELIVERED' || container.currentStatus === 'COMPLETED') return false;
+    if (container.currentStatus === 'DELIVERED' || container.currentStatus === 'COMPLETED')
+      return false;
 
     const eta = new Date(container.eta);
     const now = new Date();
@@ -694,7 +615,20 @@ class TrackingService {
    */
   private getNextMilestone(container: any): string | null {
     const currentStatus = container.currentStatus;
-    const statusOrder = ['CONFIRMED', 'GATE_IN', 'LOADED', 'DEPARTED', 'IN_TRANSIT', 'ARRIVED', 'DISCHARGED', 'CUSTOMS', 'CUSTOMS_CLEARED', 'READY_FOR_PICKUP', 'GATE_OUT', 'DELIVERED'];
+    const statusOrder = [
+      'CONFIRMED',
+      'GATE_IN',
+      'LOADED',
+      'DEPARTED',
+      'IN_TRANSIT',
+      'ARRIVED',
+      'DISCHARGED',
+      'CUSTOMS',
+      'CUSTOMS_CLEARED',
+      'READY_FOR_PICKUP',
+      'GATE_OUT',
+      'DELIVERED',
+    ];
 
     const currentIndex = statusOrder.indexOf(currentStatus);
     if (currentIndex === -1 || currentIndex >= statusOrder.length - 1) {
@@ -732,7 +666,9 @@ class TrackingService {
    * Refresh tracking data from external APIs
    * This method is called by background jobs to sync container tracking
    */
-  async refreshTracking(containerId: string): Promise<{ success: boolean; eventsFound: number; error?: string }> {
+  async refreshTracking(
+    containerId: string
+  ): Promise<{ success: boolean; eventsFound: number; error?: string }> {
     try {
       const container = await prisma.container.findUnique({
         where: { id: containerId },
@@ -769,11 +705,11 @@ class TrackingService {
               // Process new events
               for (const searatesEvent of searatesData.events) {
                 const eventDate = new Date(searatesEvent.occurredAt);
-                
+
                 // Only process events newer than our latest
                 if (eventDate > latestEventDate) {
                   const eventType = searatesIntegration.mapEventType(searatesEvent.type);
-                  
+
                   // Check if event already exists
                   const existing = await prisma.trackingEvent.findFirst({
                     where: {
@@ -787,9 +723,11 @@ class TrackingService {
                   if (!existing) {
                     // Get location data - check both searatesEvent and searatesData
                     const eventLocation = searatesEvent.location || searatesData.location;
-                    const eventLatitude = (eventLocation as any)?.latitude || searatesData.location?.latitude;
-                    const eventLongitude = (eventLocation as any)?.longitude || searatesData.location?.longitude;
-                    
+                    const eventLatitude =
+                      (eventLocation as any)?.latitude || searatesData.location?.latitude;
+                    const eventLongitude =
+                      (eventLocation as any)?.longitude || searatesData.location?.longitude;
+
                     await prisma.trackingEvent.create({
                       data: {
                         containerId: container.id,
@@ -814,7 +752,6 @@ class TrackingService {
                   }
                 }
               }
-
             }
 
             // Update container status and location from SeaRates (always, even without new events)
@@ -834,7 +771,10 @@ class TrackingService {
             }
           }
         } catch (error) {
-          console.error(`[TrackingService] SeaRates web integration error for container ${container.containerNumber}:`, error);
+          console.error(
+            `[TrackingService] SeaRates web integration error for container ${container.containerNumber}:`,
+            error
+          );
           // Continue even if SeaRates fails - just update timestamp
         }
       }
@@ -849,7 +789,10 @@ class TrackingService {
 
       return { success: true, eventsFound };
     } catch (error) {
-      console.error(`[TrackingService] Error refreshing tracking for container ${containerId}:`, error);
+      console.error(
+        `[TrackingService] Error refreshing tracking for container ${containerId}:`,
+        error
+      );
       return {
         success: false,
         eventsFound: 0,
@@ -861,7 +804,11 @@ class TrackingService {
   /**
    * Send email notification for important tracking events
    */
-  private async sendTrackingEventNotification(container: any, eventData: TrackingEventInput, eventId: string) {
+  private async sendTrackingEventNotification(
+    container: any,
+    eventData: TrackingEventInput,
+    eventId: string
+  ) {
     // Important events that should trigger email notifications
     const importantEvents = [
       'VESSEL_DEPARTURE',
@@ -903,7 +850,8 @@ class TrackingService {
       }
 
       const eventLabel = EventTypeLabels[eventData.eventType] || eventData.eventType;
-      const message = `Containerul ${container.containerNumber} - ${eventLabel}\n\n` +
+      const message =
+        `Containerul ${container.containerNumber} - ${eventLabel}\n\n` +
         `Locație: ${eventData.location}\n` +
         (eventData.portName ? `Port: ${eventData.portName}\n` : '') +
         (eventData.vessel ? `Navă: ${eventData.vessel}\n` : '') +

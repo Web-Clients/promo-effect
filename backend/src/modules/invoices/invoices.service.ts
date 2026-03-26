@@ -1,80 +1,34 @@
-import { Invoice, Payment } from '@prisma/client';
 import prisma from '../../lib/prisma';
 import { generateInvoiceNumber } from '../../utils/invoiceNumber';
 import { generateInvoicePDF } from '../../services/pdf.service';
 import notificationService from '../../services/notification.service';
 import { storageService } from '../../services/storage.service';
-import { infobipService } from '../../services/infobip.service';
+import {
+  VAT_RATE,
+  CreateInvoiceData,
+  UpdateInvoiceData,
+  PaymentData,
+  InvoiceFilters,
+  InvoiceStats,
+} from './invoices.types';
+import { sendInvoiceEmail } from './invoices-email';
 
-// VAT rate for Moldova
-const VAT_RATE = 0.19;
-
-// Types
-export interface CreateInvoiceData {
-  bookingId: string;
-  clientId: string;
-  dueDate: Date;
-  notes?: string;
-  discount?: number;
-}
-
-export interface UpdateInvoiceData {
-  dueDate?: Date;
-  notes?: string;
-  discount?: number;
-}
-
-export interface PaymentData {
-  amount: number;
-  paymentDate: Date;
-  paymentMethod: string;
-  reference?: string;
-  notes?: string;
-}
-
-export interface InvoiceFilters {
-  page?: number;
-  limit?: number;
-  status?: string;
-  clientId?: string;
-  dateFrom?: Date;
-  dateTo?: Date;
-  search?: string;
-}
-
-export interface InvoiceStats {
-  total: number;
-  totalAmount: number;
-  totalPaid: number;
-  totalOutstanding: number;
-  byStatus: {
-    draft: number;
-    unpaid: number;
-    paid: number;
-    overdue: number;
-    cancelled: number;
-  };
-  monthlyRevenue: Array<{
-    month: string;
-    amount: number;
-    paid: number;
-  }>;
-}
+// Re-export types for backward compatibility
+export {
+  VAT_RATE,
+  CreateInvoiceData,
+  UpdateInvoiceData,
+  PaymentData,
+  InvoiceFilters,
+  InvoiceStats,
+} from './invoices.types';
 
 class InvoicesService {
   /**
    * Get all invoices with filtering and pagination
    */
   async findAll(filters: InvoiceFilters, userRole?: string, userClientId?: string) {
-    const {
-      page = 1,
-      limit = 10,
-      status,
-      clientId,
-      dateFrom,
-      dateTo,
-      search,
-    } = filters;
+    const { page = 1, limit = 10, status, clientId, dateFrom, dateTo, search } = filters;
 
     const skip = (page - 1) * limit;
 
@@ -270,12 +224,14 @@ class InvoicesService {
 
     // Get client payment terms for due date calculation if not provided
     const clientWithExtras = client as any;
-    const dueDate = data.dueDate || (() => {
-      const days = clientWithExtras.paymentTerms || 30;
-      const date = new Date();
-      date.setDate(date.getDate() + days);
-      return date;
-    })();
+    const dueDate =
+      data.dueDate ||
+      (() => {
+        const days = clientWithExtras.paymentTerms || 30;
+        const date = new Date();
+        date.setDate(date.getDate() + days);
+        return date;
+      })();
 
     // Create invoice
     const invoice = await prisma.invoice.create({
@@ -384,15 +340,17 @@ class InvoicesService {
 
     // Update invoice status (DRAFT -> ISSUED -> SENT)
     const newStatus = invoice.status === 'DRAFT' ? 'ISSUED' : 'SENT';
-    
+
     // Update reminders sent (add current timestamp)
     const invoiceWithExtras = invoice as any;
-    const reminders = invoiceWithExtras.remindersSent ? JSON.parse(invoiceWithExtras.remindersSent) : [];
+    const reminders = invoiceWithExtras.remindersSent
+      ? JSON.parse(invoiceWithExtras.remindersSent)
+      : [];
     reminders.push({
       date: new Date().toISOString(),
       type: 'INVOICE_SENT',
     });
-    
+
     const updatedInvoice = await prisma.invoice.update({
       where: { id },
       data: {
@@ -408,9 +366,9 @@ class InvoicesService {
       },
     });
 
-    // Send email with PDF attachment via nodemailer (FREE SMTP)
+    // Send email with PDF attachment via Infobip
     try {
-      await this.sendInvoiceEmail(updatedInvoice, pdfBuffer, pdfUrl);
+      await sendInvoiceEmail(updatedInvoice, pdfBuffer, pdfUrl);
     } catch (error) {
       console.error('Failed to send invoice email:', error);
       // Don't fail the whole operation if email fails
@@ -418,7 +376,6 @@ class InvoicesService {
 
     // Send notification to client
     try {
-      // Find users associated with client
       const clientUsers = await prisma.user.findMany({
         where: {
           role: 'CLIENT',
@@ -427,7 +384,6 @@ class InvoicesService {
         take: 5,
       });
 
-      // Send notification to each user
       for (const user of clientUsers) {
         try {
           await notificationService.sendNotification({
@@ -515,7 +471,7 @@ class InvoicesService {
 
     // Check if fully paid
     const totalPaid = currentPaid + paymentData.amount;
-    const isFullyPaid = totalPaid >= totalAmount - 0.01; // Use totalAmount (with VAT)
+    const isFullyPaid = totalPaid >= totalAmount - 0.01;
 
     // Update invoice status and payment method
     const updatedInvoice = await prisma.invoice.update({
@@ -562,7 +518,7 @@ class InvoicesService {
             userId: clientUser?.id || updatedInvoice.clientId,
             bookingId: updatedInvoice.bookingId || undefined,
             type: isFullyPaid ? 'INVOICE_PAID' : 'PAYMENT_RECEIVED',
-            title: isFullyPaid 
+            title: isFullyPaid
               ? `Factură ${updatedInvoice.invoiceNumber} - Plătită Complet`
               : `Plată Primită pentru Factura ${updatedInvoice.invoiceNumber}`,
             message: isFullyPaid
@@ -635,7 +591,6 @@ class InvoicesService {
 
     for (const clientId of clientIds) {
       try {
-        // Find client
         const client = await prisma.client.findUnique({
           where: { id: clientId },
         });
@@ -670,15 +625,12 @@ class InvoicesService {
           continue; // No bookings to invoice
         }
 
-        // Generate invoice for each booking
         for (const booking of bookings) {
           try {
-        // Calculate due date from client payment terms
-        const clientWithExtras = client as any;
-        const dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + (clientWithExtras.paymentTerms || 30));
+            const clientWithExtras = client as any;
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + (clientWithExtras.paymentTerms || 30));
 
-            // Create invoice
             const invoice = await this.create(
               {
                 bookingId: booking.id,
@@ -748,32 +700,25 @@ class InvoicesService {
   async getStats(clientId?: string): Promise<InvoiceStats> {
     const where = clientId ? { clientId } : {};
 
-    // Get totals
-    const [
-      total,
-      totalAmountResult,
-      paidAmountResult,
-      statusCounts,
-      monthlyData,
-    ] = await Promise.all([
-      prisma.invoice.count({ where }),
-      prisma.invoice.aggregate({
-        where,
-        _sum: { amount: true },
-      }),
-      prisma.payment.aggregate({
-        where: clientId ? { invoice: { clientId } } : {},
-        _sum: { amount: true },
-      }),
-      prisma.invoice.groupBy({
-        by: ['status'],
-        where,
-        _count: true,
-      }),
-      this.getMonthlyRevenue(clientId),
-    ]);
+    const [total, totalAmountResult, paidAmountResult, statusCounts, monthlyData] =
+      await Promise.all([
+        prisma.invoice.count({ where }),
+        prisma.invoice.aggregate({
+          where,
+          _sum: { amount: true },
+        }),
+        prisma.payment.aggregate({
+          where: clientId ? { invoice: { clientId } } : {},
+          _sum: { amount: true },
+        }),
+        prisma.invoice.groupBy({
+          by: ['status'],
+          where,
+          _count: true,
+        }),
+        this.getMonthlyRevenue(clientId),
+      ]);
 
-    // Process status counts
     const byStatus = {
       draft: 0,
       unpaid: 0,
@@ -797,6 +742,7 @@ class InvoicesService {
         dueDate: { lt: new Date() },
       },
     });
+
     byStatus.overdue = overdueCount;
 
     return {
@@ -843,7 +789,6 @@ class InvoicesService {
       monthlyMap.set(month, current);
     });
 
-    // Convert to array and sort
     return Array.from(monthlyMap.entries())
       .map(([month, data]) => ({
         month,
@@ -870,86 +815,6 @@ class InvoicesService {
     });
 
     return result.count;
-  }
-
-  /**
-   * Send invoice email with PDF attachment via Infobip
-   */
-  private async sendInvoiceEmail(invoice: any, pdfBuffer: Buffer, pdfUrl: string | null) {
-    try {
-      const client = invoice.client;
-      const totalAmount = (invoice as any).totalAmount || invoice.amount;
-      const dueDate = new Date(invoice.dueDate).toLocaleDateString('ro-RO');
-
-      const textContent = `
-Bună ziua ${client.companyName},
-
-Vă trimitem factura ${invoice.invoiceNumber} în valoare de ${totalAmount} ${invoice.currency}.
-
-Detalii factură:
-- Număr: ${invoice.invoiceNumber}
-- Data emiterii: ${new Date(invoice.issueDate).toLocaleDateString('ro-RO')}
-- Data scadență: ${dueDate}
-- Suma totală: ${totalAmount} ${invoice.currency}
-
-${pdfUrl ? `Factura PDF este disponibilă la: ${pdfUrl}` : 'Factura PDF este atașată acestui email.'}
-
-Vă rugăm să efectuați plata până la data scadență.
-
-Mulțumim,
-Echipa Promo-Efect SRL
-      `.trim();
-
-      const htmlContent = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Factură ${invoice.invoiceNumber}</h2>
-          <p>Bună ziua ${client.companyName},</p>
-          <p>Vă trimitem factura <strong>${invoice.invoiceNumber}</strong> în valoare de <strong>${totalAmount} ${invoice.currency}</strong>.</p>
-
-          <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-            <h3>Detalii factură:</h3>
-            <ul>
-              <li><strong>Număr:</strong> ${invoice.invoiceNumber}</li>
-              <li><strong>Data emiterii:</strong> ${new Date(invoice.issueDate).toLocaleDateString('ro-RO')}</li>
-              <li><strong>Data scadență:</strong> ${dueDate}</li>
-              <li><strong>Suma totală:</strong> ${totalAmount} ${invoice.currency}</li>
-            </ul>
-          </div>
-
-          ${pdfUrl
-            ? `<p>Factura PDF este disponibilă la: <a href="${pdfUrl}">${pdfUrl}</a></p>`
-            : '<p>Factura PDF este atașată acestui email.</p>'
-          }
-
-          <p>Vă rugăm să efectuați plata până la data scadență.</p>
-
-          <p>Mulțumim,<br>Echipa Promo-Efect SRL</p>
-        </div>
-      `;
-
-      const result = await infobipService.sendEmail({
-        to: client.email,
-        subject: `Factură ${invoice.invoiceNumber} - Promo-Efect SRL`,
-        text: textContent,
-        html: htmlContent,
-        attachments: pdfUrl ? undefined : [
-          {
-            filename: `${invoice.invoiceNumber}.pdf`,
-            content: pdfBuffer,
-            contentType: 'application/pdf',
-          },
-        ],
-      });
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to send invoice email');
-      }
-
-      console.log(`[InvoicesService] ✅ Invoice email sent to ${client.email} for invoice ${invoice.invoiceNumber}`);
-    } catch (error: any) {
-      console.error('[InvoicesService] ❌ Failed to send invoice email:', error);
-      throw error;
-    }
   }
 
   /**

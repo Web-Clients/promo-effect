@@ -24,7 +24,6 @@ export interface WebhookPayload {
 }
 
 export class TrackingWebhookService {
-
   /**
    * Process webhook from external provider
    */
@@ -191,7 +190,8 @@ export class TrackingWebhookService {
     const containerWithExtras = container as any;
     if (container.eta && containerWithExtras.etaOriginal) {
       const delayDays = Math.floor(
-        (new Date(container.eta).getTime() - new Date(containerWithExtras.etaOriginal).getTime()) / (1000 * 60 * 60 * 24)
+        (new Date(container.eta).getTime() - new Date(containerWithExtras.etaOriginal).getTime()) /
+          (1000 * 60 * 60 * 24)
       );
 
       if (delayDays > 2 && !containerWithExtras.delayed) {
@@ -202,19 +202,37 @@ export class TrackingWebhookService {
 
         // Send delay notification to client
         try {
-          await notificationService.sendNotification({
-            userId: container.booking.clientId, // TODO: Replace with actual user ID
-            bookingId: container.bookingId,
-            type: 'CONTAINER_DELAYED',
-            title: `Container ${container.containerNumber} - Întârziere`,
-            message: `Container-ul ${container.containerNumber} este întârziat cu ${delayDays} zile. ETA actualizat: ${container.eta ? new Date(container.eta).toLocaleDateString('ro-RO') : 'N/A'}`,
-            channels: {
-              email: true,
-              sms: true,
-              whatsapp: true,
-              push: true,
-            },
+          // Resolve User ID from client email (Client and User are separate entities)
+          const clientData = await prisma.client.findUnique({
+            where: { id: container.booking.clientId },
+            select: { email: true },
           });
+          const clientUser = clientData
+            ? await prisma.user.findUnique({
+                where: { email: clientData.email },
+                select: { id: true },
+              })
+            : null;
+
+          if (!clientUser) {
+            console.warn(
+              `[Webhook] No user found for clientId ${container.booking.clientId}, skipping delay notification`
+            );
+          } else {
+            await notificationService.sendNotification({
+              userId: clientUser.id,
+              bookingId: container.bookingId,
+              type: 'CONTAINER_DELAYED',
+              title: `Container ${container.containerNumber} - Întârziere`,
+              message: `Container-ul ${container.containerNumber} este întârziat cu ${delayDays} zile. ETA actualizat: ${container.eta ? new Date(container.eta).toLocaleDateString('ro-RO') : 'N/A'}`,
+              channels: {
+                email: true,
+                sms: true,
+                whatsapp: true,
+                push: true,
+              },
+            });
+          }
         } catch (error) {
           console.error('Failed to send delay notification:', error);
         }
@@ -236,19 +254,37 @@ export class TrackingWebhookService {
           });
 
           if (container) {
-            await notificationService.sendNotification({
-              userId: container.booking.clientId, // TODO: Replace with actual user ID
-              bookingId: container.bookingId,
-              type: 'ETA_CHANGED',
-              title: `Container ${container.containerNumber} - ETA Actualizat`,
-              message: `ETA pentru container-ul ${container.containerNumber} a fost actualizat. Noua dată estimată: ${newEta.toLocaleDateString('ro-RO')}`,
-              channels: {
-                email: true,
-                sms: false,
-                whatsapp: false,
-                push: true,
-              },
+            // Resolve User ID from client email (Client and User are separate entities)
+            const clientData = await prisma.client.findUnique({
+              where: { id: container.booking.clientId },
+              select: { email: true },
             });
+            const clientUser = clientData
+              ? await prisma.user.findUnique({
+                  where: { email: clientData.email },
+                  select: { id: true },
+                })
+              : null;
+
+            if (!clientUser) {
+              console.warn(
+                `[Webhook] No user found for clientId ${container.booking.clientId}, skipping ETA notification`
+              );
+            } else {
+              await notificationService.sendNotification({
+                userId: clientUser.id,
+                bookingId: container.bookingId,
+                type: 'ETA_CHANGED',
+                title: `Container ${container.containerNumber} - ETA Actualizat`,
+                message: `ETA pentru container-ul ${container.containerNumber} a fost actualizat. Noua dată estimată: ${newEta.toLocaleDateString('ro-RO')}`,
+                channels: {
+                  email: true,
+                  sms: false,
+                  whatsapp: false,
+                  push: true,
+                },
+              });
+            }
           }
         } catch (error) {
           console.error('Failed to send ETA change notification:', error);
@@ -275,9 +311,8 @@ export class TrackingWebhookService {
   async processSeaRatesWebhook(rawPayload: any, signature?: string) {
     // Parse SeaRates payload format
     const payload = searatesIntegration.parseWebhookPayload(rawPayload);
-    
+
     // Process as regular webhook
     return this.processWebhook(payload, signature, 'SEARATES');
   }
 }
-

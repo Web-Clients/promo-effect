@@ -2,7 +2,10 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import prisma from '../../lib/prisma';
 import { generateAccessToken, generateRefreshToken } from '../../utils/jwt.util';
-import { sendVerificationEmail, sendPasswordResetEmail } from '../../services/email-verification.service';
+import {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+} from '../../services/email-verification.service';
 
 // Rate limiting storage (in production, use Redis)
 const resetAttempts = new Map<string, { count: number; lastAttempt: Date }>();
@@ -171,7 +174,12 @@ export class AuthService {
     };
   }
 
-  async login(data: LoginDTO, twoFactorCode?: string, ipAddress?: string, userAgent?: string): Promise<AuthResponse | { requires2FA: boolean; tempToken: string }> {
+  async login(
+    data: LoginDTO,
+    twoFactorCode?: string,
+    ipAddress?: string,
+    userAgent?: string
+  ): Promise<AuthResponse | { requires2FA: boolean; tempToken: string }> {
     // Normalize email
     const normalizedEmail = data.email.toLowerCase().trim();
 
@@ -186,7 +194,9 @@ export class AuthService {
 
     // Check if email is verified
     if (!user.emailVerified) {
-      throw new Error('Please verify your email before logging in. Check your inbox for the verification link.');
+      throw new Error(
+        'Please verify your email before logging in. Check your inbox for the verification link.'
+      );
     }
 
     // Verify password
@@ -202,7 +212,7 @@ export class AuthService {
         // Generate temporary token for 2FA verification
         const tempToken = crypto.randomBytes(32).toString('hex');
         const tempTokenHash = crypto.createHash('sha256').update(tempToken).digest('hex');
-        
+
         // Store temp token in session (expires in 5 minutes)
         const expiresAt = new Date();
         expiresAt.setMinutes(expiresAt.getMinutes() + 5);
@@ -224,12 +234,12 @@ export class AuthService {
 
       // Verify 2FA code
       const isValid2FA = await this.verify2FACode(user.twoFactorSecret!, twoFactorCode);
-      
+
       if (!isValid2FA) {
         // Check backup codes
         const backupCodes = user.backupCodes ? JSON.parse(user.backupCodes) : [];
         const codeIndex = backupCodes.indexOf(twoFactorCode);
-        
+
         if (codeIndex === -1) {
           throw new Error('Invalid 2FA code');
         }
@@ -266,7 +276,7 @@ export class AuthService {
     // Update last login
     await prisma.user.update({
       where: { id: user.id },
-      data: { 
+      data: {
         lastLoginAt: new Date(),
         lastLoginIp: ipAddress,
       },
@@ -350,6 +360,7 @@ export class AuthService {
         role: true,
         createdAt: true,
         lastLoginAt: true,
+        twoFactorEnabled: true,
       },
     });
 
@@ -370,12 +381,13 @@ export class AuthService {
     // Rate limiting check
     const attempts = resetAttempts.get(email);
     if (attempts) {
-      const hoursSinceLastAttempt = (Date.now() - attempts.lastAttempt.getTime()) / (1000 * 60 * 60);
-      
+      const hoursSinceLastAttempt =
+        (Date.now() - attempts.lastAttempt.getTime()) / (1000 * 60 * 60);
+
       if (hoursSinceLastAttempt < RESET_WINDOW_HOURS && attempts.count >= MAX_RESET_ATTEMPTS) {
         throw new Error('Too many password reset attempts. Please try again later.');
       }
-      
+
       // Reset counter if window has passed
       if (hoursSinceLastAttempt >= RESET_WINDOW_HOURS) {
         resetAttempts.delete(email);
@@ -395,7 +407,8 @@ export class AuthService {
     });
 
     // Always return success message for security
-    const successMessage = 'If an account with that email exists, we have sent a password reset link.';
+    const successMessage =
+      'If an account with that email exists, we have sent a password reset link.';
 
     if (!user) {
       // Don't reveal that email doesn't exist
@@ -404,7 +417,7 @@ export class AuthService {
 
     // Generate secure random token
     const resetToken = crypto.randomBytes(32).toString('hex');
-    
+
     // Hash the token for storage (store hash, send plain token)
     const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
 
@@ -520,7 +533,9 @@ export class AuthService {
 
     console.log(`Password reset completed for user: ${user.email}`);
 
-    return { message: 'Password has been reset successfully. You can now login with your new password.' };
+    return {
+      message: 'Password has been reset successfully. You can now login with your new password.',
+    };
   }
 
   /**
@@ -531,7 +546,7 @@ export class AuthService {
    */
   async resendVerificationEmail(email: string): Promise<{ message: string }> {
     const normalizedEmail = email.toLowerCase().trim();
-    
+
     // Find user
     const user = await prisma.user.findUnique({
       where: { email: normalizedEmail },
@@ -539,7 +554,10 @@ export class AuthService {
 
     if (!user) {
       // Don't reveal if email exists for security
-      return { message: 'If an account with that email exists and is not verified, we have sent a verification email.' };
+      return {
+        message:
+          'If an account with that email exists and is not verified, we have sent a verification email.',
+      };
     }
 
     // Check if already verified
@@ -575,7 +593,10 @@ export class AuthService {
       throw new Error('Failed to send verification email. Please try again later.');
     }
 
-    return { message: 'If an account with that email exists and is not verified, we have sent a verification email.' };
+    return {
+      message:
+        'If an account with that email exists and is not verified, we have sent a verification email.',
+    };
   }
 
   async verifyEmail(token: string): Promise<{ message: string }> {
@@ -625,7 +646,7 @@ export class AuthService {
     try {
       // Dynamic import to avoid issues if package not installed
       const speakeasy = await import('speakeasy');
-      
+
       return speakeasy.totp.verify({
         secret,
         encoding: 'base32',
@@ -641,7 +662,9 @@ export class AuthService {
   /**
    * Enable 2FA for user - generates secret and QR code
    */
-  async enable2FA(userId: string): Promise<{ secret: string; qrCodeUrl: string; backupCodes: string[] }> {
+  async enable2FA(
+    userId: string
+  ): Promise<{ secret: string; qrCodeUrl: string; backupCodes: string[] }> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
     });
@@ -790,7 +813,11 @@ export class AuthService {
    * Complete login with 2FA using temp token
    * This is called after user enters 2FA code
    */
-  async complete2FALogin(data: Complete2FALoginDTO, ipAddress?: string, userAgent?: string): Promise<AuthResponse> {
+  async complete2FALogin(
+    data: Complete2FALoginDTO,
+    ipAddress?: string,
+    userAgent?: string
+  ): Promise<AuthResponse> {
     const { tempToken, twoFactorCode } = data;
 
     // Hash temp token to find session
@@ -819,12 +846,12 @@ export class AuthService {
 
     // Verify 2FA code
     const isValid2FA = await this.verify2FACode(user.twoFactorSecret, twoFactorCode);
-    
+
     if (!isValid2FA) {
       // Check backup codes
       const backupCodes = user.backupCodes ? JSON.parse(user.backupCodes) : [];
       const codeIndex = backupCodes.indexOf(twoFactorCode);
-      
+
       if (codeIndex === -1) {
         throw new Error('Invalid 2FA code');
       }
@@ -865,7 +892,7 @@ export class AuthService {
     // Update last login
     await prisma.user.update({
       where: { id: user.id },
-      data: { 
+      data: {
         lastLoginAt: new Date(),
         lastLoginIp: ipAddress,
       },

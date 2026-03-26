@@ -8,6 +8,7 @@ import { ReportsService } from './reports.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { reportLimiter } from '../../middleware/rateLimit.middleware';
 import { reportExportService } from '../../services/report-export.service';
+import prisma from '../../lib/prisma';
 
 const router = Router();
 const reportsService = new ReportsService();
@@ -27,8 +28,11 @@ router.get('/dashboard', authMiddleware, reportLimiter, async (req: Request, res
 
     // CLIENT users can only see their own data
     if (currentUser.role === 'CLIENT') {
-      // TODO: Get clientId from user relationship
-      // filters.clientId = currentUser.clientId;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const client = await (prisma.client as any).findUnique({ where: { userId: currentUser.id } });
+      if (client) {
+        filters.clientId = client.id;
+      }
     } else if (req.query.client_id) {
       filters.clientId = req.query.client_id as string;
     }
@@ -69,7 +73,11 @@ router.get('/containers', authMiddleware, async (req: Request, res: Response) =>
 
     // CLIENT users can only see their own data
     if (currentUser.role === 'CLIENT') {
-      // TODO: Get clientId from user relationship
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const client = await (prisma.client as any).findUnique({ where: { userId: currentUser.id } });
+      if (client) {
+        filters.clientId = client.id;
+      }
     } else if (req.query.client_id) {
       filters.clientId = req.query.client_id as string;
     }
@@ -247,4 +255,3 @@ router.get('/operational', authMiddleware, async (req: Request, res: Response) =
 });
 
 export default router;
-

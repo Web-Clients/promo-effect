@@ -376,13 +376,18 @@ class InvoicesService {
 
     // Send notification to client
     try {
-      const clientUsers = await prisma.user.findMany({
-        where: {
-          role: 'CLIENT',
-          // TODO: Add proper clientId relation when available
-        },
-        take: 5,
+      // Find the user linked to this specific client via the userId relation
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const clientRecord = await (prisma.client as any).findUnique({
+        where: { id: invoice.clientId },
+        include: { user: true },
       });
+      const clientUsers = clientRecord?.user
+        ? [clientRecord.user]
+        : await prisma.user.findMany({
+            where: { role: 'CLIENT' },
+            take: 5,
+          });
 
       for (const user of clientUsers) {
         try {

@@ -50,6 +50,7 @@ model User {
   auditLogs     AuditLog[]
   createdAgents Agent[]        @relation("CreatedBy")
   agentProfile  Agent?         @relation("AgentUser")
+  client        Client?
 
   @@map("users")
 }
@@ -104,6 +105,13 @@ model Client {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
   lastBookingAt DateTime? @map("last_booking_at")
+
+  // User relationship (one-to-one: a CLIENT user maps to a Client record)
+  // TODO: Run migration on production after backup:
+  // pg_dump -Fc promo_effect > backup_$(date +%Y%m%d).dump
+  // npx prisma migrate dev --name add-client-user-relation
+  userId String? @unique @map("user_id")
+  user   User?   @relation(fields: [userId], references: [id])
 
   // Relations
   bookings Booking[]

@@ -1,5 +1,10 @@
 import app from './app';
 import prisma from './lib/prisma';
+import * as Sentry from '@sentry/node';
+
+if (process.env.SENTRY_DSN) {
+  Sentry.init({ dsn: process.env.SENTRY_DSN, environment: process.env.NODE_ENV });
+}
 // FIX: Import exit from process to avoid type conflicts with DOM Process type.
 import { exit } from 'process';
 import { startAllJobs } from './jobs';

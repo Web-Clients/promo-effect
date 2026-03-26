@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { withTranslation, WithTranslation } from 'react-i18next';
+import { Sentry } from '../../utils/sentry';
 
 interface Props extends WithTranslation {
   children: ReactNode;
@@ -23,6 +24,11 @@ class ErrorBoundaryBase extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary caught:', error, errorInfo);
+    try {
+      Sentry.captureException(error, { extra: { componentStack: errorInfo.componentStack } });
+    } catch (sentryError) {
+      console.warn('Sentry capture failed', sentryError);
+    }
   }
 
   render() {

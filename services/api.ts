@@ -7,6 +7,14 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'ax
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
+// Offline detection
+window.addEventListener('offline', () => {
+  console.warn('Network offline');
+});
+window.addEventListener('online', () => {
+  console.warn('Network back online');
+});
+
 // Token storage keys
 const ACCESS_TOKEN_KEY = 'access_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
@@ -41,7 +49,7 @@ export const tokenManager = {
     localStorage.removeItem(REFRESH_TOKEN_KEY);
   },
 
-  getUser: <T = unknown,>(): T | null => {
+  getUser: <T = unknown>(): T | null => {
     const userStr = localStorage.getItem(USER_KEY);
     if (!userStr) return null;
 
@@ -110,7 +118,8 @@ api.interceptors.response.use(
     };
 
     const requestUrl = originalRequest?.url || '';
-    const isAuthEndpoint = requestUrl.includes('/auth/login') ||
+    const isAuthEndpoint =
+      requestUrl.includes('/auth/login') ||
       requestUrl.includes('/auth/register') ||
       requestUrl.includes('/auth/refresh') ||
       requestUrl.includes('/auth/logout') ||

@@ -187,6 +187,12 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
     statusCode: (err as any).statusCode,
   });
 
+  if (process.env.SENTRY_DSN) {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const Sentry = require('@sentry/node');
+    Sentry.captureException(err);
+  }
+
   const statusCode = (err as any).statusCode || 500;
   const message = process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message;
 

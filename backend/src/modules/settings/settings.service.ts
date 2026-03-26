@@ -60,20 +60,24 @@ export class SettingsService {
     return {
       data: {
         // Legacy settings из AdminSettings
-        pricing: adminSettings ? {
-          portTaxes: adminSettings.portTaxes,
-          customsTaxes: adminSettings.customsTaxes,
-          terrestrialTransport: adminSettings.terrestrialTransport,
-          commission: adminSettings.commission,
-          weightRanges: JSON.parse(adminSettings.weightRanges),
-        } : {},
-        gmail: adminSettings ? {
-          accessToken: (adminSettings as any).gmailAccessToken,
-          refreshToken: (adminSettings as any).gmailRefreshToken,
-          tokenExpiry: (adminSettings as any).gmailTokenExpiry,
-          email: (adminSettings as any).gmailEmail,
-          lastEmailFetchAt: (adminSettings as any).lastEmailFetchAt,
-        } : {},
+        pricing: adminSettings
+          ? {
+              portTaxes: adminSettings.portTaxes,
+              customsTaxes: adminSettings.customsTaxes,
+              terrestrialTransport: adminSettings.terrestrialTransport,
+              commission: adminSettings.commission,
+              weightRanges: JSON.parse(adminSettings.weightRanges),
+            }
+          : {},
+        gmail: adminSettings
+          ? {
+              accessToken: (adminSettings as any).gmailAccessToken,
+              refreshToken: (adminSettings as any).gmailRefreshToken,
+              tokenExpiry: (adminSettings as any).gmailTokenExpiry,
+              email: (adminSettings as any).gmailEmail,
+              lastEmailFetchAt: (adminSettings as any).lastEmailFetchAt,
+            }
+          : {},
         // Новые настройки из таблицы Settings
         ...settingsByCategory,
       },
@@ -145,7 +149,8 @@ export class SettingsService {
         case 'PRICING':
           if (key === 'portTaxes') updateData.portTaxes = parseFloat(value);
           else if (key === 'customsTaxes') updateData.customsTaxes = parseFloat(value);
-          else if (key === 'terrestrialTransport') updateData.terrestrialTransport = parseFloat(value);
+          else if (key === 'terrestrialTransport')
+            updateData.terrestrialTransport = parseFloat(value);
           else if (key === 'commission') updateData.commission = parseFloat(value);
           else if (key === 'weightRanges') updateData.weightRanges = JSON.stringify(value);
           else throw new Error(`Key ${key} not found in category ${category}`);
@@ -215,9 +220,9 @@ export class SettingsService {
       create: {
         id: 1,
         portTaxes: 221.67,
-        customsTaxes: 150.00,
-        terrestrialTransport: 600.00,
-        commission: 200.00,
+        customsTaxes: 150.0,
+        terrestrialTransport: 600.0,
+        commission: 200.0,
         weightRanges: JSON.stringify([
           { label: '1-10 tone', min: 1, max: 10, enabled: true },
           { label: '10-20 tone', min: 10, max: 20, enabled: true },
@@ -234,20 +239,32 @@ export class SettingsService {
   async testIntegration(integrationType: string) {
     switch (integrationType.toLowerCase()) {
       case 'gmail':
-        // TODO: Test Gmail OAuth connection
-        return {
-          success: true,
-          message: 'Gmail integration test - to be implemented',
-        };
+        return this.testGmailConnection();
       case 'searates':
-        // TODO: Test SeaRates API connection
-        return {
-          success: true,
-          message: 'SeaRates integration test - to be implemented',
-        };
+        return this.testSearatesConnection();
       default:
         throw new Error(`Integration type ${integrationType} not supported`);
     }
   }
-}
 
+  async testGmailConnection(): Promise<{ success: boolean; message: string }> {
+    try {
+      const gmailClientId = process.env.GMAIL_CLIENT_ID;
+      const gmailClientSecret = process.env.GMAIL_CLIENT_SECRET;
+      if (!gmailClientId || !gmailClientSecret) {
+        return { success: false, message: 'Gmail OAuth credentials not configured' };
+      }
+      return { success: true, message: 'Gmail OAuth credentials are configured' };
+    } catch (error) {
+      return { success: false, message: 'Gmail connection test failed' };
+    }
+  }
+
+  async testSearatesConnection(): Promise<{ success: boolean; message: string }> {
+    const apiKey = process.env.SEARATES_API_KEY;
+    if (!apiKey) {
+      return { success: false, message: 'SeaRates API key not configured' };
+    }
+    return { success: true, message: 'SeaRates API key is configured' };
+  }
+}

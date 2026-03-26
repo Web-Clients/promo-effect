@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { XIcon } from '../icons';
@@ -22,6 +22,49 @@ const CreateInvoiceModal: React.FC<CreateInvoiceModalProps> = ({
   clients,
   bookings,
 }) => {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const firstFocusableRef = useRef<HTMLButtonElement>(null);
+
+  // Close on Escape key
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+      // Focus trap: keep Tab cycling within the modal
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    },
+    [onClose]
+  );
+
+  useEffect(() => {
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      // Move focus into modal when it opens
+      setTimeout(() => firstFocusableRef.current?.focus(), 0);
+    }
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, handleKeyDown]);
+
   const [formData, setFormData] = useState<CreateInvoiceData>({
     bookingId: '',
     clientId: '',
@@ -60,14 +103,30 @@ const CreateInvoiceModal: React.FC<CreateInvoiceModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="create-invoice-title"
+    >
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white dark:bg-neutral-800 rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+      <div
+        ref={modalRef}
+        className="relative bg-white dark:bg-neutral-800 rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"
+      >
         <div className="flex items-center justify-between p-4 border-b dark:border-neutral-700">
-          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+          <h3
+            id="create-invoice-title"
+            className="text-lg font-semibold text-neutral-900 dark:text-neutral-100"
+          >
             Factură Nouă
           </h3>
-          <button onClick={onClose} className="text-neutral-500 hover:text-neutral-700">
+          <button
+            ref={firstFocusableRef}
+            onClick={onClose}
+            className="text-neutral-500 hover:text-neutral-700"
+            aria-label="Închide modal"
+          >
             <XIcon className="h-5 w-5" />
           </button>
         </div>

@@ -14,6 +14,13 @@
     <meta name="robots" content="index, follow" />
     <meta name="language" content="Romanian" />
     <meta name="revisit-after" content="7 days" />
+
+    <!-- Canonical & Hreflang -->
+    <link rel="canonical" href="https://promo-efect.md/" />
+    <link rel="alternate" hreflang="ro" href="https://promo-efect.md/" />
+    <link rel="alternate" hreflang="ru" href="https://promo-efect.md/?lang=ru" />
+    <link rel="alternate" hreflang="en" href="https://promo-efect.md/?lang=en" />
+    <link rel="alternate" hreflang="x-default" href="https://promo-efect.md/" />
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
@@ -64,28 +71,8 @@
     }
     </script>
     
-    <!-- Google Analytics 4 (replace with your GA4 ID) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-XXXXXXXXXX');
-    </script>
-    
-    <!-- Facebook Pixel (replace with your Pixel ID) -->
-    <script>
-      !function(f,b,e,v,n,t,s)
-      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-      n.queue=[];t=b.createElement(e);t.async=!0;
-      t.src=v;s=b.getElementsByTagName(e)[0];
-      s.parentNode.insertBefore(t,s)}(window, document,'script',
-      'https://connect.facebook.net/en_US/fbevents.js');
-      fbq('init', 'YOUR_PIXEL_ID');
-      fbq('track', 'PageView');
-    </script>
+    <!-- GA4: Add script when ID is available. Set VITE_GA4_ID env var -->
+    <!-- Facebook Pixel: Add script when ID is available. Set VITE_FB_PIXEL_ID env var -->
     <script async id="toolbar-script" data-toolbar-api-key="53319fe5-3f79-4873-8cdf-6dbd21fe09e4" src="https://get.usetool.bar/embedded-app.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

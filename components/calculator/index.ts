@@ -7,4 +7,13 @@ export { RouteDisplay } from './RouteDisplay';
 export { FormField, CalcSelect, CalcInput, CalcTextArea } from './FormElements';
 export * from './Icons';
 export { useCalculator } from './useCalculator';
-export type { PriceCalculatorProps, UseCalculatorReturn, CalcParams } from './types';
+export type {
+  PriceCalculatorProps,
+  UseCalculatorReturn,
+  CalcParams,
+  Incoterm,
+  FinalDestination,
+  LandTransportRate,
+  ChinaInlandCosts,
+} from './types';
+export { LAND_TRANSPORT_CHISINAU, CHINA_INLAND_EXW } from './types';

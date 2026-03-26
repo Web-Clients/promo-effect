@@ -22,6 +22,8 @@ type Props = Pick<
   | 'handleSelectOffer'
   | 'handlePlaceOrder'
   | 'isAdmin'
+  | 'incoterm'
+  | 'finalDestination'
 >;
 
 export const ResultsSection = ({
@@ -41,6 +43,8 @@ export const ResultsSection = ({
   handleSelectOffer,
   handlePlaceOrder,
   isAdmin,
+  incoterm,
+  finalDestination,
 }: Props) => (
   <div className="lg:col-span-8">
     {/* Loading State */}
@@ -144,6 +148,8 @@ export const ResultsSection = ({
               index={index}
               isSelected={selectedOffer === index}
               isAdmin={isAdmin}
+              incoterm={incoterm}
+              finalDestination={finalDestination}
               onToggle={(idx) => setSelectedOffer(selectedOffer === idx ? null : idx)}
               onSelectOffer={handleSelectOffer}
             />

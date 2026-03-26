@@ -55,6 +55,8 @@ export const PriceCalculatorContainer = ({ user }: PriceCalculatorProps) => {
           handleSelectOffer={calc.handleSelectOffer}
           handlePlaceOrder={calc.handlePlaceOrder}
           isAdmin={calc.isAdmin}
+          incoterm={calc.incoterm}
+          finalDestination={calc.finalDestination}
         />
       </div>
     </div>

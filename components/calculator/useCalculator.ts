@@ -6,7 +6,7 @@ import calculatorService, {
   ContainerEntry,
 } from '../../services/calculator';
 import { User, UserRole } from '../../types';
-import { CalcParams, UseCalculatorReturn } from './types';
+import { CalcParams, UseCalculatorReturn, Incoterm, FinalDestination } from './types';
 
 export function useCalculator(user?: User): UseCalculatorReturn {
   const isAdmin = !!(
@@ -19,6 +19,8 @@ export function useCalculator(user?: User): UseCalculatorReturn {
     cargoWeight: '',
     cargoReadyDate: '',
     cargoCategory: '',
+    incoterm: 'FOB',
+    finalDestination: 'constanta',
   });
 
   const [containers, setContainers] = useState<ContainerEntry[]>([{ type: '', quantity: 1 }]);
@@ -172,6 +174,8 @@ export function useCalculator(user?: User): UseCalculatorReturn {
   return {
     params,
     setParams,
+    incoterm: params.incoterm,
+    finalDestination: params.finalDestination,
     containers,
     addContainer,
     removeContainer,

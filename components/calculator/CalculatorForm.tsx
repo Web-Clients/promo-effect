@@ -4,7 +4,7 @@ import { HsCodeSelector } from '../ui/HsCodeSelector';
 import { HsCode } from '../../services/hscodes';
 import { FormField, CalcSelect, CalcInput } from './FormElements';
 import { CalculatorIcon, PlusCircleIcon, TrashIcon } from './Icons';
-import { UseCalculatorReturn } from './types';
+import { UseCalculatorReturn, Incoterm, FinalDestination } from './types';
 
 type Props = Pick<
   UseCalculatorReturn,
@@ -71,6 +71,20 @@ export const CalculatorForm = ({
           </CalcSelect>
         </FormField>
 
+        <FormField label="Condiție de Livrare" hint="Selectați termenul Incoterms">
+          <CalcSelect
+            value={params.incoterm}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+              setParams({ ...params, incoterm: e.target.value as Incoterm })
+            }
+            required
+          >
+            <option value="FOB">FOB (Free On Board)</option>
+            <option value="EXW">EXW (Ex Works)</option>
+            <option value="CFR">CFR (Cost and Freight)</option>
+          </CalcSelect>
+        </FormField>
+
         <FormField label="Port Destinație" hint="Alegeți portul de tranzit">
           <CalcSelect
             value={params.portDestination}
@@ -84,6 +98,19 @@ export const CalculatorForm = ({
                 {d}
               </option>
             ))}
+          </CalcSelect>
+        </FormField>
+
+        <FormField label="Destinație Finală" hint="Locația finală a mărfii">
+          <CalcSelect
+            value={params.finalDestination}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+              setParams({ ...params, finalDestination: e.target.value as FinalDestination })
+            }
+            required
+          >
+            <option value="constanta">Constanța</option>
+            <option value="chisinau">Chișinău</option>
           </CalcSelect>
         </FormField>
 

@@ -14,6 +14,12 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov'],
       exclude: ['node_modules/', 'dist/', 'backend/', '*.config.*', 'tests/'],
+      thresholds: {
+        statements: 20,
+        branches: 15,
+        functions: 15,
+        lines: 20,
+      },
     },
   },
   resolve: {

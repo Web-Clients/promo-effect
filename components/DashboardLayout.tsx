@@ -128,6 +128,14 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
 
   return (
     <div className="min-h-screen bg-neutral-100 dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200">
+      {/* Skip link for keyboard/screen reader users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded"
+      >
+        Skip to main content
+      </a>
+
       {/* Flexport-style Dark Navy Sidebar */}
       <aside
         className={cn(
@@ -184,7 +192,11 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav
+          role="navigation"
+          aria-label="Main navigation"
+          className="flex-1 px-3 py-4 space-y-1 overflow-y-auto"
+        >
           {navigation
             .filter((item) => item.visible)
             .map((item) => {
@@ -206,13 +218,19 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
                   }
                   title={item.name}
                 >
-                  <Icon
-                    className={cn(
-                      'h-5 w-5 flex-shrink-0 transition-transform',
-                      'group-hover:scale-110'
-                    )}
-                  />
-                  {sidebarOpen && <span className="flex-1 truncate">{item.name}</span>}
+                  {({ isActive }) => (
+                    <>
+                      <Icon
+                        className={cn(
+                          'h-5 w-5 flex-shrink-0 transition-transform',
+                          'group-hover:scale-110'
+                        )}
+                        aria-hidden="true"
+                      />
+                      {sidebarOpen && <span className="flex-1 truncate">{item.name}</span>}
+                      {isActive && <span className="sr-only">(current page)</span>}
+                    </>
+                  )}
                 </NavLink>
               );
             })}
@@ -222,6 +240,8 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
         <div className="px-3 py-2">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
+            aria-label={sidebarOpen ? t('nav.collapse') : t('nav.expand')}
+            aria-expanded={sidebarOpen}
             className={cn(
               'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
               'text-white/50 hover:bg-white/10 hover:text-white/80',
@@ -312,7 +332,9 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
           </div>
         </header>
 
-        <main className="p-4 sm:p-6 pb-24 md:pb-6 animate-fade-in">{children}</main>
+        <main id="main-content" className="p-4 sm:p-6 pb-24 md:pb-6 animate-fade-in">
+          {children}
+        </main>
       </div>
 
       {/* Floating Action Button for Mobile */}

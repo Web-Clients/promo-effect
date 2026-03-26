@@ -19,7 +19,8 @@
     "userManagement": "Utilizatori",
     "adminSettings": "Setări Admin",
     "myPrices": "Prețurile Mele",
-    "collapse": "Restrânge"
+    "collapse": "Restrânge",
+    "expand": "Extinde"
   },
   "actions": {
     "save": "Salvează",
@@ -236,6 +237,7 @@
     "tabTransit": "În Drum",
     "tabPort": "Port",
     "tabDelivered": "Livrate",
+    "selectAll": "Selectează toate rezervările",
     "bulkSelected_one": "rezervare selectată",
     "bulkSelected_other": "rezervări selectate",
     "exportAction": "Exportă",

@@ -19,7 +19,8 @@
     "userManagement": "Users",
     "adminSettings": "Admin Settings",
     "myPrices": "My Prices",
-    "collapse": "Collapse"
+    "collapse": "Collapse",
+    "expand": "Expand"
   },
   "actions": {
     "save": "Save",
@@ -236,6 +237,7 @@
     "tabTransit": "In Transit",
     "tabPort": "Port",
     "tabDelivered": "Delivered",
+    "selectAll": "Select all bookings",
     "bulkSelected_one": "booking selected",
     "bulkSelected_other": "bookings selected",
     "exportAction": "Export",

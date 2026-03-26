@@ -19,7 +19,8 @@
     "userManagement": "Пользователи",
     "adminSettings": "Настройки администратора",
     "myPrices": "Мои цены",
-    "collapse": "Свернуть"
+    "collapse": "Свернуть",
+    "expand": "Развернуть"
   },
   "actions": {
     "save": "Сохранить",
@@ -236,6 +237,7 @@
     "tabTransit": "В пути",
     "tabPort": "Порт",
     "tabDelivered": "Доставлено",
+    "selectAll": "Выбрать все бронирования",
     "bulkSelected_one": "бронирование выбрано",
     "bulkSelected_other": "бронирований выбрано",
     "exportAction": "Экспорт",

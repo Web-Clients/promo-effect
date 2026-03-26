@@ -182,43 +182,71 @@ const Register = () => {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+            <div
+              id="register-error"
+              role="alert"
+              className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4"
+            >
               <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
             </div>
           )}
 
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-primary-800 dark:text-neutral-200">
-              {t('auth.fullName')} <span className="text-red-500">*</span>
+            <label
+              htmlFor="reg-name"
+              className="block text-sm font-medium text-primary-800 dark:text-neutral-200"
+            >
+              {t('auth.fullName')}{' '}
+              <span className="text-red-500" aria-hidden="true">
+                *
+              </span>
             </label>
             <Input
+              id="reg-name"
               type="text"
               placeholder="Ion Popescu"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
+              aria-required="true"
+              aria-invalid={!!error && !formData.name}
+              aria-describedby={error ? 'register-error' : undefined}
               autoFocus
             />
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-primary-800 dark:text-neutral-200">
-              {t('auth.email')} <span className="text-red-500">*</span>
+            <label
+              htmlFor="reg-email"
+              className="block text-sm font-medium text-primary-800 dark:text-neutral-200"
+            >
+              {t('auth.email')}{' '}
+              <span className="text-red-500" aria-hidden="true">
+                *
+              </span>
             </label>
             <Input
+              id="reg-email"
               type="email"
               placeholder="nume@companie.com"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               required
+              aria-required="true"
+              aria-invalid={!!error && !formData.email}
+              aria-describedby={error ? 'register-error' : undefined}
             />
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-primary-800 dark:text-neutral-200">
+            <label
+              htmlFor="reg-phone"
+              className="block text-sm font-medium text-primary-800 dark:text-neutral-200"
+            >
               {t('auth.phone')}
             </label>
             <Input
+              id="reg-phone"
               type="tel"
               placeholder="+373123456789"
               value={formData.phone}
@@ -227,10 +255,14 @@ const Register = () => {
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-primary-800 dark:text-neutral-200">
+            <label
+              htmlFor="reg-company"
+              className="block text-sm font-medium text-primary-800 dark:text-neutral-200"
+            >
               {t('auth.company')}
             </label>
             <Input
+              id="reg-company"
               type="text"
               placeholder="Numele companiei"
               value={formData.company}
@@ -239,19 +271,33 @@ const Register = () => {
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-primary-800 dark:text-neutral-200">
-              {t('auth.passwordLabel')} <span className="text-red-500">*</span>
+            <label
+              htmlFor="reg-password"
+              className="block text-sm font-medium text-primary-800 dark:text-neutral-200"
+            >
+              {t('auth.passwordLabel')}{' '}
+              <span className="text-red-500" aria-hidden="true">
+                *
+              </span>
             </label>
             <Input
+              id="reg-password"
               type="password"
               placeholder="••••••••"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               required
+              aria-required="true"
+              aria-invalid={formData.password.length > 0 && !isPasswordValid}
+              aria-describedby="password-requirements"
             />
 
             {/* Password strength indicators */}
-            <div className="grid grid-cols-2 gap-2 mt-3">
+            <div
+              id="password-requirements"
+              className="grid grid-cols-2 gap-2 mt-3"
+              aria-label="Password requirements"
+            >
               <PasswordCheck passed={passwordChecks.length} label={t('auth.minChars')} />
               <PasswordCheck passed={passwordChecks.uppercase} label={t('auth.uppercase')} />
               <PasswordCheck passed={passwordChecks.lowercase} label={t('auth.lowercase')} />
@@ -261,18 +307,33 @@ const Register = () => {
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-primary-800 dark:text-neutral-200">
-              {t('auth.confirmPasswordLabel')} <span className="text-red-500">*</span>
+            <label
+              htmlFor="reg-confirm-password"
+              className="block text-sm font-medium text-primary-800 dark:text-neutral-200"
+            >
+              {t('auth.confirmPasswordLabel')}{' '}
+              <span className="text-red-500" aria-hidden="true">
+                *
+              </span>
             </label>
             <Input
+              id="reg-confirm-password"
               type="password"
               placeholder="••••••••"
               value={formData.confirmPassword}
               onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
               required
+              aria-required="true"
+              aria-invalid={formData.confirmPassword.length > 0 && !passwordsMatch}
+              aria-describedby={
+                formData.confirmPassword.length > 0 ? 'confirm-password-status' : undefined
+              }
             />
             {formData.confirmPassword && (
               <div
+                id="confirm-password-status"
+                role="status"
+                aria-live="polite"
                 className={`flex items-center gap-2 text-sm ${passwordsMatch ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
               >
                 {passwordsMatch ? (

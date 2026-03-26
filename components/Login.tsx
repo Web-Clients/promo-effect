@@ -168,7 +168,10 @@ const Login = ({ onLogin }: LoginProps) => {
             {!requires2FA ? (
               <>
                 <div className="space-y-1.5">
-                  <label className="block text-sm font-medium text-primary-800 dark:text-neutral-200">
+                  <label
+                    htmlFor="email"
+                    className="block text-sm font-medium text-primary-800 dark:text-neutral-200"
+                  >
                     {t('auth.email')}
                   </label>
                   <Input
@@ -177,6 +180,9 @@ const Login = ({ onLogin }: LoginProps) => {
                     type="email"
                     autoComplete="email"
                     required
+                    aria-required="true"
+                    aria-invalid={!!error}
+                    aria-describedby={error ? 'login-error' : undefined}
                     placeholder="nume@companie.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -186,7 +192,10 @@ const Login = ({ onLogin }: LoginProps) => {
 
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-center">
-                    <label className="block text-sm font-medium text-primary-800 dark:text-neutral-200">
+                    <label
+                      htmlFor="password"
+                      className="block text-sm font-medium text-primary-800 dark:text-neutral-200"
+                    >
                       {t('auth.password')}
                     </label>
                     <Link
@@ -202,6 +211,9 @@ const Login = ({ onLogin }: LoginProps) => {
                     type="password"
                     autoComplete="current-password"
                     required
+                    aria-required="true"
+                    aria-invalid={!!error}
+                    aria-describedby={error ? 'login-error' : undefined}
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -218,7 +230,10 @@ const Login = ({ onLogin }: LoginProps) => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="block text-sm font-medium text-primary-800 dark:text-neutral-200">
+                  <label
+                    htmlFor="twoFactorCode"
+                    className="block text-sm font-medium text-primary-800 dark:text-neutral-200"
+                  >
                     {t('auth.twoFactorCode')}
                   </label>
                   <Input
@@ -229,6 +244,9 @@ const Login = ({ onLogin }: LoginProps) => {
                     pattern="[0-9]{6}"
                     maxLength={6}
                     required
+                    aria-required="true"
+                    aria-invalid={!!error}
+                    aria-describedby={error ? 'login-error' : undefined}
                     placeholder="123456"
                     value={twoFactorCode}
                     onChange={(e) => {
@@ -255,7 +273,11 @@ const Login = ({ onLogin }: LoginProps) => {
             )}
 
             {error && (
-              <div className="p-3 bg-error-50 dark:bg-error-500/20 border border-error-200 dark:border-error-500/30 rounded-lg">
+              <div
+                id="login-error"
+                role="alert"
+                className="p-3 bg-error-50 dark:bg-error-500/20 border border-error-200 dark:border-error-500/30 rounded-lg"
+              >
                 <p className="text-sm text-error-700 dark:text-error-400">{error}</p>
               </div>
             )}

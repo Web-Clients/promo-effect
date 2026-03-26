@@ -453,12 +453,13 @@ const BookingsList = ({ user }: { user: User }) => {
         /* Bookings Table */
         <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full" aria-label={t('bookings.title')}>
               <thead>
                 <tr className="bg-neutral-50 dark:bg-neutral-700/50 border-b border-neutral-200 dark:border-neutral-700">
-                  <th className="text-left p-4 w-12">
+                  <th scope="col" className="text-left p-4 w-12">
                     <input
                       type="checkbox"
+                      aria-label={t('bookings.selectAll')}
                       onChange={(e) => handleSelectAll(e.target.checked)}
                       checked={
                         selectedRows.length > 0 && selectedRows.length === filteredBookings.length
@@ -466,42 +467,78 @@ const BookingsList = ({ user }: { user: User }) => {
                       className="w-4 h-4 rounded border-neutral-300 text-accent-500 focus:ring-accent-500"
                     />
                   </th>
-                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                  <th
+                    scope="col"
+                    className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
+                  >
                     {t('bookings.date')}
                   </th>
-                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                  <th
+                    scope="col"
+                    className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
+                  >
                     {t('bookings.blNumber')}
                   </th>
-                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                  <th
+                    scope="col"
+                    className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
+                  >
                     {t('bookings.portDest')}
                   </th>
-                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                  <th
+                    scope="col"
+                    className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
+                  >
                     {t('bookings.shippingLineShort')}
                   </th>
-                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                  <th
+                    scope="col"
+                    className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
+                  >
                     {t('bookings.containerNumber')}
                   </th>
-                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                  <th
+                    scope="col"
+                    className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
+                  >
                     {t('bookings.weight')}
                   </th>
-                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                  <th
+                    scope="col"
+                    className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
+                  >
                     {t('bookings.type')}
                   </th>
                   {user.role !== UserRole.CLIENT && (
-                    <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                    <th
+                      scope="col"
+                      className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
+                    >
                       {t('bookings.beneficiary')}
                     </th>
                   )}
-                  <th className="text-right p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                  <th
+                    scope="col"
+                    className="text-right p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
+                  >
                     {t('bookings.price')}
                   </th>
-                  <th className="text-center p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                  <th
+                    scope="col"
+                    className="text-center p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
+                  >
                     TLX
                   </th>
-                  <th className="text-center p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                  <th
+                    scope="col"
+                    className="text-center p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
+                  >
                     DOC
                   </th>
-                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                  <th
+                    scope="col"
+                    className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
+                  >
                     {t('bookings.status')}
                   </th>
                 </tr>

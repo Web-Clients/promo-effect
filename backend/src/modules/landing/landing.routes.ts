@@ -41,29 +41,29 @@ router.post('/contact', async (req: Request, res: Response) => {
     // 2. Send email notification to sales team
     // 3. Add to CRM system
 
-    // Log the contact (you can create a Lead model later)
-    console.log('[Landing Contact]', {
-      name,
-      company,
-      email,
-      timestamp: new Date().toISOString(),
+    // Save lead to AuditLog for tracking until a dedicated Lead model is added
+    await prisma.auditLog.create({
+      data: {
+        action: 'LANDING_LEAD_CREATED',
+        entityType: 'Lead',
+        changes: JSON.stringify({
+          name,
+          company: company || null,
+          email,
+          source: 'LANDING_PAGE',
+          status: 'NEW',
+          timestamp: new Date().toISOString(),
+        }),
+      },
     });
 
-    // TODO: Create Lead record in database
-    // await prisma.lead.create({
-    //   data: {
-    //     name,
-    //     company,
-    //     email,
-    //     source: 'LANDING_PAGE',
-    //     status: 'NEW',
-    //   },
-    // });
+    console.log('[Landing Contact] Lead saved to audit log:', { name, company, email });
 
     // Send email notification to sales team
     try {
-      const salesEmail = process.env.SALES_EMAIL || process.env.ADMIN_EMAIL || 'sales@promo-efect.md';
-      
+      const salesEmail =
+        process.env.SALES_EMAIL || process.env.ADMIN_EMAIL || 'sales@promo-efect.md';
+
       // Find admin user to send notification
       const adminUser = await prisma.user.findFirst({
         where: {
@@ -104,4 +104,3 @@ router.post('/contact', async (req: Request, res: Response) => {
 });
 
 export default router;
-

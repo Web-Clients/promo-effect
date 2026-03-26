@@ -96,10 +96,13 @@ export interface BookingResponse {
     company: string;
   };
   selectedPrice?: any;
+  containerNumber?: string | null;
+  blNumber?: string | null;
   containers?: any[];
   documents?: any[];
   invoices?: any[];
   notifications?: any[];
+  telexRelease?: boolean;
   // GPS Tracking fields
   trackingVehicleId?: string | null;
   trackingVehicleName?: string | null;
@@ -128,23 +131,19 @@ export interface BookingStatsResponse {
 /**
  * Create new booking
  */
-export const createBooking = async (
-  data: CreateBookingData
-): Promise<BookingResponse> => {
+export const createBooking = async (data: CreateBookingData): Promise<BookingResponse> => {
   try {
     const response = await api.post<BookingResponse>('/bookings', data);
     return response.data;
   } catch (error: any) {
-    throw new Error(error.message || 'Nu s-a putut crea rezervarea');
+    throw new Error(error.message || 'Nu s-a putut crea rezervarea', { cause: error });
   }
 };
 
 /**
  * Get list of bookings with filters
  */
-export const getBookings = async (
-  filters?: BookingFilters
-): Promise<BookingListResponse> => {
+export const getBookings = async (filters?: BookingFilters): Promise<BookingListResponse> => {
   try {
     const params = new URLSearchParams();
 
@@ -162,7 +161,7 @@ export const getBookings = async (
 
     return response.data;
   } catch (error: any) {
-    throw new Error(error.message || 'Nu s-au putut încărca rezervările');
+    throw new Error(error.message || 'Nu s-au putut încărca rezervările', { cause: error });
   }
 };
 
@@ -174,7 +173,7 @@ export const getBookingById = async (id: string): Promise<BookingResponse> => {
     const response = await api.get<BookingResponse>(`/bookings/${id}`);
     return response.data;
   } catch (error: any) {
-    throw new Error(error.message || 'Nu s-a putut încărca rezervarea');
+    throw new Error(error.message || 'Nu s-a putut încărca rezervarea', { cause: error });
   }
 };
 
@@ -189,21 +188,19 @@ export const updateBooking = async (
     const response = await api.put<BookingResponse>(`/bookings/${id}`, data);
     return response.data;
   } catch (error: any) {
-    throw new Error(error.message || 'Nu s-a putut actualiza rezervarea');
+    throw new Error(error.message || 'Nu s-a putut actualiza rezervarea', { cause: error });
   }
 };
 
 /**
  * Cancel (delete) booking
  */
-export const cancelBooking = async (
-  id: string
-): Promise<{ message: string }> => {
+export const cancelBooking = async (id: string): Promise<{ message: string }> => {
   try {
     const response = await api.delete<{ message: string }>(`/bookings/${id}`);
     return response.data;
   } catch (error: any) {
-    throw new Error(error.message || 'Nu s-a putut anula rezervarea');
+    throw new Error(error.message || 'Nu s-a putut anula rezervarea', { cause: error });
   }
 };
 
@@ -215,7 +212,7 @@ export const getBookingStats = async (): Promise<BookingStatsResponse> => {
     const response = await api.get<BookingStatsResponse>('/bookings/stats');
     return response.data;
   } catch (error: any) {
-    throw new Error(error.message || 'Nu s-au putut încărca statisticile');
+    throw new Error(error.message || 'Nu s-au putut încărca statisticile', { cause: error });
   }
 };
 

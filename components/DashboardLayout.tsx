@@ -30,6 +30,7 @@ import {
   TruckIcon,
 } from './icons';
 import NotificationsDropdown from './NotificationsDropdown';
+import { LanguageSwitcher } from './shared/LanguageSwitcher';
 
 interface DashboardLayoutProps {
   children?: React.ReactNode;
@@ -271,6 +272,7 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
+              <LanguageSwitcher />
               <NotificationsDropdown />
 
               <button

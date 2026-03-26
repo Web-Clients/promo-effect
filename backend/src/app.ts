@@ -150,6 +150,7 @@ app.use('/api/clients', clientRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/tracking', trackingRoutes);
 app.use('/api/calculator', calculatorRoutes);
+app.use('/api/hscodes', hscodesRoutes); // HS codes lookup (legacy path)
 
 // Admin routes (no versioning for internal tools)
 app.use('/api/admin', emailRoutes); // Email processing (admin only)

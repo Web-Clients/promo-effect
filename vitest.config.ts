@@ -9,7 +9,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
     include: ['**/*.{test,spec}.{ts,tsx}'],
-    exclude: ['node_modules', 'dist', 'backend'],
+    exclude: ['node_modules', 'dist', 'backend', 'e2e'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],

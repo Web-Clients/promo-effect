@@ -479,7 +479,38 @@
     "portAdjSaved": "Корректировка порта обновлена",
     "portAdjCreated": "Корректировка порта создана",
     "portAdjDeleted": "Корректировка порта удалена",
-    "portAdjDeleteConfirm": "Вы уверены, что хотите удалить эту корректировку?"
+    "portAdjDeleteConfirm": "Вы уверены, что хотите удалить эту корректировку?",
+    "saved": "Сохранено",
+    "colCompany": "Компания",
+    "colPortOrigin": "Порт отправления",
+    "colPortDest": "Порт назн.",
+    "colContainer": "Контейнер",
+    "colPriceUSD": "Цена (USD)",
+    "colDays": "Дни",
+    "colLineTaxes": "Налоги линии",
+    "editPortAdj": "Редактировать корректировку порта",
+    "addPortAdj": "Добавить корректировку порта",
+    "priceAdjustmentUSD": "Корректировка цены (USD)",
+    "optionalNotes": "Необязательные примечания...",
+    "colPort": "Порт",
+    "colAdjustmentUSD": "Корректировка (USD)",
+    "newRange": "Новый интервал",
+    "resetRangesConfirm": "Сбросить все интервалы к значениям по умолчанию? Несохранённые изменения будут потеряны.",
+    "weightRangesTitle": "Весовые интервалы (по типу контейнера)",
+    "addRange": "+ Добавить интервал",
+    "noRangesForContainer": "Нет интервалов для {{container}}.",
+    "addFirstRange": "Добавить первый интервал",
+    "colLabel": "Метка",
+    "colMin": "Мин (т)",
+    "colMax": "Макс (т)",
+    "colMaritimeSurcharge": "+ Морской ($)",
+    "colTerrestrialSurcharge": "+ Наземный ($)",
+    "weightRangesHint": "Интервалы настраиваются по типу контейнера (7 стандартных: 1-18, 18-23, 23-24, 24-25, 25-26, 26-27, 27-28 тонн). + Морской = надбавка к морскому тарифу (USD). + Наземный = надбавка к наземному транспорту (USD).",
+    "portTaxesUSD": "Портовые сборы (USD)",
+    "terrestrialTransportUSD": "Наземный транспорт (USD)",
+    "customsTaxesUSD": "Таможенные пошлины (USD)",
+    "commissionUSD": "Комиссия (USD)",
+    "insuranceUSD": "Страхование (USD)"
   },
   "landing": {
     "tagline": "Логистические Инновации v2.0",
@@ -553,5 +584,12 @@
     "prices": "Цены",
     "contact": "Контакт",
     "faq": "Часто задаваемые вопросы"
+  },
+  "legal": {
+    "termsTitle": "Условия использования",
+    "privacyTitle": "Политика конфиденциальности",
+    "cookiesTitle": "Политика использования файлов cookie",
+    "faqTitle": "Часто задаваемые вопросы",
+    "lastUpdated": "Последнее обновление"
   }
 }

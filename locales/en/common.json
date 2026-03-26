@@ -479,7 +479,38 @@
     "portAdjSaved": "Port adjustment updated",
     "portAdjCreated": "Port adjustment created",
     "portAdjDeleted": "Port adjustment deleted",
-    "portAdjDeleteConfirm": "Are you sure you want to delete this adjustment?"
+    "portAdjDeleteConfirm": "Are you sure you want to delete this adjustment?",
+    "saved": "Saved",
+    "colCompany": "Company",
+    "colPortOrigin": "Origin Port",
+    "colPortDest": "Port Dest.",
+    "colContainer": "Container",
+    "colPriceUSD": "Price (USD)",
+    "colDays": "Days",
+    "colLineTaxes": "Line Taxes",
+    "editPortAdj": "Edit Port Adjustment",
+    "addPortAdj": "Add Port Adjustment",
+    "priceAdjustmentUSD": "Price Adjustment (USD)",
+    "optionalNotes": "Optional notes...",
+    "colPort": "Port",
+    "colAdjustmentUSD": "Adjustment (USD)",
+    "newRange": "New range",
+    "resetRangesConfirm": "Reset all intervals to defaults? Unsaved changes will be lost.",
+    "weightRangesTitle": "Weight Intervals (Per Container Type)",
+    "addRange": "+ Add Interval",
+    "noRangesForContainer": "No intervals for {{container}}.",
+    "addFirstRange": "Add first interval",
+    "colLabel": "Label",
+    "colMin": "Min (t)",
+    "colMax": "Max (t)",
+    "colMaritimeSurcharge": "+ Maritime ($)",
+    "colTerrestrialSurcharge": "+ Terrestrial ($)",
+    "weightRangesHint": "Intervals configured per container type (7 default intervals: 1-18, 18-23, 23-24, 24-25, 25-26, 26-27, 27-28 tons). + Maritime = surcharge on maritime rate (USD). + Terrestrial = surcharge on land transport (USD).",
+    "portTaxesUSD": "Port Taxes (USD)",
+    "terrestrialTransportUSD": "Land Transport (USD)",
+    "customsTaxesUSD": "Customs Taxes (USD)",
+    "commissionUSD": "Commission (USD)",
+    "insuranceUSD": "Insurance (USD)"
   },
   "landing": {
     "tagline": "Logistics Innovation v2.0",
@@ -553,5 +584,12 @@
     "prices": "Prices",
     "contact": "Contact",
     "faq": "FAQ"
+  },
+  "legal": {
+    "termsTitle": "Terms and Conditions",
+    "privacyTitle": "Privacy Policy",
+    "cookiesTitle": "Cookie Policy",
+    "faqTitle": "Frequently Asked Questions",
+    "lastUpdated": "Last updated"
   }
 }

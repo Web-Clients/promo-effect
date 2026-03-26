@@ -584,5 +584,12 @@
     "prices": "Prețuri",
     "contact": "Contact",
     "faq": "Întrebări Frecvente"
+  },
+  "legal": {
+    "termsTitle": "Termeni și Condiții",
+    "privacyTitle": "Politica de Confidențialitate",
+    "cookiesTitle": "Politica de Cookie-uri",
+    "faqTitle": "Întrebări Frecvente",
+    "lastUpdated": "Ultima actualizare"
   }
 }

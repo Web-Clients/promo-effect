@@ -5,6 +5,7 @@ import bookingsService, { BookingResponse } from '../services/bookings';
 import { searchContainer, refreshTracking, Container } from '../services/tracking';
 import ContainerMap from './ContainerMap';
 import { cn } from '../lib/utils';
+import { getErrorMessage } from '../utils/formatters';
 
 const statusVariantMap: { [key: string]: 'blue' | 'yellow' | 'green' | 'purple' | 'default' } = {
   CONFIRMED: 'blue',
@@ -55,8 +56,8 @@ const ContainersInTransit = () => {
       });
 
       setBookings(all);
-    } catch (err: any) {
-      setError(err.message || 'Eroare la încărcarea datelor');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Eroare la încărcarea datelor'));
     } finally {
       setIsLoading(false);
     }
@@ -105,7 +106,7 @@ const ContainersInTransit = () => {
         return next;
       });
       await fetchTrackingData(bookingId, containerNumber);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Refresh failed:', err);
     } finally {
       setRefreshingId(null);

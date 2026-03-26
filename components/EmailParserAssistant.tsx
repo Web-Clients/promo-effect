@@ -53,7 +53,7 @@ interface EmailParserAssistantProps {
 const EmailParserAssistant = ({ onBookingCreate }: EmailParserAssistantProps) => {
   const [emailContent, setEmailContent] = useState('');
   const [parsedResult, setParsedResult] = useState('');
-  const [parsedObject, setParsedObject] = useState<any | null>(null);
+  const [parsedObject, setParsedObject] = useState<Record<string, unknown> | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [aiStatus, setAiStatus] = useState<{ available: boolean; reason: string } | null>(null);

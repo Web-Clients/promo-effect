@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
@@ -6,22 +6,9 @@ import { Button } from './ui/Button';
 import { PublicHeader } from './PublicHeader';
 import { PublicFooter } from './PublicFooter';
 import {
-  BellIcon,
   LayoutDashboardIcon,
-  CheckIcon,
-  ClockIcon,
-  StarIcon,
-  XIcon,
-  CheckCircleIcon,
-  PhoneIcon,
-  MapPinIcon,
-  GlobeIcon,
   ZapIcon,
   ShieldCheckIcon,
-  PackageIcon,
-  TrendingUpIcon,
-  AnchorIcon,
-  TruckIcon,
   ArrowRightIcon,
   PlusIcon,
   MinusIcon,
@@ -33,7 +20,17 @@ interface LandingPageProps {
   onLoginRedirect: () => void;
 }
 
-const SectionHeading = ({ subtitle, title, description, centered = false }: any) => (
+const SectionHeading = ({
+  subtitle,
+  title,
+  description,
+  centered = false,
+}: {
+  subtitle: string;
+  title: string;
+  description?: string;
+  centered?: boolean;
+}) => (
   <div className={`mb-16 ${centered ? 'text-center mx-auto max-w-3xl' : 'text-left'}`}>
     <span className="text-primary-500 font-bold text-[10px] uppercase tracking-[0.4em] mb-4 block">
       {subtitle}
@@ -55,7 +52,6 @@ const SolidCard = ({
   children: React.ReactNode;
   className?: string;
   noPadding?: boolean;
-  key?: any;
 }) => (
   <div
     className={`bg-[#0A0C10] border border-white/5 rounded-xl group transition-all duration-300 hover:border-white/10 hover:bg-[#0D0F14] ${noPadding ? '' : 'p-8'} ${className}`}
@@ -64,7 +60,7 @@ const SolidCard = ({
   </div>
 );
 
-const FAQItem = ({ question, answer }: { question: string; answer: string; key?: any }) => {
+const FAQItem = ({ question, answer }: { question: string; answer: string }) => {
   const [isOpen, setIsOpen] = useState(false);
   return (
     <div className="border-b border-white/5 py-6">

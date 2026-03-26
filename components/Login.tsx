@@ -5,6 +5,7 @@ import { User } from '../types';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import authService from '../services/auth';
+import { getErrorMessage } from '../utils/formatters';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -53,8 +54,8 @@ const Login = ({ onLogin }: LoginProps) => {
         // Normal login success
         onLogin(result);
       }
-    } catch (err: any) {
-      setError(err.message || t('auth.invalidCredentials'));
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, t('auth.invalidCredentials')));
     } finally {
       setIsLoading(false);
     }

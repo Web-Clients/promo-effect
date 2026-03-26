@@ -17,7 +17,14 @@ export const PublicLayout = ({
   </div>
 );
 
-export const PageHero = ({ subtitle, title, description, image }: any) => (
+interface PageHeroProps {
+  subtitle: string;
+  title: string;
+  description?: string;
+  image: string;
+}
+
+export const PageHero = ({ subtitle, title, description, image }: PageHeroProps) => (
   <section className="relative h-[60vh] flex items-center justify-center overflow-hidden">
     <div className="absolute inset-0 z-0">
       <div className="absolute inset-0 bg-gradient-to-b from-[#050608]/80 via-[#050608]/40 to-[#050608] z-10" />
@@ -56,7 +63,12 @@ export const PageHero = ({ subtitle, title, description, image }: any) => (
   </section>
 );
 
-export const SolidCard = ({ children, className = '' }: any) => (
+interface SolidCardProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+export const SolidCard = ({ children, className = '' }: SolidCardProps) => (
   <div
     className={`bg-[#0A0C10] border border-white/5 rounded-2xl p-8 hover:border-white/10 transition-all duration-300 ${className}`}
   >

@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import gpsTrackingService, { GPSLocation, GPSVehicle } from '../services/gpsTracking';
+import { getErrorMessage } from '../utils/formatters';
 
 // Truck icon for GPS tracking
 const truckIcon = new L.DivIcon({
@@ -64,8 +65,8 @@ const GPSTrackingMap: React.FC<GPSTrackingMapProps> = ({
       } else {
         setError(response.error || 'Nu s-a putut obține locația GPS');
       }
-    } catch (err: any) {
-      setError(err.message || 'Eroare la obținerea locației GPS');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Eroare la obținerea locației GPS'));
     } finally {
       setLoading(false);
     }
@@ -117,8 +118,8 @@ const GPSTrackingMap: React.FC<GPSTrackingMapProps> = ({
       } else {
         setError(response.error || 'Nu s-a putut atribui vehiculul');
       }
-    } catch (err: any) {
-      setError(err.message || 'Eroare la atribuirea vehiculului');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Eroare la atribuirea vehiculului'));
     } finally {
       setAssigning(false);
     }
@@ -155,7 +156,12 @@ const GPSTrackingMap: React.FC<GPSTrackingMapProps> = ({
             <p className="text-neutral-500 dark:text-neutral-400 mb-4">
               Nu este atribuit niciun vehicul pentru tracking GPS
             </p>
-            <Button onClick={() => { setShowVehicleSelect(true); fetchVehicles(); }}>
+            <Button
+              onClick={() => {
+                setShowVehicleSelect(true);
+                fetchVehicles();
+              }}
+            >
               Atribuie Vehicul
             </Button>
           </div>
@@ -179,9 +185,7 @@ const GPSTrackingMap: React.FC<GPSTrackingMapProps> = ({
               </select>
             </div>
 
-            {error && (
-              <p className="text-red-500 text-sm">{error}</p>
-            )}
+            {error && <p className="text-red-500 text-sm">{error}</p>}
 
             <div className="flex gap-2">
               <Button
@@ -191,10 +195,7 @@ const GPSTrackingMap: React.FC<GPSTrackingMapProps> = ({
               >
                 Atribuie
               </Button>
-              <Button
-                variant="secondary"
-                onClick={() => setShowVehicleSelect(false)}
-              >
+              <Button variant="secondary" onClick={() => setShowVehicleSelect(false)}>
                 Anulează
               </Button>
             </div>
@@ -211,12 +212,7 @@ const GPSTrackingMap: React.FC<GPSTrackingMapProps> = ({
         <h4 className="text-base font-semibold text-neutral-700 dark:text-neutral-200">
           🚛 GPS Tracking - {vehicleName || vehicleId}
         </h4>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={fetchLocation}
-          disabled={loading}
-        >
+        <Button variant="secondary" size="sm" onClick={fetchLocation} disabled={loading}>
           {loading ? '...' : '🔄 Actualizează'}
         </Button>
       </div>
@@ -240,10 +236,7 @@ const GPSTrackingMap: React.FC<GPSTrackingMapProps> = ({
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
               <MapUpdater center={[location.latitude, location.longitude]} />
-              <Marker
-                position={[location.latitude, location.longitude]}
-                icon={truckIcon}
-              >
+              <Marker position={[location.latitude, location.longitude]} icon={truckIcon}>
                 <Popup>
                   <div className="text-sm">
                     <strong>{vehicleName || 'Vehicul'}</strong>

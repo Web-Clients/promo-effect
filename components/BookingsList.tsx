@@ -16,6 +16,8 @@ import { useToast } from './ui/Toast';
 import bookingsService, { BookingResponse } from '../services/bookings';
 import invoicesService from '../services/invoices';
 import { cn } from '../lib/utils';
+import { getErrorMessage } from '../utils/formatters';
+import { BookingFilters } from '../services/bookings';
 
 const STATUS_I18N_KEYS: { [key: string]: string } = {
   DRAFT: 'status.pending',
@@ -108,7 +110,7 @@ const BookingsList = ({ user }: { user: User }) => {
       setError('');
 
       try {
-        const filters: any = {
+        const filters: BookingFilters = {
           limit: 100,
           offset: 0,
         };
@@ -119,16 +121,17 @@ const BookingsList = ({ user }: { user: User }) => {
 
         const response = await bookingsService.getBookings(filters);
         setBookings(response.bookings);
-      } catch (err: any) {
-        setError(err.message);
-        addToast(err.message, 'error');
+      } catch (err: unknown) {
+        const msg = getErrorMessage(err, 'Eroare la încărcarea rezervărilor');
+        setError(msg);
+        addToast(msg, 'error');
       } finally {
         setIsLoading(false);
       }
     };
 
     loadBookings();
-  }, [searchTerm]);
+  }, [searchTerm, addToast]);
 
   // Filter bookings by active tab
   const filteredBookings = useMemo(() => {
@@ -207,7 +210,7 @@ const BookingsList = ({ user }: { user: User }) => {
   };
 
   const refreshBookings = async () => {
-    const filters: any = { limit: 100, offset: 0 };
+    const filters: BookingFilters = { limit: 100, offset: 0 };
     if (searchTerm) filters.search = searchTerm;
     const response = await bookingsService.getBookings(filters);
     setBookings(response.bookings);
@@ -230,7 +233,7 @@ const BookingsList = ({ user }: { user: User }) => {
             dueDate: dueDate.toISOString(),
           });
           successCount++;
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error(`Failed to create invoice for ${booking.id}:`, err);
           errorCount++;
         }
@@ -258,7 +261,7 @@ const BookingsList = ({ user }: { user: User }) => {
         try {
           await bookingsService.cancelBooking(bookingId);
           successCount++;
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error(`Failed to delete booking ${bookingId}:`, err);
           errorCount++;
         }

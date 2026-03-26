@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { getErrorMessage } from '../utils/formatters';
 import {
   getAgentPrices,
   createAgentPrice,
@@ -41,21 +42,21 @@ export function AgentPriceManager({ agent, onClose }: Props) {
     reason: '',
   });
 
-  useEffect(() => {
-    loadPrices();
-  }, [agent.id]);
-
-  const loadPrices = async () => {
+  const loadPrices = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getAgentPrices(agent.id);
       setPrices(data);
-    } catch (err: any) {
-      addToast(err.message || 'Eroare la încărcarea prețurilor', 'error');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Eroare la încărcarea prețurilor'), 'error');
     } finally {
       setLoading(false);
     }
-  };
+  }, [agent.id, addToast]);
+
+  useEffect(() => {
+    loadPrices();
+  }, [loadPrices]);
 
   const handleEdit = (price: AgentPrice) => {
     setEditingPrice(price);
@@ -68,7 +69,7 @@ export function AgentPriceManager({ agent, onClose }: Props) {
       validFrom: price.validFrom.split('T')[0],
       validUntil: price.validUntil.split('T')[0],
       departureDate: price.departureDate.split('T')[0],
-      reason: (price as any).reason || '', // Cast as any because frontend AgentPrice interface might lack reason
+      reason: price.reason || '',
     });
     setShowForm(true);
   };
@@ -79,8 +80,8 @@ export function AgentPriceManager({ agent, onClose }: Props) {
       await deleteAgentPrice(agent.id, priceId);
       addToast('Prețul a fost șters', 'success');
       loadPrices();
-    } catch (err: any) {
-      addToast(err.message || 'Eroare la ștergere', 'error');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Eroare la ștergere'), 'error');
     }
   };
 
@@ -97,8 +98,8 @@ export function AgentPriceManager({ agent, onClose }: Props) {
       setShowForm(false);
       setEditingPrice(null);
       loadPrices();
-    } catch (err: any) {
-      addToast(err.message || 'Eroare la salvare', 'error');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Eroare la salvare'), 'error');
     }
   };
 

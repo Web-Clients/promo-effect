@@ -7,6 +7,7 @@ import calculatorService, {
 } from '../../services/calculator';
 import { User, UserRole } from '../../types';
 import { CalcParams, UseCalculatorReturn } from './types';
+import { getErrorMessage } from '../../utils/formatters';
 
 export function useCalculator(user?: User): UseCalculatorReturn {
   const isAdmin = !!(
@@ -72,7 +73,7 @@ export function useCalculator(user?: User): UseCalculatorReturn {
           setParams((prev) => ({ ...prev, portDestination: destinations[0] }));
         if (types.length > 0) setContainers([{ type: types[0], quantity: 1 }]);
         if (weights.length > 0) setParams((prev) => ({ ...prev, cargoWeight: weights[0] }));
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Failed to load calculator options:', err);
       }
     };
@@ -125,8 +126,8 @@ export function useCalculator(user?: User): UseCalculatorReturn {
       });
 
       setResult(calculatorResult);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -164,8 +165,8 @@ export function useCalculator(user?: User): UseCalculatorReturn {
 
       setOrderSuccess(`Comanda a fost plasată cu succes! Număr rezervare: ${response.bookingId}`);
       setShowSupplierForm(false);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     } finally {
       setIsPlacingOrder(false);
     }

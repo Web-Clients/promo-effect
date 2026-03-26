@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import authService from '../services/auth';
+import { getErrorMessage } from '../utils/formatters';
 
 const ResetPassword = () => {
   const [searchParams] = useSearchParams();
@@ -60,8 +61,8 @@ const ResetPassword = () => {
     try {
       await authService.resetPassword(token, newPassword);
       setIsSuccess(true);
-    } catch (err: any) {
-      setError(err.message || 'Resetarea parolei a eșuat. Token-ul poate fi expirat.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Resetarea parolei a eșuat. Token-ul poate fi expirat.'));
     } finally {
       setIsLoading(false);
     }

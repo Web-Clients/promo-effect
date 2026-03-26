@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/Tabs';
 import { Switch } from './ui/Switch';
 import { useToast } from './ui/Toast';
 import authService from '../services/auth';
+import { getErrorMessage } from '../utils/formatters';
 
 const UserProfile = ({ user }: { user: User }) => {
   const { addToast } = useToast();
@@ -39,9 +40,12 @@ const UserProfile = ({ user }: { user: User }) => {
   useEffect(() => {
     authService
       .getCurrentUser()
-      .then((currentUser: any) => {
-        if (typeof currentUser.twoFactorEnabled === 'boolean') {
-          setTwoFactorEnabled(currentUser.twoFactorEnabled);
+      .then((currentUser) => {
+        const userWithTwoFactor = currentUser as typeof currentUser & {
+          twoFactorEnabled?: boolean;
+        };
+        if (typeof userWithTwoFactor.twoFactorEnabled === 'boolean') {
+          setTwoFactorEnabled(userWithTwoFactor.twoFactorEnabled);
         }
       })
       .catch((err: Error) => {
@@ -72,8 +76,8 @@ const UserProfile = ({ user }: { user: User }) => {
       setBackupCodes(result.backupCodes);
       setShowQrCode(true);
       addToast(t('profile.qrGenerated'), 'success');
-    } catch (error: any) {
-      addToast(error.message || t('errors.saveFailed'), 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, t('errors.saveFailed')), 'error');
     } finally {
       setTwoFactorLoading(false);
     }
@@ -92,8 +96,8 @@ const UserProfile = ({ user }: { user: User }) => {
       setShowQrCode(false);
       setVerificationCode('');
       addToast(t('profile.twoFactorActivated'), 'success');
-    } catch (error: any) {
-      addToast(error.message || t('profile.invalidCode'), 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, t('profile.invalidCode')), 'error');
     } finally {
       setTwoFactorLoading(false);
     }
@@ -113,8 +117,8 @@ const UserProfile = ({ user }: { user: User }) => {
       setQrCodeUrl(null);
       setBackupCodes([]);
       addToast(t('profile.twoFactorDeactivated'), 'success');
-    } catch (error: any) {
-      addToast(error.message || t('errors.saveFailed'), 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, t('errors.saveFailed')), 'error');
     } finally {
       setTwoFactorLoading(false);
     }

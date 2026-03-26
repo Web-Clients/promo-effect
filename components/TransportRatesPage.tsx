@@ -5,10 +5,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import shippingLinesService, {
-  TransportRate,
-  TransportRateInput,
-} from '../services/shippingLines';
+import shippingLinesService, { TransportRate, TransportRateInput } from '../services/shippingLines';
+import { getErrorMessage } from '../utils/formatters';
 
 const CONTAINER_TYPES = ['20DC', '40DC', '40HC', '20RF', '40RF'];
 const DESTINATIONS = ['Constanța', 'Odessa'];
@@ -17,8 +15,18 @@ const DEFAULT_WEIGHT_RANGES = ['1-10 tone', '10-20 tone', '20-23 tone', '23-24 t
 // Icons
 const TruckIcon = () => (
   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={1.5}
+      d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"
+    />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={1.5}
+      d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"
+    />
   </svg>
 );
 const PlusIcon = () => (
@@ -28,12 +36,22 @@ const PlusIcon = () => (
 );
 const EditIcon = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+    />
   </svg>
 );
 const TrashIcon = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+    />
   </svg>
 );
 const SaveIcon = () => (
@@ -67,15 +85,19 @@ export default function TransportRatesPage() {
   // Filter
   const [filterDest, setFilterDest] = useState<string>('Constanța');
 
-  const filteredItems = items.filter(item => !filterDest || item.destination === filterDest);
+  const filteredItems = items.filter((item) => !filterDest || item.destination === filterDest);
 
   // Build matrix: rows = weight ranges, cols = container types
-  const weightRanges: string[] = Array.from(new Set(filteredItems.map(i => i.weightRange))).sort();
-  const containerTypes: string[] = Array.from(new Set(filteredItems.map(i => i.containerType))).sort();
+  const weightRanges: string[] = Array.from(
+    new Set(filteredItems.map((i) => i.weightRange))
+  ).sort();
+  const containerTypes: string[] = Array.from(
+    new Set(filteredItems.map((i) => i.containerType))
+  ).sort();
 
   // Build lookup map
   const rateMap: Record<string, TransportRate> = {};
-  filteredItems.forEach(item => {
+  filteredItems.forEach((item) => {
     rateMap[`${item.containerType}__${item.weightRange}`] = item;
   });
 
@@ -85,14 +107,16 @@ export default function TransportRatesPage() {
       const data = await shippingLinesService.getTransportRates();
       setItems(data);
       setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Eroare la încărcarea datelor');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Eroare la încărcarea datelor'));
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,8 +133,8 @@ export default function TransportRatesPage() {
       setEditingId(null);
       resetForm();
       loadData();
-    } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Eroare la salvare');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Eroare la salvare'));
     }
     setTimeout(() => setSuccess(null), 3000);
   };
@@ -133,8 +157,8 @@ export default function TransportRatesPage() {
       await shippingLinesService.deleteTransportRate(item.id);
       setSuccess('Rată ștearsă');
       loadData();
-    } catch (err: any) {
-      setError(err.message || 'Eroare la ștergere');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Eroare la ștergere'));
     }
     setTimeout(() => setSuccess(null), 3000);
   };
@@ -182,8 +206,8 @@ export default function TransportRatesPage() {
       }
       setEditingCell(null);
       loadData();
-    } catch (err: any) {
-      setError(err.response?.data?.error || err.message);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     }
   };
 
@@ -193,10 +217,11 @@ export default function TransportRatesPage() {
 
   // Stats
   const totalRates = filteredItems.length;
-  const activeRates = filteredItems.filter(i => i.isActive).length;
-  const avgRate = filteredItems.length > 0
-    ? (filteredItems.reduce((sum, i) => sum + i.rate, 0) / filteredItems.length).toFixed(0)
-    : '0';
+  const activeRates = filteredItems.filter((i) => i.isActive).length;
+  const avgRate =
+    filteredItems.length > 0
+      ? (filteredItems.reduce((sum, i) => sum + i.rate, 0) / filteredItems.length).toFixed(0)
+      : '0';
 
   return (
     <div className="space-y-6">
@@ -212,7 +237,10 @@ export default function TransportRatesPage() {
           </p>
         </div>
         <button
-          onClick={() => { resetForm(); setShowForm(true); }}
+          onClick={() => {
+            resetForm();
+            setShowForm(true);
+          }}
           className="flex items-center gap-2 px-4 py-2.5 bg-primary-700 text-white rounded-lg hover:bg-primary-800 transition-colors text-sm font-medium"
         >
           <PlusIcon />
@@ -223,16 +251,28 @@ export default function TransportRatesPage() {
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white dark:bg-neutral-800 rounded-xl p-4 border border-neutral-200 dark:border-neutral-700">
-          <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">Rate Configurate</p>
-          <p className="text-2xl font-bold text-primary-700 dark:text-primary-400 mt-1">{totalRates}</p>
+          <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">
+            Rate Configurate
+          </p>
+          <p className="text-2xl font-bold text-primary-700 dark:text-primary-400 mt-1">
+            {totalRates}
+          </p>
         </div>
         <div className="bg-white dark:bg-neutral-800 rounded-xl p-4 border border-neutral-200 dark:border-neutral-700">
-          <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">Rate Active</p>
-          <p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">{activeRates}</p>
+          <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">
+            Rate Active
+          </p>
+          <p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">
+            {activeRates}
+          </p>
         </div>
         <div className="bg-white dark:bg-neutral-800 rounded-xl p-4 border border-neutral-200 dark:border-neutral-700">
-          <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">Rată Medie</p>
-          <p className="text-2xl font-bold text-neutral-700 dark:text-neutral-300 mt-1">${avgRate}</p>
+          <p className="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">
+            Rată Medie
+          </p>
+          <p className="text-2xl font-bold text-neutral-700 dark:text-neutral-300 mt-1">
+            ${avgRate}
+          </p>
         </div>
       </div>
 
@@ -254,64 +294,91 @@ export default function TransportRatesPage() {
           <h3 className="text-lg font-semibold text-primary-800 dark:text-white mb-4">
             {editingId ? 'Editare Rată' : 'Adăugare Rată Nouă'}
           </h3>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <form
+            onSubmit={handleSubmit}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4"
+          >
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">Tip Container</label>
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                Tip Container
+              </label>
               <select
                 value={formData.containerType}
-                onChange={e => setFormData({ ...formData, containerType: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, containerType: e.target.value })}
                 className="w-full px-3 py-2 bg-white dark:bg-neutral-700 border border-neutral-300 dark:border-neutral-600 rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
                 required
               >
-                {CONTAINER_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                {CONTAINER_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
               </select>
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">Interval Greutate</label>
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                Interval Greutate
+              </label>
               <select
                 value={formData.weightRange}
-                onChange={e => setFormData({ ...formData, weightRange: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, weightRange: e.target.value })}
                 className="w-full px-3 py-2 bg-white dark:bg-neutral-700 border border-neutral-300 dark:border-neutral-600 rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
                 required
               >
-                {DEFAULT_WEIGHT_RANGES.map(w => <option key={w} value={w}>{w}</option>)}
+                {DEFAULT_WEIGHT_RANGES.map((w) => (
+                  <option key={w} value={w}>
+                    {w}
+                  </option>
+                ))}
               </select>
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">Destinație</label>
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                Destinație
+              </label>
               <select
                 value={formData.destination}
-                onChange={e => setFormData({ ...formData, destination: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
                 className="w-full px-3 py-2 bg-white dark:bg-neutral-700 border border-neutral-300 dark:border-neutral-600 rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
                 required
               >
-                {DESTINATIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                {DESTINATIONS.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
               </select>
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">Rată Transport ($)</label>
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                Rată Transport ($)
+              </label>
               <input
                 type="number"
                 step="0.01"
                 min="0"
                 value={formData.rate}
-                onChange={e => setFormData({ ...formData, rate: parseFloat(e.target.value) || 0 })}
+                onChange={(e) =>
+                  setFormData({ ...formData, rate: parseFloat(e.target.value) || 0 })
+                }
                 className="w-full px-3 py-2 bg-white dark:bg-neutral-700 border border-neutral-300 dark:border-neutral-600 rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
                 required
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">Stare</label>
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                Stare
+              </label>
               <div className="flex items-center gap-4 pt-2">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={formData.isActive}
-                    onChange={e => setFormData({ ...formData, isActive: e.target.checked })}
+                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
                     className="w-4 h-4 text-primary-600 border-neutral-300 rounded focus:ring-primary-500"
                   />
                   <span className="text-sm text-neutral-700 dark:text-neutral-300">Activ</span>
@@ -342,9 +409,11 @@ export default function TransportRatesPage() {
 
       {/* Destination Filter */}
       <div className="flex items-center gap-3">
-        <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Destinație:</label>
+        <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+          Destinație:
+        </label>
         <div className="flex gap-2">
-          {DESTINATIONS.map(d => (
+          {DESTINATIONS.map((d) => (
             <button
               key={d}
               onClick={() => setFilterDest(d)}
@@ -382,68 +451,86 @@ export default function TransportRatesPage() {
                   <th className="px-5 py-3 text-left bg-neutral-50 dark:bg-neutral-750 sticky left-0">
                     Greutate \ Container
                   </th>
-                  {(containerTypes.length > 0 ? containerTypes : CONTAINER_TYPES).map(ct => (
-                    <th key={ct} className="px-5 py-3 text-center min-w-[120px]">{ct}</th>
+                  {(containerTypes.length > 0 ? containerTypes : CONTAINER_TYPES).map((ct) => (
+                    <th key={ct} className="px-5 py-3 text-center min-w-[120px]">
+                      {ct}
+                    </th>
                   ))}
                   {/* Show any missing types */}
-                  {CONTAINER_TYPES.filter(ct => !containerTypes.includes(ct)).map(ct => (
-                    <th key={ct} className="px-5 py-3 text-center min-w-[120px] text-neutral-400">{ct}</th>
+                  {CONTAINER_TYPES.filter((ct) => !containerTypes.includes(ct)).map((ct) => (
+                    <th key={ct} className="px-5 py-3 text-center min-w-[120px] text-neutral-400">
+                      {ct}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {(weightRanges.length > 0 ? weightRanges : DEFAULT_WEIGHT_RANGES).map(wr => (
+                {(weightRanges.length > 0 ? weightRanges : DEFAULT_WEIGHT_RANGES).map((wr) => (
                   <tr key={wr} className="border-b border-neutral-100 dark:border-neutral-700/50">
                     <td className="px-5 py-3 text-sm font-medium text-neutral-700 dark:text-neutral-300 bg-neutral-50 dark:bg-neutral-750 sticky left-0">
                       {wr}
                     </td>
-                    {Array.from(new Set([...containerTypes, ...CONTAINER_TYPES])).sort().map(ct => {
-                      const key = `${ct}__${wr}`;
-                      const rate = rateMap[key];
-                      const isEditing = editingCell === key;
+                    {Array.from(new Set([...containerTypes, ...CONTAINER_TYPES]))
+                      .sort()
+                      .map((ct) => {
+                        const key = `${ct}__${wr}`;
+                        const rate = rateMap[key];
+                        const isEditing = editingCell === key;
 
-                      return (
-                        <td key={ct} className="px-3 py-2 text-center">
-                          {isEditing ? (
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={cellValue}
-                                onChange={e => setCellValue(e.target.value)}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter') saveCellEdit(ct, wr);
-                                  if (e.key === 'Escape') cancelCellEdit();
-                                }}
-                                className="w-20 px-2 py-1 text-sm text-center bg-white dark:bg-neutral-700 border border-primary-400 rounded focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                                autoFocus
-                              />
-                              <button onClick={() => saveCellEdit(ct, wr)} className="p-0.5 text-green-600 hover:text-green-700" title="Salvează">
-                                <SaveIcon />
+                        return (
+                          <td key={ct} className="px-3 py-2 text-center">
+                            {isEditing ? (
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={cellValue}
+                                  onChange={(e) => setCellValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') saveCellEdit(ct, wr);
+                                    if (e.key === 'Escape') cancelCellEdit();
+                                  }}
+                                  className="w-20 px-2 py-1 text-sm text-center bg-white dark:bg-neutral-700 border border-primary-400 rounded focus:ring-2 focus:ring-primary-500 focus:outline-none"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => saveCellEdit(ct, wr)}
+                                  className="p-0.5 text-green-600 hover:text-green-700"
+                                  title="Salvează"
+                                >
+                                  <SaveIcon />
+                                </button>
+                                <button
+                                  onClick={cancelCellEdit}
+                                  className="p-0.5 text-neutral-400 hover:text-neutral-600"
+                                  title="Anulează"
+                                >
+                                  <XIcon />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => startCellEdit(key, rate?.rate || 0)}
+                                className={`w-full px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                                  rate
+                                    ? rate.isActive
+                                      ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 font-semibold hover:bg-green-100 dark:hover:bg-green-900/30'
+                                      : 'bg-neutral-100 dark:bg-neutral-700 text-neutral-400 line-through hover:bg-neutral-200'
+                                    : 'bg-neutral-50 dark:bg-neutral-800 text-neutral-300 dark:text-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-700'
+                                }`}
+                                title={
+                                  rate
+                                    ? `Clic pentru editare (${rate.isActive ? 'activ' : 'inactiv'})`
+                                    : 'Clic pentru a adăuga rată'
+                                }
+                              >
+                                {rate ? `$${rate.rate.toFixed(0)}` : '—'}
                               </button>
-                              <button onClick={cancelCellEdit} className="p-0.5 text-neutral-400 hover:text-neutral-600" title="Anulează">
-                                <XIcon />
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => startCellEdit(key, rate?.rate || 0)}
-                              className={`w-full px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                                rate
-                                  ? rate.isActive
-                                    ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 font-semibold hover:bg-green-100 dark:hover:bg-green-900/30'
-                                    : 'bg-neutral-100 dark:bg-neutral-700 text-neutral-400 line-through hover:bg-neutral-200'
-                                  : 'bg-neutral-50 dark:bg-neutral-800 text-neutral-300 dark:text-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-700'
-                              }`}
-                              title={rate ? `Clic pentru editare (${rate.isActive ? 'activ' : 'inactiv'})` : 'Clic pentru a adăuga rată'}
-                            >
-                              {rate ? `$${rate.rate.toFixed(0)}` : '—'}
-                            </button>
-                          )}
-                        </td>
-                      );
-                    })}
+                            )}
+                          </td>
+                        );
+                      })}
                   </tr>
                 ))}
               </tbody>
@@ -456,7 +543,9 @@ export default function TransportRatesPage() {
       {filteredItems.length > 0 && (
         <div className="bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
           <div className="px-5 py-3 bg-neutral-50 dark:bg-neutral-750 border-b border-neutral-200 dark:border-neutral-700">
-            <h3 className="text-base font-semibold text-primary-800 dark:text-white">Toate Ratele</h3>
+            <h3 className="text-base font-semibold text-primary-800 dark:text-white">
+              Toate Ratele
+            </h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -471,47 +560,62 @@ export default function TransportRatesPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredItems.sort((a, b) => a.containerType.localeCompare(b.containerType) || a.weightRange.localeCompare(b.weightRange)).map(item => (
-                  <tr key={item.id} className="border-b border-neutral-50 dark:border-neutral-700/50 hover:bg-neutral-50 dark:hover:bg-neutral-750 transition-colors">
-                    <td className="px-5 py-2.5">
-                      <span className="inline-flex px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded text-sm font-medium">
-                        {item.containerType}
-                      </span>
-                    </td>
-                    <td className="px-5 py-2.5 text-sm text-neutral-700 dark:text-neutral-300">{item.weightRange}</td>
-                    <td className="px-5 py-2.5 text-sm text-neutral-700 dark:text-neutral-300">{item.destination}</td>
-                    <td className="px-5 py-2.5 text-right text-sm font-semibold text-neutral-800 dark:text-neutral-200">
-                      ${item.rate.toFixed(2)}
-                    </td>
-                    <td className="px-5 py-2.5 text-center">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                        item.isActive
-                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                          : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                      }`}>
-                        {item.isActive ? 'Activ' : 'Inactiv'}
-                      </span>
-                    </td>
-                    <td className="px-5 py-2.5 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleEdit(item)}
-                          className="p-1.5 text-neutral-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors"
-                          title="Editează"
+                {filteredItems
+                  .sort(
+                    (a, b) =>
+                      a.containerType.localeCompare(b.containerType) ||
+                      a.weightRange.localeCompare(b.weightRange)
+                  )
+                  .map((item) => (
+                    <tr
+                      key={item.id}
+                      className="border-b border-neutral-50 dark:border-neutral-700/50 hover:bg-neutral-50 dark:hover:bg-neutral-750 transition-colors"
+                    >
+                      <td className="px-5 py-2.5">
+                        <span className="inline-flex px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded text-sm font-medium">
+                          {item.containerType}
+                        </span>
+                      </td>
+                      <td className="px-5 py-2.5 text-sm text-neutral-700 dark:text-neutral-300">
+                        {item.weightRange}
+                      </td>
+                      <td className="px-5 py-2.5 text-sm text-neutral-700 dark:text-neutral-300">
+                        {item.destination}
+                      </td>
+                      <td className="px-5 py-2.5 text-right text-sm font-semibold text-neutral-800 dark:text-neutral-200">
+                        ${item.rate.toFixed(2)}
+                      </td>
+                      <td className="px-5 py-2.5 text-center">
+                        <span
+                          className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                            item.isActive
+                              ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                              : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                          }`}
                         >
-                          <EditIcon />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item)}
-                          className="p-1.5 text-neutral-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                          title="Șterge"
-                        >
-                          <TrashIcon />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          {item.isActive ? 'Activ' : 'Inactiv'}
+                        </span>
+                      </td>
+                      <td className="px-5 py-2.5 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleEdit(item)}
+                            className="p-1.5 text-neutral-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors"
+                            title="Editează"
+                          >
+                            <EditIcon />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(item)}
+                            className="p-1.5 text-neutral-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                            title="Șterge"
+                          >
+                            <TrashIcon />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
@@ -520,11 +624,14 @@ export default function TransportRatesPage() {
 
       {/* Info box */}
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
-        <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-1">Cum funcționează?</h4>
+        <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-1">
+          Cum funcționează?
+        </h4>
         <p className="text-xs text-blue-700 dark:text-blue-400 leading-relaxed">
           Ratele de transport terestru sunt utilizate de calculator la calcularea costului total.
-          Pentru fiecare combinație de tip container, interval de greutate și destinație, specificați rata de transport.
-          Dacă nu există o rată specifică, calculatorul va folosi valoarea implicită din setările globale.
+          Pentru fiecare combinație de tip container, interval de greutate și destinație,
+          specificați rata de transport. Dacă nu există o rată specifică, calculatorul va folosi
+          valoarea implicită din setările globale.
         </p>
       </div>
     </div>

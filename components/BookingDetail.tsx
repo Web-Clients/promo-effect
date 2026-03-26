@@ -12,6 +12,7 @@ import bookingsService, {
   BookingResponse,
 } from '../services/bookings';
 import GPSTrackingMap from './GPSTrackingMap';
+import { getErrorMessage } from '../utils/formatters';
 
 interface BookingDetailProps {
   user: User;
@@ -156,16 +157,18 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
         try {
           const apiBooking = await bookingsService.getBookingById(bookingId);
           setBookingData(mapApiToFormState(apiBooking));
-        } catch (err: any) {
-          const message = err.message || 'Nu s-a putut încărca rezervarea';
+        } catch (err: unknown) {
+          const message = getErrorMessage(err, 'Nu s-a putut încărca rezervarea');
           setError(message);
           addToast(message, 'error');
 
           // Handle specific errors
-          if (err.status === 404) {
+          const statusErr = err as { status?: number; response?: { status?: number } };
+          const httpStatus = statusErr.status ?? statusErr.response?.status;
+          if (httpStatus === 404) {
             addToast('Rezervarea nu a fost găsită', 'error');
             navigate('/dashboard/bookings');
-          } else if (err.status === 403) {
+          } else if (httpStatus === 403) {
             addToast('Nu aveți permisiunea de a vizualiza această rezervare', 'error');
             navigate('/dashboard/bookings');
           }
@@ -202,8 +205,11 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
           setBookingData(mapApiToFormState(updatedBooking));
           addToast('Rezervare actualizată cu succes!', 'success');
         }
-      } catch (err: any) {
-        const message = err.message || `Nu s-a putut ${isNew ? 'crea' : 'actualiza'} rezervarea`;
+      } catch (err: unknown) {
+        const message = getErrorMessage(
+          err,
+          `Nu s-a putut ${isNew ? 'crea' : 'actualiza'} rezervarea`
+        );
         setError(message);
         addToast(message, 'error');
       } finally {

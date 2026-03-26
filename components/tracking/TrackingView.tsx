@@ -26,6 +26,7 @@ import { statusVariantMap, convertToTimelineEvents } from './types';
 import AddEventModal from './AddEventModal';
 import StatsCards from './StatsCards';
 import RecentContainers from './RecentContainers';
+import { getErrorMessage } from '../../utils/formatters';
 
 // Lazy load map component to avoid issues with SSR
 const ContainerMap = lazy(() => import('../ContainerMap'));
@@ -114,17 +115,6 @@ const TrackingView: React.FC = () => {
         const publicData = await trackingService.trackPublic(number.trim().toUpperCase(), {
           route: true,
         });
-        console.log('[TrackingView] Public tracking data received:', {
-          success: publicData.success,
-          hasEvents: !!publicData.data?.events?.length,
-          eventsCount: publicData.data?.events?.length || 0,
-          hasRoute: !!publicData.data?.route,
-          routePathLength: publicData.data?.route?.path?.length || 0,
-          routePinsLength: publicData.data?.route?.pins?.length || 0,
-          location: publicData.data?.location,
-          vessel: publicData.data?.vessel,
-        });
-
         if (publicData.success && publicData.data) {
           // Set vessel info
           if (publicData.data.vessel) {
@@ -252,13 +242,6 @@ const TrackingView: React.FC = () => {
                   latitude: estimatedLat,
                   longitude: estimatedLng,
                 });
-
-                console.log('[TrackingView] Estimated at-sea position:', {
-                  progress: `${Math.round(progress * 100)}%`,
-                  from: departureCoords,
-                  to: destinationCoords,
-                  estimated: { lat: estimatedLat, lng: estimatedLng },
-                });
               } else if (lastActualEvent?.location) {
                 setLocationInfo({
                   name: lastActualEvent.location.name,
@@ -288,25 +271,20 @@ const TrackingView: React.FC = () => {
           }
 
           if (finalRoute) {
-            console.log('[TrackingView] Setting final route data:', {
-              pathLength: finalRoute.path?.length || 0,
-              pinsCount: finalRoute.pins?.length || 0,
-              firstPoints: finalRoute.path?.slice(0, 3),
-            });
             setRouteData(finalRoute);
           }
         }
-      } catch (publicErr) {
+      } catch {
         // Ignore errors from public tracking - we already have local data
-        console.log('[TrackingView] Public tracking fetch error (optional):', publicErr);
       }
-    } catch (err: any) {
-      if (err.response?.status === 404) {
+    } catch (err: unknown) {
+      const httpErr = err as { response?: { status?: number; data?: { error?: string } } };
+      if (httpErr.response?.status === 404) {
         setError(`Containerul "${number}" nu a fost găsit în baza de date.`);
-      } else if (err.response?.status === 403) {
+      } else if (httpErr.response?.status === 403) {
         setError('Nu aveți permisiunea de a vizualiza acest container.');
       } else {
-        setError(err.response?.data?.error || 'Eroare la căutarea containerului.');
+        setError(getErrorMessage(err, 'Eroare la căutarea containerului.'));
       }
     } finally {
       setIsLoading(false);

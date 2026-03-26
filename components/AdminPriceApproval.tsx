@@ -8,6 +8,7 @@ import { Button } from './ui/Button';
 import { useToast } from './ui/Toast';
 import agentPortalService, { PendingPriceWithAgent, ApprovalStats } from '../services/agentPortal';
 import { cn } from '../lib/utils';
+import { getErrorMessage } from '../utils/formatters';
 
 // Icons
 const CheckIcon = () => (
@@ -24,13 +25,23 @@ const XIcon = () => (
 
 const ClockIcon = () => (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+    />
   </svg>
 );
 
 const RefreshIcon = () => (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+    />
   </svg>
 );
 
@@ -65,8 +76,8 @@ const AdminPriceApproval: React.FC = () => {
 
       setPendingPrices(pricesData);
       setStats(statsData);
-    } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Failed to load pending prices');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to load pending prices'));
     } finally {
       setIsLoading(false);
     }
@@ -79,8 +90,8 @@ const AdminPriceApproval: React.FC = () => {
       await agentPortalService.approvePrice(priceId);
       addToast('Prețul a fost aprobat', 'success');
       loadData();
-    } catch (err: any) {
-      addToast(err.response?.data?.error || 'Eroare la aprobare', 'error');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Eroare la aprobare'), 'error');
     } finally {
       setProcessingId(null);
     }
@@ -107,8 +118,8 @@ const AdminPriceApproval: React.FC = () => {
       setRejectingPriceId(null);
       setRejectionReason('');
       loadData();
-    } catch (err: any) {
-      addToast(err.response?.data?.error || 'Eroare la respingere', 'error');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Eroare la respingere'), 'error');
     } finally {
       setProcessingId(null);
     }
@@ -161,7 +172,9 @@ const AdminPriceApproval: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm text-yellow-700 dark:text-yellow-400">În Așteptare</p>
-                <p className="text-2xl font-bold text-yellow-800 dark:text-yellow-300">{stats.pending}</p>
+                <p className="text-2xl font-bold text-yellow-800 dark:text-yellow-300">
+                  {stats.pending}
+                </p>
               </div>
             </div>
           </div>
@@ -172,7 +185,9 @@ const AdminPriceApproval: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm text-green-700 dark:text-green-400">Aprobate Azi</p>
-                <p className="text-2xl font-bold text-green-800 dark:text-green-300">{stats.approvedToday}</p>
+                <p className="text-2xl font-bold text-green-800 dark:text-green-300">
+                  {stats.approvedToday}
+                </p>
               </div>
             </div>
           </div>
@@ -183,7 +198,9 @@ const AdminPriceApproval: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm text-red-700 dark:text-red-400">Respinse Azi</p>
-                <p className="text-2xl font-bold text-red-800 dark:text-red-300">{stats.rejectedToday}</p>
+                <p className="text-2xl font-bold text-red-800 dark:text-red-300">
+                  {stats.rejectedToday}
+                </p>
               </div>
             </div>
           </div>
@@ -222,8 +239,12 @@ const AdminPriceApproval: React.FC = () => {
                         {price.agent.company.charAt(0)}
                       </div>
                       <div>
-                        <p className="font-semibold text-primary-800 dark:text-white">{price.agent.company}</p>
-                        <p className="text-sm text-neutral-500">{price.agent.user.name} ({price.agent.user.email})</p>
+                        <p className="font-semibold text-primary-800 dark:text-white">
+                          {price.agent.company}
+                        </p>
+                        <p className="text-sm text-neutral-500">
+                          {price.agent.user.name} ({price.agent.user.email})
+                        </p>
                       </div>
                     </div>
 
@@ -231,26 +252,35 @@ const AdminPriceApproval: React.FC = () => {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 p-3 bg-neutral-50 dark:bg-neutral-700/50 rounded-lg">
                       <div>
                         <p className="text-xs text-neutral-500 uppercase">Linie</p>
-                        <p className="font-medium text-primary-800 dark:text-white">{price.shippingLine}</p>
+                        <p className="font-medium text-primary-800 dark:text-white">
+                          {price.shippingLine}
+                        </p>
                       </div>
                       <div>
                         <p className="text-xs text-neutral-500 uppercase">Port</p>
-                        <p className="font-medium text-primary-800 dark:text-white">{price.portOrigin}</p>
+                        <p className="font-medium text-primary-800 dark:text-white">
+                          {price.portOrigin}
+                        </p>
                       </div>
                       <div>
                         <p className="text-xs text-neutral-500 uppercase">Container</p>
-                        <p className="font-medium text-primary-800 dark:text-white">{price.containerType}</p>
+                        <p className="font-medium text-primary-800 dark:text-white">
+                          {price.containerType}
+                        </p>
                       </div>
                       <div>
                         <p className="text-xs text-neutral-500 uppercase">Greutate</p>
-                        <p className="font-medium text-primary-800 dark:text-white">{price.weightRange}</p>
+                        <p className="font-medium text-primary-800 dark:text-white">
+                          {price.weightRange}
+                        </p>
                       </div>
                     </div>
 
                     {/* Additional Info */}
                     <div className="flex flex-wrap items-center gap-4 mt-3 text-sm">
                       <span className="text-neutral-500">
-                        Valid: {new Date(price.validFrom).toLocaleDateString('ro-RO')} - {new Date(price.validUntil).toLocaleDateString('ro-RO')}
+                        Valid: {new Date(price.validFrom).toLocaleDateString('ro-RO')} -{' '}
+                        {new Date(price.validUntil).toLocaleDateString('ro-RO')}
                       </span>
                       <span className="text-neutral-500">
                         Plecare: {new Date(price.departureDate).toLocaleDateString('ro-RO')}

@@ -3,10 +3,11 @@
  * Component for managing shipping ports (origin and destination)
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import portsService, { Port, CreatePortDto } from '../services/ports';
+import { getErrorMessage } from '../utils/formatters';
 
 // Icons
 const PlusIcon = () => (
@@ -77,8 +78,8 @@ const PortModal: React.FC<PortModalProps> = ({ port, portType, onClose, onSave }
         isActive,
       });
       onClose();
-    } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Eroare la salvare');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Eroare la salvare'));
     } finally {
       setIsLoading(false);
     }
@@ -192,7 +193,7 @@ const AdminPortsManager: React.FC = () => {
   const [modalType, setModalType] = useState<'ORIGIN' | 'DESTINATION'>('ORIGIN');
   const [editingPort, setEditingPort] = useState<Port | null>(null);
 
-  const loadPorts = async () => {
+  const loadPorts = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -202,16 +203,16 @@ const AdminPortsManager: React.FC = () => {
       ]);
       setOriginPorts(origin);
       setDestinationPorts(destination);
-    } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Eroare la incarcarea porturilor');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Eroare la incarcarea porturilor'));
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [showInactive]);
 
   useEffect(() => {
     loadPorts();
-  }, [showInactive]);
+  }, [loadPorts]);
 
   const handleAddPort = (type: 'ORIGIN' | 'DESTINATION') => {
     setEditingPort(null);
@@ -245,8 +246,8 @@ const AdminPortsManager: React.FC = () => {
     try {
       await portsService.delete(port.id);
       await loadPorts();
-    } catch (err: any) {
-      alert(err.response?.data?.error || err.message || 'Eroare la stergere');
+    } catch (err: unknown) {
+      alert(getErrorMessage(err, 'Eroare la stergere'));
     }
   };
 

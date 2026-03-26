@@ -8,6 +8,7 @@ import { Badge } from './ui/Badge';
 import { PlusIcon, SearchIcon, EditIcon, TrashIcon, RefreshCwIcon } from './icons';
 import { useToast } from './ui/Toast';
 import clientsService, { Client, CreateClientData, UpdateClientData } from '../services/clients';
+import { getErrorMessage } from '../utils/formatters';
 
 // Client Modal Component
 interface ClientModalProps {
@@ -272,12 +273,12 @@ const ClientsList = () => {
       setClients(data.clients);
       setTotalPages(data.totalPages);
       setTotal(data.total);
-    } catch (error: any) {
-      addToast(error.message || t('clients.errorLoading'), 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, t('clients.errorLoading')), 'error');
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, searchTerm, statusFilter, addToast]);
+  }, [currentPage, searchTerm, statusFilter, addToast, t]);
 
   useEffect(() => {
     fetchClients();
@@ -319,8 +320,8 @@ const ClientsList = () => {
       }
       setIsModalOpen(false);
       fetchClients();
-    } catch (error: any) {
-      addToast(error.message || t('clients.errorSaving'), 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, t('clients.errorSaving')), 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -335,8 +336,8 @@ const ClientsList = () => {
       addToast(t('clients.deleted'), 'success');
       setIsDeleteModalOpen(false);
       fetchClients();
-    } catch (error: any) {
-      addToast(error.message || t('clients.errorDeleting'), 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, t('clients.errorDeleting')), 'error');
     } finally {
       setIsSubmitting(false);
     }

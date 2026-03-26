@@ -3,7 +3,7 @@
  * Allows Chinese agents to manage their shipping prices
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from './ui/Button';
 import { useToast } from './ui/Toast';
 import agentPortalService, {
@@ -14,6 +14,7 @@ import agentPortalService, {
 } from '../services/agentPortal';
 import portsService from '../services/ports';
 import { cn } from '../lib/utils';
+import { getErrorMessage } from '../utils/formatters';
 
 // Icons
 const PlusIcon = () => (
@@ -139,12 +140,7 @@ const AgentPricesDashboard: React.FC = () => {
     loadPorts();
   }, []);
 
-  // Load data
-  useEffect(() => {
-    loadData();
-  }, [filterStatus]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     setError('');
 
@@ -158,12 +154,17 @@ const AgentPricesDashboard: React.FC = () => {
       setProfile(profileData);
       setPrices(pricesData);
       setStats(statsData);
-    } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Failed to load data');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to load data'));
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [filterStatus]);
+
+  // Load data
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleOpenModal = (price?: AgentPrice) => {
     if (price) {
@@ -215,8 +216,8 @@ const AgentPricesDashboard: React.FC = () => {
       }
       handleCloseModal();
       loadData();
-    } catch (err: any) {
-      addToast(err.response?.data?.error || 'Eroare la salvare', 'error');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Eroare la salvare'), 'error');
     } finally {
       setIsSaving(false);
     }
@@ -229,8 +230,8 @@ const AgentPricesDashboard: React.FC = () => {
       await agentPortalService.deletePrice(priceId);
       addToast('Prețul a fost șters', 'success');
       loadData();
-    } catch (err: any) {
-      addToast(err.response?.data?.error || 'Eroare la ștergere', 'error');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Eroare la ștergere'), 'error');
     }
   };
 

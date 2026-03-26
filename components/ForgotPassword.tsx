@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import authService from '../services/auth';
+import { getErrorMessage } from '../utils/formatters';
 
 const ForgotPassword = () => {
   const { t } = useTranslation();
@@ -20,9 +21,10 @@ const ForgotPassword = () => {
     try {
       await authService.requestPasswordReset(email);
       setIsSubmitted(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Show error only for rate limiting, otherwise show success
-      if (err.message?.includes('Too many')) {
+      const msg = getErrorMessage(err);
+      if (msg.includes('Too many')) {
         setError(t('auth.tooManyAttempts'));
       } else {
         // For security, always show success message

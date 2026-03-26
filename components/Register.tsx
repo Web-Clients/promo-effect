@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import authService from '../services/auth';
+import { getErrorMessage } from '../utils/formatters';
 
 const Register = () => {
   const { t } = useTranslation();
@@ -68,8 +69,8 @@ const Register = () => {
         company: formData.company || undefined,
       });
       setIsSuccess(true);
-    } catch (err: any) {
-      setError(err.message || t('errors.saveFailed'));
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, t('errors.saveFailed')));
     } finally {
       setIsLoading(false);
     }

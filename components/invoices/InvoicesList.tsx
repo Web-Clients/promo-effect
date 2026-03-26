@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { getErrorMessage } from '../../utils/formatters';
 import { Card } from '../ui/Card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../ui/Table';
 import { Button } from '../ui/Button';
@@ -61,9 +62,9 @@ const InvoicesList: React.FC = () => {
       setInvoices(invoicesData.invoices);
       setTotalPages(invoicesData.totalPages);
       setStats(statsData);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to fetch invoices:', error);
-      addToast(error.response?.data?.error || 'Eroare la încărcarea facturilor', 'error');
+      addToast(getErrorMessage(error, 'Eroare la încărcarea facturilor'), 'error');
     } finally {
       setIsLoading(false);
     }
@@ -94,6 +95,7 @@ const InvoicesList: React.FC = () => {
       fetchInvoices();
     }, 300);
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm]);
 
   // Handlers
@@ -104,8 +106,8 @@ const InvoicesList: React.FC = () => {
       addToast('Factură creată cu succes!', 'success');
       setShowCreateModal(false);
       fetchInvoices();
-    } catch (error: any) {
-      addToast(error.response?.data?.error || 'Eroare la crearea facturii', 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, 'Eroare la crearea facturii'), 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -119,8 +121,8 @@ const InvoicesList: React.FC = () => {
       addToast(result.message || 'Factură trimisă cu succes!', 'success');
       fetchInvoices();
       setShowDetailModal(false);
-    } catch (error: any) {
-      addToast(error.response?.data?.error || 'Eroare la trimiterea facturii', 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, 'Eroare la trimiterea facturii'), 'error');
     }
   };
 
@@ -134,8 +136,8 @@ const InvoicesList: React.FC = () => {
       setShowPaymentModal(false);
       setSelectedInvoice(null);
       fetchInvoices();
-    } catch (error: any) {
-      addToast(error.response?.data?.error || 'Eroare la înregistrarea plății', 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, 'Eroare la înregistrarea plății'), 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -154,8 +156,8 @@ const InvoicesList: React.FC = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       addToast('PDF descărcat!', 'success');
-    } catch (error: any) {
-      addToast(error.response?.data?.error || 'Eroare la descărcarea PDF', 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, 'Eroare la descărcarea PDF'), 'error');
     }
   };
 
@@ -168,8 +170,8 @@ const InvoicesList: React.FC = () => {
       addToast('Factură anulată!', 'success');
       setShowDetailModal(false);
       fetchInvoices();
-    } catch (error: any) {
-      addToast(error.response?.data?.error || 'Eroare la anularea facturii', 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, 'Eroare la anularea facturii'), 'error');
     }
   };
 
@@ -178,8 +180,8 @@ const InvoicesList: React.FC = () => {
       const fullInvoice = await invoicesService.getInvoiceById(invoice.id);
       setSelectedInvoice(fullInvoice);
       setShowDetailModal(true);
-    } catch (error: any) {
-      addToast(error.response?.data?.error || 'Eroare la încărcarea facturii', 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, 'Eroare la încărcarea facturii'), 'error');
     }
   };
 

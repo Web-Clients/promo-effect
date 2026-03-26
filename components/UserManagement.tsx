@@ -5,6 +5,7 @@ import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { useToast } from './ui/Toast';
 import usersService, { User, UserFilters } from '../services/users';
+import { getErrorMessage } from '../utils/formatters';
 
 interface CurrentUserShape {
   id: string | number;
@@ -51,12 +52,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
       setUsers(response.data);
       setTotalPages(response.meta.totalPages);
       setTotal(response.meta.total);
-    } catch (error: any) {
-      addToast(error.message || t('users.errorLoading'), 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, t('users.errorLoading')), 'error');
     } finally {
       setLoading(false);
     }
-  }, [page, search, roleFilter, addToast]);
+  }, [page, search, roleFilter, addToast, t]);
 
   useEffect(() => {
     fetchUsers();
@@ -89,8 +90,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
       setShowEditModal(false);
       // Auto-refresh after successful save
       await fetchUsers();
-    } catch (error: any) {
-      addToast(error.message || t('users.errorSaving'), 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, t('users.errorSaving')), 'error');
     } finally {
       setSaving(false);
     }
@@ -102,8 +103,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
     try {
       await usersService.resetPassword(user.id);
       addToast(t('users.resetPasswordSuccess'), 'success');
-    } catch (error: any) {
-      addToast(error.message || t('users.errorResetPassword'), 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, t('users.errorResetPassword')), 'error');
     }
   };
 
@@ -117,8 +118,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
       setShowDeleteModal(false);
       // Auto-refresh after successful delete
       await fetchUsers();
-    } catch (error: any) {
-      addToast(error.message || t('users.errorDeleting'), 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, t('users.errorDeleting')), 'error');
     } finally {
       setSaving(false);
     }

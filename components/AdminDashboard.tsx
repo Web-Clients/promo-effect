@@ -14,6 +14,7 @@ import adminDashboardService, {
   SystemHealth,
 } from '../services/adminDashboard';
 import { cn } from '../lib/utils';
+import { getErrorMessage } from '../utils/formatters';
 
 // Icons
 const UsersIcon = () => (
@@ -198,8 +199,8 @@ const AdminDashboard = () => {
       setRecentBookings(bookingsData);
       setRecentUsers(usersData);
       setSystemHealth(healthData);
-    } catch (err: any) {
-      setError(err.message || 'Nu s-au putut încărca datele');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Nu s-au putut încărca datele'));
     } finally {
       setIsLoading(false);
     }

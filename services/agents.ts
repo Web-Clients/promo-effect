@@ -63,6 +63,7 @@ export interface AgentPrice {
   validFrom: string;
   validUntil: string;
   departureDate: string;
+  reason?: string;
   createdAt: string;
 }
 

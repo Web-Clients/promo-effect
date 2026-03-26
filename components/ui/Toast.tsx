@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../../lib/utils';
 import { AlertCircleIcon, XIcon, CheckIcon } from '../icons';
@@ -11,11 +11,11 @@ interface ToastMessage {
   variant: ToastVariant;
 }
 
-interface ToastContextType {
+export interface ToastContextType {
   addToast: (message: string, variant?: ToastVariant) => void;
 }
 
-const ToastContext = createContext<ToastContextType | null>(null);
+export const ToastContext = createContext<ToastContextType | null>(null);
 
 let toastCount = 0;
 
@@ -23,17 +23,20 @@ let toastCount = 0;
 export const ToastProvider = ({ children }: React.PropsWithChildren) => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  const addToast = useCallback((message: string, variant: ToastVariant = 'info') => {
-    const id = toastCount++;
-    setToasts((prevToasts) => [...prevToasts, { id, message, variant }]);
-    setTimeout(() => {
-      removeToast(id);
-    }, 4000);
-  }, []);
-
   const removeToast = useCallback((id: number) => {
     setToasts((prevToasts) => prevToasts.filter((toast) => toast.id !== id));
   }, []);
+
+  const addToast = useCallback(
+    (message: string, variant: ToastVariant = 'info') => {
+      const id = toastCount++;
+      setToasts((prevToasts) => [...prevToasts, { id, message, variant }]);
+      setTimeout(() => {
+        removeToast(id);
+      }, 4000);
+    },
+    [removeToast]
+  );
 
   return (
     <ToastContext.Provider value={{ addToast }}>
@@ -44,13 +47,8 @@ export const ToastProvider = ({ children }: React.PropsWithChildren) => {
   );
 };
 
-export const useToast = () => {
-  const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error('useToast must be used within a ToastProvider');
-  }
-  return context;
-};
+// Re-export useToast from separate file (fixes react-refresh/only-export-components)
+export { useToast } from './useToast';
 
 const ICONS: Record<ToastVariant, React.ComponentType<{ className?: string }>> = {
   info: AlertCircleIcon,

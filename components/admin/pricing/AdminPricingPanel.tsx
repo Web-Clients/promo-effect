@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getStoredUser } from '../../../services/auth';
+import { getErrorMessage } from '../../../utils/formatters';
 import {
   getBasePrices,
   createBasePrice,
@@ -68,7 +69,7 @@ export function AdminPricingPanel() {
     try {
       const data = await getPricingStats();
       setStats(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load stats:', err);
     }
   };
@@ -78,8 +79,8 @@ export function AdminPricingPanel() {
     try {
       const data = await getBasePrices();
       setBasePrices(data);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -89,7 +90,7 @@ export function AdminPricingPanel() {
     try {
       const data = await getPortAdjustments();
       setPortAdjustments(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load port adjustments:', err);
     }
   };
@@ -98,7 +99,7 @@ export function AdminPricingPanel() {
     try {
       const data = await getAdminSettings();
       setAdminSettings(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load admin settings:', err);
     }
   };
@@ -151,8 +152,8 @@ export function AdminPricingPanel() {
       setEditingBasePrice(null);
       loadBasePrices();
       loadStats();
-    } catch (err: any) {
-      showMessage(err.message, true);
+    } catch (err: unknown) {
+      showMessage(getErrorMessage(err), true);
     } finally {
       setLoading(false);
     }
@@ -166,8 +167,8 @@ export function AdminPricingPanel() {
       showMessage(t('pricing.basePriceDeleted'));
       loadBasePrices();
       loadStats();
-    } catch (err: any) {
-      showMessage(err.message, true);
+    } catch (err: unknown) {
+      showMessage(getErrorMessage(err), true);
     } finally {
       setLoading(false);
     }
@@ -191,8 +192,8 @@ export function AdminPricingPanel() {
       setEditingPortAdjustment(null);
       loadPortAdjustments();
       loadStats();
-    } catch (err: any) {
-      showMessage(err.message, true);
+    } catch (err: unknown) {
+      showMessage(getErrorMessage(err), true);
     } finally {
       setLoading(false);
     }
@@ -206,8 +207,8 @@ export function AdminPricingPanel() {
       showMessage(t('pricing.portAdjDeleted'));
       loadPortAdjustments();
       loadStats();
-    } catch (err: any) {
-      showMessage(err.message, true);
+    } catch (err: unknown) {
+      showMessage(getErrorMessage(err), true);
     } finally {
       setLoading(false);
     }
@@ -223,8 +224,8 @@ export function AdminPricingPanel() {
       await updateAdminSettings(data);
       showMessage(t('pricing.savedSuccess'));
       loadAdminSettings();
-    } catch (err: any) {
-      showMessage(err.message, true);
+    } catch (err: unknown) {
+      showMessage(getErrorMessage(err), true);
     } finally {
       setLoading(false);
     }

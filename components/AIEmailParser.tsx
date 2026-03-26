@@ -11,6 +11,7 @@ import { useToast } from './ui/Toast';
 import { MailIcon, SparklesIcon, CheckIcon, RefreshCwIcon, ShipIcon, PackageIcon } from './icons';
 import emailParserService, { GmailStatus, RecentEmailContainer } from '../services/emailParser';
 import { cn } from '../lib/utils';
+import { getErrorMessage } from '../utils/formatters';
 
 const AIEmailParser: React.FC = () => {
   const { addToast } = useToast();
@@ -57,8 +58,8 @@ const AIEmailParser: React.FC = () => {
         );
       }
       await loadData();
-    } catch (error: any) {
-      addToast(error.response?.data?.message || 'Eroare la procesarea email-urilor', 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, 'Eroare la procesarea email-urilor'), 'error');
     } finally {
       setIsFetching(false);
     }

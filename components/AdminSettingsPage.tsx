@@ -139,16 +139,16 @@ const AdminSettingsPage = () => {
   );
   const { addToast } = useToast();
 
-  const updateSettings = (path: string, value: any) => {
+  const updateSettings = (path: string, value: unknown) => {
     setSettings((prev) => {
       const keys = path.split('.');
-      const newState = JSON.parse(JSON.stringify(prev)); // Deep copy
-      let current = newState;
+      const newState = JSON.parse(JSON.stringify(prev)) as Record<string, unknown>; // Deep copy
+      let current: Record<string, unknown> = newState;
       for (let i = 0; i < keys.length - 1; i++) {
-        current = current[keys[i]];
+        current = current[keys[i]] as Record<string, unknown>;
       }
       current[keys[keys.length - 1]] = value;
-      return newState;
+      return newState as typeof prev;
     });
   };
 
@@ -172,7 +172,6 @@ const AdminSettingsPage = () => {
 
   const saveSettings = () => {
     addToast('Setările au fost salvate!', 'success');
-    console.log('Saving settings:', settings);
   };
 
   return (

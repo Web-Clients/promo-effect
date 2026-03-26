@@ -4,6 +4,7 @@ import { Input } from '../ui/Input';
 import { XIcon } from '../icons';
 import { CreateInvoiceData } from '../../services/invoices';
 import { Client } from '../../services/clients';
+import { BookingResponse } from '../../services/bookings';
 
 export interface CreateInvoiceModalProps {
   isOpen: boolean;
@@ -11,7 +12,7 @@ export interface CreateInvoiceModalProps {
   onSubmit: (data: CreateInvoiceData) => Promise<void>;
   isLoading: boolean;
   clients: Client[];
-  bookings: any[];
+  bookings: BookingResponse[];
 }
 
 const CreateInvoiceModal: React.FC<CreateInvoiceModalProps> = ({
@@ -98,6 +99,7 @@ const CreateInvoiceModal: React.FC<CreateInvoiceModalProps> = ({
         dueDate: defaultDue.toISOString().split('T')[0],
       }));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   if (!isOpen) return null;

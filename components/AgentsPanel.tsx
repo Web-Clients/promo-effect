@@ -3,7 +3,8 @@
  * Management interface for Chinese logistics agents
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { getErrorMessage } from '../utils/formatters';
 import {
   getAgents,
   createAgent,
@@ -45,27 +46,27 @@ export function AgentsPanel() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [searchFilter, setSearchFilter] = useState<string>('');
 
-  // Load data on mount
-  useEffect(() => {
-    loadAgents();
-    loadStats();
-  }, [statusFilter, searchFilter]);
-
-  const loadAgents = async () => {
+  const loadAgents = useCallback(async () => {
     setLoading(true);
     try {
-      const filters: any = {};
+      const filters: { status?: string; search?: string } = {};
       if (statusFilter) filters.status = statusFilter;
       if (searchFilter) filters.search = searchFilter;
 
       const data = await getAgents(filters);
       setAgents(data);
-    } catch (err: any) {
-      setError(err.message || 'Eroare la încărcarea agenților');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Eroare la încărcarea agenților'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter, searchFilter]);
+
+  // Load data on mount
+  useEffect(() => {
+    loadAgents();
+    loadStats();
+  }, [loadAgents]);
 
   const loadStats = async () => {
     try {
@@ -115,8 +116,8 @@ export function AgentsPanel() {
       resetForm();
       loadAgents();
       loadStats();
-    } catch (err: any) {
-      showMessage(err.message || 'Eroare la salvarea agentului', true);
+    } catch (err: unknown) {
+      showMessage(getErrorMessage(err, 'Eroare la salvarea agentului'), true);
     } finally {
       setLoading(false);
     }
@@ -145,8 +146,8 @@ export function AgentsPanel() {
       showMessage('Agentul a fost dezactivat');
       loadAgents();
       loadStats();
-    } catch (err: any) {
-      showMessage(err.message || 'Eroare la ștergerea agentului', true);
+    } catch (err: unknown) {
+      showMessage(getErrorMessage(err, 'Eroare la ștergerea agentului'), true);
     } finally {
       setLoading(false);
     }
@@ -162,8 +163,8 @@ export function AgentsPanel() {
       showMessage(`Statusul agentului a fost schimbat la ${newStatus}`);
       loadAgents();
       loadStats();
-    } catch (err: any) {
-      showMessage(err.message || 'Eroare la actualizarea statusului', true);
+    } catch (err: unknown) {
+      showMessage(getErrorMessage(err, 'Eroare la actualizarea statusului'), true);
     } finally {
       setLoading(false);
     }
@@ -475,7 +476,12 @@ export function AgentsPanel() {
                     <td className="px-4 py-3 text-center">
                       <select
                         value={agent.status}
-                        onChange={(e) => handleStatusChange(agent, e.target.value as any)}
+                        onChange={(e) =>
+                          handleStatusChange(
+                            agent,
+                            e.target.value as 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'
+                          )
+                        }
                         className={`text-xs font-medium px-2 py-1 rounded-full border-0 ${getStatusColor(agent.status)}`}
                       >
                         <option value="ACTIVE">Activ</option>

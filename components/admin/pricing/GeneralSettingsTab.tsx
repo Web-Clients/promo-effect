@@ -108,7 +108,11 @@ export function GeneralSettingsTab({ settings, loading, onSave }: GeneralSetting
     setRanges(newRanges);
   };
 
-  const updateRange = (index: number, field: keyof WeightRange, value: any) => {
+  const updateRange = (
+    index: number,
+    field: keyof WeightRange,
+    value: WeightRange[keyof WeightRange]
+  ) => {
     const newRanges = [...ranges];
     newRanges[index] = { ...newRanges[index], [field]: value };
     setRanges(newRanges);

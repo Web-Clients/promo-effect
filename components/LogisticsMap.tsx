@@ -9,7 +9,15 @@ const HUD_CORNER = (className: string) => (
   <div className={`absolute w-8 h-8 border-primary-500/40 pointer-events-none ${className}`} />
 );
 
-const PortNode = ({ x, y, label, _data, code }: any) => {
+interface PortNodeProps {
+  x: number;
+  y: number;
+  label: string;
+  _data?: unknown;
+  code: string;
+}
+
+const PortNode = ({ x, y, label, code }: PortNodeProps) => {
   const [isHovered, setIsHovered] = useState(false);
   return (
     <g

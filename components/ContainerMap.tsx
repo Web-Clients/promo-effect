@@ -4,7 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 // Fix default marker icons for Leaflet in React
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
@@ -154,24 +154,6 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
   className = '',
   height = '400px',
 }) => {
-  // Debug logging
-  useEffect(() => {
-    console.log('[ContainerMap] Props received:', {
-      containerNumber,
-      currentLocation,
-      vessel,
-      route: route
-        ? {
-            pathLength: route.path?.length || 0,
-            pinsCount: route.pins?.length || 0,
-            path: route.path?.slice(0, 3), // First 3 points for debugging
-          }
-        : null,
-      originPort,
-      destinationPort,
-      status,
-    });
-  }, [containerNumber, currentLocation, vessel, route, originPort, destinationPort, status]);
   // Convert route path from [lng, lat] to [lat, lng] for Leaflet
   const routePath = useMemo(() => {
     if (!route?.path || route.path.length === 0) return [];

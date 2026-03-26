@@ -49,14 +49,12 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
       try {
         const statsData = await bookingsService.getBookingStats();
         setStats(statsData);
-      } catch (error) {
-        console.error('Failed to load stats:', error);
+      } catch {
+        // stats load failure is non-critical
       } finally {
         setIsLoading(false);
       }
     };
-
-    loadStats();
 
     loadStats();
   }, []);

@@ -3,6 +3,7 @@ import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { PlusIcon } from '../icons';
 import trackingService, { EventType, TrackingEventInput } from '../../services/tracking';
+import { getErrorMessage } from '../../utils/formatters';
 
 export interface AddEventModalProps {
   isOpen: boolean;
@@ -49,8 +50,8 @@ const AddEventModal: React.FC<AddEventModalProps> = ({
         vessel: '',
         notes: '',
       });
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Eroare la adăugarea evenimentului');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Eroare la adăugarea evenimentului'));
     } finally {
       setLoading(false);
     }

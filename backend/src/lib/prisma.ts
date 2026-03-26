@@ -8,9 +8,13 @@ declare global {
 }
 
 // Use a single instance of PrismaClient
-const prisma = global.__prisma || new PrismaClient({
-  log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
-});
+// Connection pool: Prisma default is connection_limit=10 for PostgreSQL, which is
+// appropriate for this app (~25 concurrent users). No custom pool config needed.
+const prisma =
+  global.__prisma ||
+  new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+  });
 
 // In development, store the client on global to prevent multiple instances during hot-reload
 if (process.env.NODE_ENV !== 'production') {

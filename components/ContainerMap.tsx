@@ -160,11 +160,13 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
       containerNumber,
       currentLocation,
       vessel,
-      route: route ? {
-        pathLength: route.path?.length || 0,
-        pinsCount: route.pins?.length || 0,
-        path: route.path?.slice(0, 3), // First 3 points for debugging
-      } : null,
+      route: route
+        ? {
+            pathLength: route.path?.length || 0,
+            pinsCount: route.pins?.length || 0,
+            path: route.path?.slice(0, 3), // First 3 points for debugging
+          }
+        : null,
       originPort,
       destinationPort,
       status,
@@ -192,7 +194,7 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
 
     // Add pins
     if (route?.pins) {
-      route.pins.forEach(pin => {
+      route.pins.forEach((pin) => {
         if (pin.coordinates) {
           points.push([pin.coordinates[1], pin.coordinates[0]]); // [lat, lng]
         }
@@ -203,19 +205,17 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
     if (points.length === 1) {
       // Single point - create small bounds around it
       const [lat, lng] = points[0];
-      return L.latLngBounds(
-        [lat - 5, lng - 5],
-        [lat + 5, lng + 5]
-      );
+      return L.latLngBounds([lat - 5, lng - 5], [lat + 5, lng + 5]);
     }
 
     return L.latLngBounds(points);
   }, [currentLocation, routePath, route?.pins]);
 
   // Default center (world view)
-  const defaultCenter: [number, number] = currentLocation?.latitude && currentLocation?.longitude
-    ? [currentLocation.latitude, currentLocation.longitude]
-    : [25, 50]; // Middle of shipping routes
+  const defaultCenter: [number, number] =
+    currentLocation?.latitude && currentLocation?.longitude
+      ? [currentLocation.latitude, currentLocation.longitude]
+      : [25, 50]; // Middle of shipping routes
 
   // Get icon for pin type
   const getPinIcon = (type?: string) => {
@@ -237,20 +237,22 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
   // Format status for display
   const formatStatus = (s?: string) => {
     const statusMap: Record<string, string> = {
-      'IN_TRANSIT': 'In Transit',
-      'DEPARTED': 'Departed',
-      'ARRIVED': 'Arrived',
-      'DELIVERED': 'Delivered',
-      'GATE_IN': 'Gate In',
-      'GATE_OUT': 'Gate Out',
-      'LOADED': 'Loaded on Vessel',
-      'DISCHARGED': 'Discharged',
+      IN_TRANSIT: 'In Transit',
+      DEPARTED: 'Departed',
+      ARRIVED: 'Arrived',
+      DELIVERED: 'Delivered',
+      GATE_IN: 'Gate In',
+      GATE_OUT: 'Gate Out',
+      LOADED: 'Loaded on Vessel',
+      DISCHARGED: 'Discharged',
     };
     return statusMap[s || ''] || s || 'Unknown';
   };
 
   return (
-    <div className={`rounded-xl overflow-hidden shadow-lg border border-neutral-200 dark:border-neutral-700 ${className}`}>
+    <div
+      className={`rounded-xl overflow-hidden shadow-lg border border-neutral-200 dark:border-neutral-700 ${className}`}
+    >
       {/* Map Header */}
       <div className="bg-white dark:bg-neutral-800 px-4 py-3 border-b border-neutral-200 dark:border-neutral-700">
         <div className="flex items-center justify-between">
@@ -268,11 +270,15 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
             </div>
           </div>
           <div className="text-right">
-            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-              status === 'DELIVERED' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
-              status === 'IN_TRANSIT' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
-              'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-            }`}>
+            <span
+              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                status === 'DELIVERED'
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                  : status === 'IN_TRANSIT'
+                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+              }`}
+            >
               {formatStatus(status)}
             </span>
             {eta && (
@@ -335,9 +341,11 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
                 <div className="text-sm">
                   <p className="font-semibold">{pin.location || 'Port'}</p>
                   <p className="text-gray-600 text-xs">
-                    {pin.type === 'POL' ? '🟢 Port of Loading' :
-                     pin.type === 'POD' ? '🔴 Port of Discharge' :
-                     '🟡 Transshipment'}
+                    {pin.type === 'POL'
+                      ? '🟢 Port of Loading'
+                      : pin.type === 'POD'
+                        ? '🔴 Port of Discharge'
+                        : '🟡 Transshipment'}
                   </p>
                 </div>
               </Popup>
@@ -355,12 +363,19 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
                   <p className="font-bold text-blue-800 mb-2">📦 {containerNumber}</p>
 
                   <div className="space-y-1">
-                    <p><span className="text-gray-500">Location:</span> {currentLocation.name || 'Unknown'}</p>
+                    <p>
+                      <span className="text-gray-500">Location:</span>{' '}
+                      {currentLocation.name || 'Unknown'}
+                    </p>
                     {currentLocation.city && (
-                      <p><span className="text-gray-500">City:</span> {currentLocation.city}</p>
+                      <p>
+                        <span className="text-gray-500">City:</span> {currentLocation.city}
+                      </p>
                     )}
                     {currentLocation.country && (
-                      <p><span className="text-gray-500">Country:</span> {currentLocation.country}</p>
+                      <p>
+                        <span className="text-gray-500">Country:</span> {currentLocation.country}
+                      </p>
                     )}
                   </div>
 
@@ -375,7 +390,9 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
                     <div className="mt-2 pt-2 border-t border-gray-200">
                       <p className="text-xs">
                         <span className="text-gray-500">ETA:</span>{' '}
-                        <span className="font-medium">{new Date(eta).toLocaleDateString('ro-RO')}</span>
+                        <span className="font-medium">
+                          {new Date(eta).toLocaleDateString('ro-RO')}
+                        </span>
                       </p>
                     </div>
                   )}
@@ -424,4 +441,4 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
   );
 };
 
-export default ContainerMap;
+export default React.memo(ContainerMap);

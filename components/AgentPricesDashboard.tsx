@@ -24,19 +24,34 @@ const PlusIcon = () => (
 
 const EditIcon = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+    />
   </svg>
 );
 
 const TrashIcon = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+    />
   </svg>
 );
 
 const ClockIcon = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+    />
   </svg>
 );
 
@@ -114,7 +129,7 @@ const AgentPricesDashboard: React.FC = () => {
       try {
         const ports = await portsService.getOriginPorts();
         if (ports.length > 0) {
-          const portNames = ports.map(p => p.name);
+          const portNames = ports.map((p) => p.name);
           setOriginPorts(portNames);
         }
       } catch (err) {
@@ -261,19 +276,27 @@ const AgentPricesDashboard: React.FC = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white dark:bg-neutral-800 rounded-xl p-4 shadow-card border border-neutral-200/50 dark:border-neutral-700/50">
             <p className="text-sm text-neutral-500 dark:text-neutral-400">Total Prețuri</p>
-            <p className="text-2xl font-bold text-primary-800 dark:text-white">{stats.prices.total}</p>
+            <p className="text-2xl font-bold text-primary-800 dark:text-white">
+              {stats.prices.total}
+            </p>
           </div>
           <div className="bg-yellow-50 dark:bg-yellow-500/10 rounded-xl p-4 border border-yellow-200/50 dark:border-yellow-500/20">
             <p className="text-sm text-yellow-700 dark:text-yellow-400">În Așteptare</p>
-            <p className="text-2xl font-bold text-yellow-800 dark:text-yellow-300">{stats.prices.pending}</p>
+            <p className="text-2xl font-bold text-yellow-800 dark:text-yellow-300">
+              {stats.prices.pending}
+            </p>
           </div>
           <div className="bg-green-50 dark:bg-green-500/10 rounded-xl p-4 border border-green-200/50 dark:border-green-500/20">
             <p className="text-sm text-green-700 dark:text-green-400">Aprobate</p>
-            <p className="text-2xl font-bold text-green-800 dark:text-green-300">{stats.prices.approved}</p>
+            <p className="text-2xl font-bold text-green-800 dark:text-green-300">
+              {stats.prices.approved}
+            </p>
           </div>
           <div className="bg-red-50 dark:bg-red-500/10 rounded-xl p-4 border border-red-200/50 dark:border-red-500/20">
             <p className="text-sm text-red-700 dark:text-red-400">Respinse</p>
-            <p className="text-2xl font-bold text-red-800 dark:text-red-300">{stats.prices.rejected}</p>
+            <p className="text-2xl font-bold text-red-800 dark:text-red-300">
+              {stats.prices.rejected}
+            </p>
           </div>
         </div>
       )}
@@ -318,23 +341,47 @@ const AgentPricesDashboard: React.FC = () => {
             <table className="w-full">
               <thead>
                 <tr className="bg-neutral-50 dark:bg-neutral-700/50 border-b border-neutral-200 dark:border-neutral-700">
-                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">Linie</th>
-                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">Port</th>
-                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">Container</th>
-                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">Greutate</th>
-                  <th className="text-right p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">Preț</th>
-                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">Status</th>
-                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">Acțiuni</th>
+                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                    Linie
+                  </th>
+                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                    Port
+                  </th>
+                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                    Container
+                  </th>
+                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                    Greutate
+                  </th>
+                  <th className="text-right p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                    Preț
+                  </th>
+                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                    Status
+                  </th>
+                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                    Acțiuni
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 dark:divide-neutral-700">
                 {prices.map((price) => (
                   <tr key={price.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-700/30">
-                    <td className="p-4 font-medium text-primary-800 dark:text-white">{price.shippingLine}</td>
-                    <td className="p-4 text-neutral-600 dark:text-neutral-300">{price.portOrigin}</td>
-                    <td className="p-4 text-neutral-600 dark:text-neutral-300">{price.containerType}</td>
-                    <td className="p-4 text-neutral-600 dark:text-neutral-300">{price.weightRange}</td>
-                    <td className="p-4 text-right font-semibold text-accent-500">${price.freightPrice}</td>
+                    <td className="p-4 font-medium text-primary-800 dark:text-white">
+                      {price.shippingLine}
+                    </td>
+                    <td className="p-4 text-neutral-600 dark:text-neutral-300">
+                      {price.portOrigin}
+                    </td>
+                    <td className="p-4 text-neutral-600 dark:text-neutral-300">
+                      {price.containerType}
+                    </td>
+                    <td className="p-4 text-neutral-600 dark:text-neutral-300">
+                      {price.weightRange}
+                    </td>
+                    <td className="p-4 text-right font-semibold text-accent-500">
+                      ${price.freightPrice}
+                    </td>
                     <td className="p-4">
                       <span
                         className={cn(
@@ -346,7 +393,9 @@ const AgentPricesDashboard: React.FC = () => {
                         {statusText[price.approvalStatus]}
                       </span>
                       {price.rejectionReason && (
-                        <p className="text-xs text-red-600 dark:text-red-400 mt-1">{price.rejectionReason}</p>
+                        <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                          {price.rejectionReason}
+                        </p>
                       )}
                     </td>
                     <td className="p-4">
@@ -405,7 +454,9 @@ const AgentPricesDashboard: React.FC = () => {
                     required
                   >
                     {SHIPPING_LINES.map((line) => (
-                      <option key={line} value={line}>{line}</option>
+                      <option key={line} value={line}>
+                        {line}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -421,7 +472,9 @@ const AgentPricesDashboard: React.FC = () => {
                     required
                   >
                     {originPorts.map((port) => (
-                      <option key={port} value={port}>{port}</option>
+                      <option key={port} value={port}>
+                        {port}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -439,7 +492,9 @@ const AgentPricesDashboard: React.FC = () => {
                     required
                   >
                     {CONTAINER_TYPES.map((type) => (
-                      <option key={type} value={type}>{type}</option>
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -455,7 +510,9 @@ const AgentPricesDashboard: React.FC = () => {
                     required
                   >
                     {WEIGHT_RANGES.map((range) => (
-                      <option key={range} value={range}>{range}</option>
+                      <option key={range} value={range}>
+                        {range}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -470,7 +527,9 @@ const AgentPricesDashboard: React.FC = () => {
                   min="0"
                   step="0.01"
                   value={formData.freightPrice}
-                  onChange={(e) => setFormData({ ...formData, freightPrice: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, freightPrice: parseFloat(e.target.value) || 0 })
+                  }
                   className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 rounded-lg"
                   required
                 />
@@ -535,7 +594,11 @@ const AgentPricesDashboard: React.FC = () => {
                   Anulează
                 </Button>
                 <Button type="submit" variant="accent" disabled={isSaving}>
-                  {isSaving ? 'Se salvează...' : editingPrice ? 'Actualizează' : 'Trimite pentru Aprobare'}
+                  {isSaving
+                    ? 'Se salvează...'
+                    : editingPrice
+                      ? 'Actualizează'
+                      : 'Trimite pentru Aprobare'}
                 </Button>
               </div>
             </form>
@@ -546,4 +609,4 @@ const AgentPricesDashboard: React.FC = () => {
   );
 };
 
-export default AgentPricesDashboard;
+export default React.memo(AgentPricesDashboard);

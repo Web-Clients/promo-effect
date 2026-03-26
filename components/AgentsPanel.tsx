@@ -152,7 +152,10 @@ export function AgentsPanel() {
     }
   };
 
-  const handleStatusChange = async (agent: Agent, newStatus: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED') => {
+  const handleStatusChange = async (
+    agent: Agent,
+    newStatus: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'
+  ) => {
     setLoading(true);
     try {
       await updateAgent(agent.id, { status: newStatus });
@@ -209,9 +212,7 @@ export function AgentsPanel() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Agenți Chinezi</h1>
-        <p className="mt-2 text-gray-600">
-          Gestionați agenții de logistică din China
-        </p>
+        <p className="mt-2 text-gray-600">Gestionați agenții de logistică din China</p>
       </div>
 
       {/* Stats Cards */}
@@ -292,9 +293,7 @@ export function AgentsPanel() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
                     <input
                       type="email"
                       value={formData.email}
@@ -313,7 +312,7 @@ export function AgentsPanel() {
 
                       <div className="relative">
                         <input
-                          type={showPassword ? "text" : "password"}
+                          type={showPassword ? 'text' : 'password'}
                           value={formData.password}
                           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                           required={!editingAgent}
@@ -325,7 +324,11 @@ export function AgentsPanel() {
                           onClick={() => setShowPassword(!showPassword)}
                           className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                         >
-                          {showPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                          {showPassword ? (
+                            <EyeOffIcon className="h-4 w-4" />
+                          ) : (
+                            <EyeIcon className="h-4 w-4" />
+                          )}
                         </button>
                       </div>
                     </div>
@@ -345,9 +348,7 @@ export function AgentsPanel() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Telefon
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
                     <input
                       type="tel"
                       value={formData.phone}
@@ -422,9 +423,8 @@ export function AgentsPanel() {
               </form>
             </div>
           </div>
-        </div >
-      )
-      }
+        </div>
+      )}
 
       {/* Agents Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -432,15 +432,33 @@ export function AgentsPanel() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cod</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Companie</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">WeChat</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Prețuri</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Rezervări</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acțiuni</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Cod
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Companie
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Contact
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Email
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  WeChat
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                  Prețuri
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                  Rezervări
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                  Acțiuni
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -508,16 +526,11 @@ export function AgentsPanel() {
         </div>
       </div>
       {/* Price Manager Modal */}
-      {
-        managingPricesFor && (
-          <AgentPriceManager
-            agent={managingPricesFor}
-            onClose={() => setManagingPricesFor(null)}
-          />
-        )
-      }
-    </div >
+      {managingPricesFor && (
+        <AgentPriceManager agent={managingPricesFor} onClose={() => setManagingPricesFor(null)} />
+      )}
+    </div>
   );
 }
 
-export default AgentsPanel;
+export default React.memo(AgentsPanel);

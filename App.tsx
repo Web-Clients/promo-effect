@@ -267,33 +267,31 @@ const App = () => {
               </ProtectedRoute>
             }
           >
-            <Suspense fallback={<DashboardFallback />}>
-              <Route index element={<MainDashboard user={user!} />} />
-              <Route path="bookings" element={<BookingsList user={user!} />} />
-              <Route path="bookings/:bookingId" element={<BookingDetail user={user!} />} />
-              <Route path="tracking" element={<TrackingView />} />
-              <Route path="containers-transit" element={<ContainersInTransit />} />
-              <Route path="calculator" element={<PriceCalculator user={user!} />} />
-              <Route
-                path="emailParser"
-                element={<EmailParserAssistant onBookingCreate={handleNewBooking} />}
-              />
-              <Route path="ai-parser" element={<AIEmailParser />} />
-              <Route path="clients" element={<ClientsList />} />
-              <Route path="invoices" element={<InvoicesList />} />
-              <Route path="reports" element={<ReportsPage />} />
-              <Route path="adminSettings" element={<AdminSettingsPage />} />
-              <Route path="admin-pricing" element={<AdminPricingPanel />} />
-              <Route path="shipping-lines" element={<ShippingLinesPage />} />
-              <Route path="transport-rates" element={<TransportRatesPage />} />
-              <Route path="agents" element={<AgentsPanel />} />
-              <Route path="admin-panel" element={<AdminDashboard />} />
-              <Route path="my-prices" element={<AgentPricesDashboard />} />
-              <Route path="price-approval" element={<AdminPriceApproval />} />
-              <Route path="ports-manager" element={<AdminPortsManager />} />
-              <Route path="user-management" element={<UserManagement currentUser={user!} />} />
-              <Route path="userProfile" element={<UserProfile user={user!} />} />
-            </Suspense>
+            <Route index element={<MainDashboard user={user!} />} />
+            <Route path="bookings" element={<BookingsList user={user!} />} />
+            <Route path="bookings/:bookingId" element={<BookingDetail user={user!} />} />
+            <Route path="tracking" element={<TrackingView />} />
+            <Route path="containers-transit" element={<ContainersInTransit />} />
+            <Route path="calculator" element={<PriceCalculator user={user!} />} />
+            <Route
+              path="emailParser"
+              element={<EmailParserAssistant onBookingCreate={handleNewBooking} />}
+            />
+            <Route path="ai-parser" element={<AIEmailParser />} />
+            <Route path="clients" element={<ClientsList />} />
+            <Route path="invoices" element={<InvoicesList />} />
+            <Route path="reports" element={<ReportsPage />} />
+            <Route path="adminSettings" element={<AdminSettingsPage />} />
+            <Route path="admin-pricing" element={<AdminPricingPanel />} />
+            <Route path="shipping-lines" element={<ShippingLinesPage />} />
+            <Route path="transport-rates" element={<TransportRatesPage />} />
+            <Route path="agents" element={<AgentsPanel />} />
+            <Route path="admin-panel" element={<AdminDashboard />} />
+            <Route path="my-prices" element={<AgentPricesDashboard />} />
+            <Route path="price-approval" element={<AdminPriceApproval />} />
+            <Route path="ports-manager" element={<AdminPortsManager />} />
+            <Route path="user-management" element={<UserManagement currentUser={user!} />} />
+            <Route path="userProfile" element={<UserProfile user={user!} />} />
           </Route>
 
           <Route path="*" element={<NotFoundPage />} />

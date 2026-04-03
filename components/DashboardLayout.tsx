@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { User, UserRole, Booking } from '../types';
@@ -50,6 +50,12 @@ const AvatarFallback = ({
   <span className="flex h-full w-full items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-700 text-neutral-500 dark:text-neutral-400">
     {children}
   </span>
+);
+
+const DashboardFallback = () => (
+  <div className="flex items-center justify-center h-64">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+  </div>
 );
 
 interface NavItem {
@@ -328,7 +334,7 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
         </header>
 
         <main id="main-content" className="p-4 sm:p-6 pb-24 md:pb-6 animate-fade-in">
-          {children}
+          <Suspense fallback={<DashboardFallback />}>{children}</Suspense>
         </main>
       </div>
 

@@ -1,4 +1,4 @@
-import React, { createContext, useState, useCallback } from 'react';
+import React, { createContext, useState, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '../../lib/utils';
 import { AlertCircleIcon, XIcon, CheckIcon } from '../icons';
@@ -19,6 +19,14 @@ export const ToastContext = createContext<ToastContextType | null>(null);
 
 let toastCount = 0;
 
+/** Duration (ms) per variant for auto-dismiss */
+const TOAST_DURATIONS: Record<ToastVariant, number> = {
+  error: 7000,
+  warning: 6000,
+  info: 5000,
+  success: 4000,
+};
+
 // FIX: Changed to use React.PropsWithChildren to solve typing issue at call site.
 export const ToastProvider = ({ children }: React.PropsWithChildren) => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -27,16 +35,10 @@ export const ToastProvider = ({ children }: React.PropsWithChildren) => {
     setToasts((prevToasts) => prevToasts.filter((toast) => toast.id !== id));
   }, []);
 
-  const addToast = useCallback(
-    (message: string, variant: ToastVariant = 'info') => {
-      const id = toastCount++;
-      setToasts((prevToasts) => [...prevToasts, { id, message, variant }]);
-      setTimeout(() => {
-        removeToast(id);
-      }, 4000);
-    },
-    [removeToast]
-  );
+  const addToast = useCallback((message: string, variant: ToastVariant = 'info') => {
+    const id = toastCount++;
+    setToasts((prevToasts) => [...prevToasts, { id, message, variant }]);
+  }, []);
 
   return (
     <ToastContext.Provider value={{ addToast }}>
@@ -65,7 +67,11 @@ const ToastContainer = ({
   removeToast: (id: number) => void;
 }) => {
   return (
-    <div className="fixed top-5 right-5 z-[100] space-y-2 w-full max-w-sm">
+    <div
+      className="fixed top-5 right-5 z-[100] space-y-2 w-full max-w-sm"
+      aria-live="polite"
+      aria-label="Notificări"
+    >
       {toasts.map((toast) => (
         <Toast key={toast.id} {...toast} onDismiss={() => removeToast(toast.id)} />
       ))}
@@ -83,17 +89,54 @@ const VARIANT_CLASSES: Record<ToastVariant, string> = {
   warning: 'bg-yellow-50 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200',
   error: 'bg-red-50 text-red-800 dark:bg-red-900/50 dark:text-red-200',
 };
+
 // FIX: Changed Toast to be a React.FC to correctly handle the 'key' prop.
 const Toast: React.FC<ToastProps> = ({ message, variant, onDismiss }) => {
   const Icon = ICONS[variant];
+  const duration = TOAST_DURATIONS[variant];
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPausedRef = useRef(false);
+  const startTimeRef = useRef<number>(Date.now());
+  const remainingRef = useRef<number>(duration);
+
+  const startTimer = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    startTimeRef.current = Date.now();
+    timerRef.current = setTimeout(() => {
+      onDismiss();
+    }, remainingRef.current);
+  }, [onDismiss]);
+
+  const pauseTimer = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    remainingRef.current -= Date.now() - startTimeRef.current;
+    isPausedRef.current = true;
+  };
+
+  const resumeTimer = () => {
+    if (!isPausedRef.current) return;
+    isPausedRef.current = false;
+    startTimer();
+  };
+
+  useEffect(() => {
+    startTimer();
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [startTimer]);
+
   return (
     <div
       role="alert"
       aria-live="assertive"
       aria-atomic="true"
+      onMouseEnter={pauseTimer}
+      onMouseLeave={resumeTimer}
+      onFocus={pauseTimer}
+      onBlur={resumeTimer}
       className={cn(
         'flex items-start p-4 rounded-lg shadow-lg text-sm transition-all',
-        // FIX: The `cn` utility does not support passing an object for conditional classes. Changed to a class map lookup to provide a valid string argument.
         VARIANT_CLASSES[variant]
       )}
     >
@@ -101,8 +144,8 @@ const Toast: React.FC<ToastProps> = ({ message, variant, onDismiss }) => {
       <div className="flex-1">{message}</div>
       <button
         onClick={onDismiss}
-        aria-label="Dismiss notification"
-        className="ml-3 p-1 rounded-full hover:bg-black/10"
+        aria-label="Închide notificarea"
+        className="ml-3 p-1 rounded-full hover:bg-black/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
       >
         <XIcon className="h-4 w-4" aria-hidden="true" />
       </button>

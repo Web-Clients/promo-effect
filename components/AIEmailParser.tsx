@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useToast } from './ui/Toast';
 import { MailIcon, SparklesIcon, CheckIcon, RefreshCwIcon, ShipIcon, PackageIcon } from './icons';
 import emailParserService, { GmailStatus, RecentEmailContainer } from '../services/emailParser';
@@ -14,6 +15,7 @@ import { cn } from '../lib/utils';
 import { getErrorMessage } from '../utils/formatters';
 
 const AIEmailParser: React.FC = () => {
+  const { t } = useTranslation();
   const { addToast } = useToast();
 
   const [gmailStatus, setGmailStatus] = useState<GmailStatus | null>(null);
@@ -59,7 +61,7 @@ const AIEmailParser: React.FC = () => {
       }
       await loadData();
     } catch (error: unknown) {
-      addToast(getErrorMessage(error, 'Eroare la procesarea email-urilor'), 'error');
+      addToast(getErrorMessage(error, t('errors.emailProcessing')), 'error');
     } finally {
       setIsFetching(false);
     }

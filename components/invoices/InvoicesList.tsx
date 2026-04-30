@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getErrorMessage } from '../../utils/formatters';
+import { DEFAULT_PAGE_SIZE, BULK_FETCH_LIMIT, SEARCH_DEBOUNCE_MS } from '../../config/constants';
 import { Card } from '../ui/Card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../ui/Table';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Badge } from '../ui/Badge';
-import { PlusIcon, DownloadIcon, SearchIcon, RefreshCwIcon, EyeIcon } from '../icons';
+import { PlusIcon, DownloadIcon, SearchIcon, RefreshCwIcon, EyeIcon, XIcon } from '../icons';
 import { useToast } from '../ui/Toast';
+import { SkeletonTableRow } from '../ui/Skeleton';
 import invoicesService, {
   Invoice,
   InvoiceStats,
@@ -18,9 +20,11 @@ import { statusVariantMap, statusTextMap } from './types';
 import CreateInvoiceModal from './CreateInvoiceModal';
 import PaymentModal from './PaymentModal';
 import InvoiceDetailModal from './InvoiceDetailModal';
+import { useConfirm } from '../../hooks/useConfirm';
 
 const InvoicesList: React.FC = () => {
   const { addToast } = useToast();
+  const { confirm: confirmDialog, prompt: promptDialog, ConfirmDialogNode } = useConfirm();
 
   // Data states
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -37,7 +41,7 @@ const InvoicesList: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const pageSize = 10;
+  const pageSize = DEFAULT_PAGE_SIZE;
 
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -73,7 +77,9 @@ const InvoicesList: React.FC = () => {
   // Fetch clients and bookings for create modal
   const fetchClientsAndBookings = async () => {
     try {
-      const [clientsData] = await Promise.all([clientsService.getClients({ limit: 100 })]);
+      const [clientsData] = await Promise.all([
+        clientsService.getClients({ limit: BULK_FETCH_LIMIT }),
+      ]);
       setClients(clientsData.clients);
     } catch (error) {
       console.error('Failed to fetch clients:', error);
@@ -93,7 +99,7 @@ const InvoicesList: React.FC = () => {
     const timer = setTimeout(() => {
       setCurrentPage(1);
       fetchInvoices();
-    }, 300);
+    }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm]);
@@ -235,8 +241,18 @@ const InvoicesList: React.FC = () => {
               placeholder="Caută după număr factură sau client..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-10 pr-8"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                aria-label="Șterge căutarea"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors"
+              >
+                <XIcon className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
           <select
@@ -277,16 +293,19 @@ const InvoicesList: React.FC = () => {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
-                    <RefreshCwIcon className="h-6 w-6 animate-spin mx-auto text-neutral-400" />
-                    <p className="mt-2 text-neutral-500">Se încarcă...</p>
-                  </TableCell>
-                </TableRow>
+                <>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <SkeletonTableRow key={i} cols={6} />
+                  ))}
+                </>
               ) : invoices.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
-                    <p className="text-neutral-500">Nu există facturi</p>
+                  <TableCell colSpan={6} className="text-center py-12">
+                    <p className="text-neutral-500 dark:text-neutral-400 mb-3">Nu există facturi</p>
+                    <Button variant="accent" onClick={() => setShowCreateModal(true)}>
+                      <PlusIcon className="mr-2 h-4 w-4" />
+                      Crează factură
+                    </Button>
                   </TableCell>
                 </TableRow>
               ) : (

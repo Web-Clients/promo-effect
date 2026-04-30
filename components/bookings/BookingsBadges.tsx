@@ -1,10 +1,12 @@
 /**
- * BookingsBadges — Phase A4
- * Visual TLX (telex release) and DOC (documents uploaded) badges.
+ * BookingsBadges — Phase A4 + E13
+ * Visual TLX (telex release), DOC (documents uploaded) badges,
+ * and StatusBadge with color-blind-friendly icons (WCAG E13).
  */
 
 import React from 'react';
 import { cn } from '../../lib/utils';
+import { CheckIcon, ClockIcon, WarningIcon, XIcon, ClipboardIcon, ArchiveIcon } from '../icons';
 
 interface TlxBadgeProps {
   active: boolean;
@@ -13,7 +15,9 @@ interface TlxBadgeProps {
 
 export const TlxBadge: React.FC<TlxBadgeProps> = ({ active, className }) => {
   if (!active) {
-    return <span className={cn('text-neutral-300 dark:text-neutral-600 text-xs', className)}>—</span>;
+    return (
+      <span className={cn('text-neutral-300 dark:text-neutral-600 text-xs', className)}>—</span>
+    );
   }
   return (
     <span
@@ -35,7 +39,9 @@ interface DocBadgeProps {
 
 export const DocBadge: React.FC<DocBadgeProps> = ({ active, className }) => {
   if (!active) {
-    return <span className={cn('text-neutral-300 dark:text-neutral-600 text-xs', className)}>—</span>;
+    return (
+      <span className={cn('text-neutral-300 dark:text-neutral-600 text-xs', className)}>—</span>
+    );
   }
   return (
     <span
@@ -64,17 +70,32 @@ const STATUS_COLORS: Record<string, string> = {
   IN_TRANSIT: 'bg-warning-100 text-warning-700 dark:bg-warning-500/20 dark:text-warning-400',
   DELIVERED: 'bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-500',
   CANCELLED: 'bg-error-50 text-error-700 dark:bg-error-500/20 dark:text-error-400',
+  DELAYED: 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400',
+};
+
+/** Icon per status for color-blind accessibility (WCAG 1.4.1) */
+const STATUS_ICONS: Record<string, React.ComponentType<{ className?: string }> | null> = {
+  DRAFT: ArchiveIcon,
+  PENDING: ClockIcon,
+  SUBMITTED: ClipboardIcon,
+  CONFIRMED: ClipboardIcon,
+  IN_TRANSIT: ClockIcon,
+  DELIVERED: CheckIcon,
+  CANCELLED: XIcon,
+  DELAYED: WarningIcon,
 };
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, className }) => {
+  const Icon = STATUS_ICONS[status] ?? null;
   return (
     <span
       className={cn(
-        'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium',
+        'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium',
         STATUS_COLORS[status] || STATUS_COLORS['DRAFT'],
         className
       )}
     >
+      {Icon && <Icon className="h-3 w-3 flex-shrink-0" aria-hidden="true" />}
       {label}
     </span>
   );

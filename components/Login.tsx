@@ -201,7 +201,7 @@ const Login = ({ onLogin }: LoginProps) => {
                     </label>
                     <Link
                       to="/forgot-password"
-                      className="text-xs text-accent-600 dark:text-accent-400 hover:underline"
+                      className="text-xs text-accent-700 dark:text-accent-400 hover:underline"
                     >
                       {t('auth.forgotPassword')}
                     </Link>

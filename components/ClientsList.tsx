@@ -5,7 +5,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '.
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Badge } from './ui/Badge';
-import { PlusIcon, SearchIcon, EditIcon, TrashIcon, RefreshCwIcon } from './icons';
+import { PlusIcon, SearchIcon, EditIcon, TrashIcon, RefreshCwIcon, XIcon } from './icons';
 import { useToast } from './ui/Toast';
 import clientsService, { Client, CreateClientData, UpdateClientData } from '../services/clients';
 import { getErrorMessage } from '../utils/formatters';
@@ -384,8 +384,18 @@ const ClientsList = () => {
               placeholder={t('clients.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-10 pr-8"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                aria-label="Șterge căutarea"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors"
+              >
+                <XIcon className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
           {/* Status Filter */}
@@ -437,12 +447,18 @@ const ClientsList = () => {
                 </TableRow>
               ) : clients.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
-                    <p className="text-neutral-500 dark:text-neutral-400">
+                  <TableCell colSpan={7} className="text-center py-12">
+                    <p className="text-neutral-500 dark:text-neutral-400 mb-3">
                       {searchTerm || statusFilter !== 'ALL'
                         ? t('clients.noClientsFound')
                         : t('clients.noClientsYet')}
                     </p>
+                    {!searchTerm && statusFilter === 'ALL' && (
+                      <Button variant="accent" onClick={handleCreate}>
+                        <PlusIcon className="mr-2 h-4 w-4" />
+                        {t('clients.newClient')}
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ) : (

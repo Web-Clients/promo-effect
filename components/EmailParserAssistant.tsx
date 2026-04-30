@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { parseEmailWithGemini, checkAIStatus } from '../services/geminiService';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
@@ -51,6 +52,7 @@ interface EmailParserAssistantProps {
 }
 
 const EmailParserAssistant = ({ onBookingCreate }: EmailParserAssistantProps) => {
+  const { t } = useTranslation();
   const [emailContent, setEmailContent] = useState('');
   const [parsedResult, setParsedResult] = useState('');
   const [parsedObject, setParsedObject] = useState<Record<string, unknown> | null>(null);
@@ -65,7 +67,7 @@ const EmailParserAssistant = ({ onBookingCreate }: EmailParserAssistantProps) =>
 
   const handleParse = async () => {
     if (!emailContent.trim()) {
-      setError('Conținutul emailului nu poate fi gol.');
+      setError(t('errors.emailEmpty'));
       return;
     }
     setIsLoading(true);
@@ -84,7 +86,7 @@ const EmailParserAssistant = ({ onBookingCreate }: EmailParserAssistantProps) =>
         setParsedObject(jsonResult);
       }
     } catch {
-      setError('Am primit un răspuns JSON invalid de la AI.');
+      setError(t('errors.emailInvalidJson'));
       setParsedResult(result);
     }
 
@@ -143,7 +145,7 @@ const EmailParserAssistant = ({ onBookingCreate }: EmailParserAssistantProps) =>
           <textarea
             id="emailContent"
             className="flex-grow w-full p-3 border rounded-md font-mono text-sm bg-white dark:bg-neutral-800 border-neutral-300 dark:border-neutral-600 focus:ring-primary-500 focus:border-primary-500"
-            placeholder="Lipiți conținutul emailului aici..."
+            placeholder={t('placeholders.emailContent')}
             value={emailContent}
             onChange={(e) => setEmailContent(e.target.value)}
             rows={15}

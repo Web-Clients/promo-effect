@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getErrorMessage } from '../utils/formatters';
 import {
   getAgentPrices,
@@ -24,6 +25,7 @@ interface Props {
 }
 
 export function AgentPriceManager({ agent, onClose }: Props) {
+  const { t } = useTranslation();
   const [prices, setPrices] = useState<AgentPrice[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingPrice, setEditingPrice] = useState<AgentPrice | null>(null);
@@ -48,7 +50,7 @@ export function AgentPriceManager({ agent, onClose }: Props) {
       const data = await getAgentPrices(agent.id);
       setPrices(data);
     } catch (err: unknown) {
-      addToast(getErrorMessage(err, 'Eroare la încărcarea prețurilor'), 'error');
+      addToast(getErrorMessage(err, t('errors.loadingPrices')), 'error');
     } finally {
       setLoading(false);
     }
@@ -75,13 +77,13 @@ export function AgentPriceManager({ agent, onClose }: Props) {
   };
 
   const handleDelete = async (priceId: string) => {
-    if (!confirm('Sigur doriți să ștergeți acest preț?')) return;
+    if (!confirm(t('confirmations.deletePrice'))) return;
     try {
       await deleteAgentPrice(agent.id, priceId);
       addToast('Prețul a fost șters', 'success');
       loadPrices();
     } catch (err: unknown) {
-      addToast(getErrorMessage(err, 'Eroare la ștergere'), 'error');
+      addToast(getErrorMessage(err, t('errors.deleting')), 'error');
     }
   };
 
@@ -99,7 +101,7 @@ export function AgentPriceManager({ agent, onClose }: Props) {
       setEditingPrice(null);
       loadPrices();
     } catch (err: unknown) {
-      addToast(getErrorMessage(err, 'Eroare la salvare'), 'error');
+      addToast(getErrorMessage(err, t('errors.saving')), 'error');
     }
   };
 
@@ -385,10 +387,10 @@ export function AgentPriceManager({ agent, onClose }: Props) {
 
                 <div className="flex justify-end gap-3 pt-4 border-t">
                   <Button type="button" variant="secondary" onClick={() => setShowForm(false)}>
-                    Anulează
+                    {t('actions.cancel')}
                   </Button>
                   <Button type="submit" variant="accent">
-                    Salvează
+                    {t('actions.save')}
                   </Button>
                 </div>
               </form>

@@ -161,7 +161,7 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
               </div>
               <div>
                 <span className="font-heading font-bold text-lg text-white">Promo-Efect</span>
-                <p className="text-[10px] text-white/50 uppercase tracking-wider">
+                <p className="text-[10px] text-white/80 uppercase tracking-wider">
                   Logistics Platform
                 </p>
               </div>
@@ -207,7 +207,7 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
                       'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 overflow-hidden text-sm group',
                       isActive
                         ? 'bg-white/15 text-white font-medium shadow-sm'
-                        : 'text-white/70 hover:bg-white/10 hover:text-white',
+                        : 'text-white/85 hover:bg-white/10 hover:text-white',
                       !sidebarOpen && 'justify-center px-2'
                     )
                   }
@@ -271,7 +271,7 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
             {sidebarOpen && (
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white truncate">{user.name}</p>
-                <p className="text-xs text-white/50 truncate">{user.role.replace('_', ' ')}</p>
+                <p className="text-xs text-white/80 truncate">{user.role.replace('_', ' ')}</p>
               </div>
             )}
           </div>

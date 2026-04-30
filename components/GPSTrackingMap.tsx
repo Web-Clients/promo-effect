@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -43,6 +44,7 @@ const GPSTrackingMap: React.FC<GPSTrackingMapProps> = ({
   isAdmin = false,
   onVehicleAssigned,
 }) => {
+  const { t } = useTranslation();
   const [location, setLocation] = useState<GPSLocation | null>(null);
   const [vehicles, setVehicles] = useState<GPSVehicle[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<string>('');
@@ -66,7 +68,7 @@ const GPSTrackingMap: React.FC<GPSTrackingMapProps> = ({
         setError(response.error || 'Nu s-a putut obține locația GPS');
       }
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Eroare la obținerea locației GPS'));
+      setError(getErrorMessage(err, t('errors.gpsLocation')));
     } finally {
       setLoading(false);
     }
@@ -119,7 +121,7 @@ const GPSTrackingMap: React.FC<GPSTrackingMapProps> = ({
         setError(response.error || 'Nu s-a putut atribui vehiculul');
       }
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Eroare la atribuirea vehiculului'));
+      setError(getErrorMessage(err, t('errors.gpsAssign')));
     } finally {
       setAssigning(false);
     }
@@ -196,7 +198,7 @@ const GPSTrackingMap: React.FC<GPSTrackingMapProps> = ({
                 Atribuie
               </Button>
               <Button variant="secondary" onClick={() => setShowVehicleSelect(false)}>
-                Anulează
+                {t('actions.cancel')}
               </Button>
             </div>
           </div>

@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Button } from './ui/Button';
 import authService from '../services/auth';
 import { getErrorMessage } from '../utils/formatters';
 
 const VerifyEmail = () => {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   const [isLoading, setIsLoading] = useState(false);
@@ -13,7 +15,7 @@ const VerifyEmail = () => {
 
   const handleVerify = useCallback(async () => {
     if (!token) {
-      setError('Token de verificare lipsă');
+      setError(t('errors.verificationTokenMissing'));
       return;
     }
 
@@ -24,7 +26,7 @@ const VerifyEmail = () => {
       await authService.verifyEmail(token);
       setIsSuccess(true);
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Verificare email eșuată. Token-ul poate fi expirat.'));
+      setError(getErrorMessage(err, t('errors.verificationFailed')));
     } finally {
       setIsLoading(false);
     }

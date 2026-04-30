@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import shippingLinesService, {
   ShippingLineContainer,
   ShippingLineContainerInput,
@@ -73,6 +74,7 @@ const XIcon = () => (
 );
 
 export default function ShippingLinesPage() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<ShippingLineContainer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -109,7 +111,7 @@ export default function ShippingLinesPage() {
       setItems(data);
       setError(null);
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Eroare la încărcarea datelor'));
+      setError(getErrorMessage(err, t('errors.loadingData')));
     } finally {
       setLoading(false);
     }
@@ -135,7 +137,7 @@ export default function ShippingLinesPage() {
       resetForm();
       loadData();
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Eroare la salvare'));
+      setError(getErrorMessage(err, t('errors.saving')));
     }
     setTimeout(() => setSuccess(null), 3000);
   };
@@ -152,13 +154,13 @@ export default function ShippingLinesPage() {
   };
 
   const handleDelete = async (item: ShippingLineContainer) => {
-    if (!confirm(`Ștergeți configurația ${item.shippingLine} - ${item.containerType}?`)) return;
+    if (!confirm(t('confirmations.deleteShippingLine', { line: item.shippingLine, container: item.containerType }))) return;
     try {
       await shippingLinesService.deleteShippingLineContainer(item.id);
       setSuccess('Configurație ștearsă');
       loadData();
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Eroare la ștergere'));
+      setError(getErrorMessage(err, t('errors.deleting')));
     }
     setTimeout(() => setSuccess(null), 3000);
   };
@@ -334,7 +336,7 @@ export default function ShippingLinesPage() {
                 className="flex items-center gap-2 px-4 py-2 bg-primary-700 text-white rounded-lg hover:bg-primary-800 transition-colors text-sm font-medium"
               >
                 <SaveIcon />
-                {editingId ? 'Salvează' : 'Adaugă'}
+                {editingId ? t('actions.save') : t('actions.add')}
               </button>
               <button
                 type="button"
@@ -342,7 +344,7 @@ export default function ShippingLinesPage() {
                 className="flex items-center gap-2 px-4 py-2 bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 rounded-lg hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors text-sm"
               >
                 <XIcon />
-                Anulează
+                {t('actions.cancel')}
               </button>
             </div>
           </form>

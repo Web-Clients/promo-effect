@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { User, Booking, BookingStatus, UserRole } from '../types';
 import { SHIPPING_LINES, ORIGIN_PORTS, DESTINATION_PORTS, CONTAINER_TYPES } from '../constants';
@@ -126,6 +127,7 @@ const BookingSelect = ({ ...props }: React.SelectHTMLAttributes<HTMLSelectElemen
 );
 
 const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
+  const { t } = useTranslation();
   const { bookingId } = useParams<{ bookingId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -180,10 +182,10 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
           const statusErr = err as { status?: number; response?: { status?: number } };
           const httpStatus = statusErr.status ?? statusErr.response?.status;
           if (httpStatus === 404) {
-            addToast('Rezervarea nu a fost găsită', 'error');
+            addToast(t('bookings.noBookings'), 'error');
             navigate('/dashboard/bookings');
           } else if (httpStatus === 403) {
-            addToast('Nu aveți permisiunea de a vizualiza această rezervare', 'error');
+            addToast(t('errors.unauthorized'), 'error');
             navigate('/dashboard/bookings');
           }
         } finally {

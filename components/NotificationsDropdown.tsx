@@ -11,7 +11,12 @@ import { cn } from '../lib/utils';
 // Icons
 const BellIcon = ({ className }: { className?: string }) => (
   <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+    />
   </svg>
 );
 
@@ -23,19 +28,34 @@ const CheckIcon = () => (
 
 const PackageIcon = () => (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+    />
   </svg>
 );
 
 const InfoIcon = () => (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+    />
   </svg>
 );
 
 const DollarIcon = () => (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+    />
   </svg>
 );
 
@@ -143,8 +163,8 @@ const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({ className
     try {
       await notificationsService.markAsRead(id);
       // Remove from list after marking as read
-      setNotifications(prev => prev.filter(n => n.id !== id));
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (err) {
       console.error('Failed to mark as read:', err);
     }
@@ -166,8 +186,8 @@ const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({ className
       try {
         await notificationsService.markAsRead(notification.id);
         // Remove from list after marking as read
-        setNotifications(prev => prev.filter(n => n.id !== notification.id));
-        setUnreadCount(prev => Math.max(0, prev - 1));
+        setNotifications((prev) => prev.filter((n) => n.id !== notification.id));
+        setUnreadCount((prev) => Math.max(0, prev - 1));
       } catch (err) {
         console.error('Failed to mark as read:', err);
       }
@@ -181,7 +201,7 @@ const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({ className
   };
 
   return (
-    <div className={cn("relative", className)} ref={dropdownRef}>
+    <div className={cn('relative', className)} ref={dropdownRef}>
       {/* Bell button */}
       <button
         onClick={handleToggle}
@@ -200,9 +220,7 @@ const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({ className
         <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-neutral-800 rounded-xl shadow-xl border border-neutral-200 dark:border-neutral-700 z-50 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 dark:border-neutral-700">
-            <h3 className="font-semibold text-neutral-900 dark:text-white">
-              Notificari
-            </h3>
+            <h3 className="font-semibold text-neutral-900 dark:text-white">Notificari</h3>
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllAsRead}
@@ -227,32 +245,36 @@ const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({ className
             ) : (
               <div className="divide-y divide-neutral-100 dark:divide-neutral-700">
                 {notifications.map((notification) => (
-                  <div
+                  <button
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
                     className={cn(
-                      "flex gap-3 p-4 cursor-pointer transition-colors",
+                      'w-full text-left flex gap-3 p-4 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500',
                       notification.read
-                        ? "bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-750"
-                        : "bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/30"
+                        ? 'bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-750'
+                        : 'bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/30'
                     )}
                   >
                     {/* Icon */}
-                    <div className={cn(
-                      "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center",
-                      getNotificationColor(notification.type)
-                    )}>
+                    <div
+                      className={cn(
+                        'flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center',
+                        getNotificationColor(notification.type)
+                      )}
+                    >
                       {getNotificationIcon(notification.type)}
                     </div>
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
-                      <p className={cn(
-                        "text-sm",
-                        notification.read
-                          ? "text-neutral-900 dark:text-neutral-200"
-                          : "text-neutral-900 dark:text-white font-medium"
-                      )}>
+                      <p
+                        className={cn(
+                          'text-sm',
+                          notification.read
+                            ? 'text-neutral-900 dark:text-neutral-200'
+                            : 'text-neutral-900 dark:text-white font-medium'
+                        )}
+                      >
                         {notification.title}
                       </p>
                       <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5 line-clamp-2">
@@ -273,7 +295,7 @@ const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({ className
                         <CheckIcon />
                       </button>
                     )}
-                  </div>
+                  </button>
                 ))}
               </div>
             )}

@@ -11,7 +11,7 @@ export const PublicHeader = ({ onLoginRedirect }: { onLoginRedirect: () => void 
         <Link to="/" className="hover:opacity-80 transition-opacity">
           <PromoEffectLogo />
         </Link>
-        <div className="hidden lg:flex items-center gap-8 text-[11px] font-bold uppercase tracking-wider text-neutral-400">
+        <div className="hidden lg:flex items-center gap-8 text-xs font-bold uppercase tracking-wider text-neutral-400">
           {['Servicii', 'Prețuri', 'Calcul Prompt', 'FAQ', 'Contact'].map((item) => (
             <Link
               key={item}
@@ -33,7 +33,7 @@ export const PublicHeader = ({ onLoginRedirect }: { onLoginRedirect: () => void 
           <Button
             variant="ghost"
             size="sm"
-            className="hidden md:flex text-[11px] font-bold tracking-wider uppercase text-neutral-400 hover:text-white"
+            className="hidden md:flex text-xs font-bold tracking-wider uppercase text-neutral-600 hover:text-white"
             onClick={onLoginRedirect}
           >
             TRACKING

@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import portsService, { Port, CreatePortDto } from '../services/ports';
@@ -57,6 +58,7 @@ interface PortModalProps {
 }
 
 const PortModal: React.FC<PortModalProps> = ({ port, portType, onClose, onSave }) => {
+  const { t } = useTranslation();
   const [name, setName] = useState(port?.name || '');
   const [code, setCode] = useState(port?.code || '');
   const [country, setCountry] = useState(port?.country || (portType === 'ORIGIN' ? 'China' : ''));
@@ -79,7 +81,7 @@ const PortModal: React.FC<PortModalProps> = ({ port, portType, onClose, onSave }
       });
       onClose();
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Eroare la salvare'));
+      setError(getErrorMessage(err, t('errors.saving')));
     } finally {
       setIsLoading(false);
     }
@@ -112,7 +114,7 @@ const PortModal: React.FC<PortModalProps> = ({ port, portType, onClose, onSave }
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="ex: Shanghai, Ningbo, Constanta"
+                placeholder={t('placeholders.portName')}
                 required
               />
             </div>
@@ -126,7 +128,7 @@ const PortModal: React.FC<PortModalProps> = ({ port, portType, onClose, onSave }
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="ex: CNSHA, ROCON"
+                placeholder={t('placeholders.portCode')}
               />
             </div>
 
@@ -139,7 +141,7 @@ const PortModal: React.FC<PortModalProps> = ({ port, portType, onClose, onSave }
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="ex: China, Romania, Ukraine"
+                placeholder={t('placeholders.portCountry')}
                 required
               />
             </div>
@@ -164,14 +166,14 @@ const PortModal: React.FC<PortModalProps> = ({ port, portType, onClose, onSave }
 
             <div className="flex gap-3 pt-4">
               <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-                Anulare
+                {t('actions.cancel')}
               </Button>
               <Button
                 type="submit"
                 disabled={isLoading || !name.trim() || !country.trim()}
                 className="flex-1"
               >
-                {isLoading ? 'Se salveaza...' : port ? 'Salveaza' : 'Adauga'}
+                {isLoading ? t('actions.saving') : port ? t('actions.save') : t('actions.add')}
               </Button>
             </div>
           </form>
@@ -182,6 +184,7 @@ const PortModal: React.FC<PortModalProps> = ({ port, portType, onClose, onSave }
 };
 
 const AdminPortsManager: React.FC = () => {
+  const { t } = useTranslation();
   const [originPorts, setOriginPorts] = useState<Port[]>([]);
   const [destinationPorts, setDestinationPorts] = useState<Port[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -204,7 +207,7 @@ const AdminPortsManager: React.FC = () => {
       setOriginPorts(origin);
       setDestinationPorts(destination);
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Eroare la incarcarea porturilor'));
+      setError(getErrorMessage(err, t('errors.loadingPorts')));
     } finally {
       setIsLoading(false);
     }
@@ -241,13 +244,13 @@ const AdminPortsManager: React.FC = () => {
   };
 
   const handleDeletePort = async (port: Port) => {
-    if (!confirm(`Sigur doriti sa stergeti portul "${port.name}"?`)) return;
+    if (!confirm(t('confirmations.deletePort', { name: port.name }))) return;
 
     try {
       await portsService.delete(port.id);
       await loadPorts();
     } catch (err: unknown) {
-      alert(getErrorMessage(err, 'Eroare la stergere'));
+      alert(getErrorMessage(err, t('errors.deleting')));
     }
   };
 

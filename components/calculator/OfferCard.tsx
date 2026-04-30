@@ -86,10 +86,13 @@ export const OfferCard = ({
   const adjustedTotalMDL = adjustedTotal * mdlRate;
 
   return (
-    <div
+    <button
+      type="button"
       onClick={() => onToggle(index)}
+      aria-pressed={isSelected}
       className={cn(
-        'bg-white dark:bg-neutral-800 rounded-xl border-2 p-5 cursor-pointer transition-all duration-300',
+        'w-full text-left bg-white dark:bg-neutral-800 rounded-xl border-2 p-5 cursor-pointer transition-all duration-300',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-900',
         isSelected
           ? 'border-accent-500 shadow-lg shadow-accent-500/10'
           : 'border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600'
@@ -117,7 +120,7 @@ export const OfferCard = ({
               {offer.shippingLine}
             </h4>
             <div className="flex items-center gap-3 mt-1">
-              <span className="flex items-center gap-1 text-sm text-neutral-500">
+              <span className="flex items-center gap-1 text-sm text-neutral-700 dark:text-neutral-400">
                 <ClockIcon />
                 {offer.estimatedTransitDays} zile
               </span>
@@ -426,6 +429,6 @@ export const OfferCard = ({
           </Button>
         </div>
       )}
-    </div>
+    </button>
   );
 };

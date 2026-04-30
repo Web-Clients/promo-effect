@@ -18,7 +18,7 @@ import {
 } from '../services/agents';
 import { AgentPriceManager } from './AgentPriceManager';
 
-import { EyeIcon, EyeOffIcon } from './icons'; // Ensure lucide-react is installed or check existing imports
+import { EyeIcon, EyeOffIcon, XIcon, SearchIcon } from './icons';
 
 export function AgentsPanel() {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -240,13 +240,26 @@ export function AgentsPanel() {
       {/* Filters and Actions */}
       <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex gap-4">
-          <input
-            type="text"
-            placeholder="Caută agenți..."
-            value={searchFilter}
-            onChange={(e) => setSearchFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-          />
+          <div className="relative">
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+            <input
+              type="text"
+              placeholder="Caută agenți..."
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            />
+            {searchFilter && (
+              <button
+                type="button"
+                onClick={() => setSearchFilter('')}
+                aria-label="Șterge căutarea"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-neutral-400 hover:text-neutral-600 transition-colors"
+              >
+                <XIcon className="h-4 w-4" />
+              </button>
+            )}
+          </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -458,8 +471,15 @@ export function AgentsPanel() {
                 </tr>
               ) : agents.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
-                    Nu există agenți. Adăugați primul agent.
+                  <td colSpan={9} className="px-4 py-12 text-center text-gray-500">
+                    <p className="mb-3">Nu există agenți înregistrați.</p>
+                    <button
+                      type="button"
+                      onClick={() => setShowForm(true)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                    >
+                      Adaugă agent
+                    </button>
                   </td>
                 </tr>
               ) : (

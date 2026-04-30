@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from './ui/Button';
 import { useToast } from './ui/Toast';
 import agentPortalService, {
@@ -94,6 +95,7 @@ const WEIGHT_RANGES = ['1-5 tone', '5-10 tone', '10-15 tone', '15-20 tone', '20-
 const FALLBACK_PORTS = ['Shanghai', 'Ningbo', 'Qingdao', 'Shenzhen', 'Guangzhou', 'Xiamen'];
 
 const AgentPricesDashboard: React.FC = () => {
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<AgentProfile | null>(null);
   const [prices, setPrices] = useState<AgentPrice[]>([]);
   const [stats, setStats] = useState<AgentStats | null>(null);
@@ -217,21 +219,21 @@ const AgentPricesDashboard: React.FC = () => {
       handleCloseModal();
       loadData();
     } catch (err: unknown) {
-      addToast(getErrorMessage(err, 'Eroare la salvare'), 'error');
+      addToast(getErrorMessage(err, t('errors.saving')), 'error');
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDelete = async (priceId: string) => {
-    if (!confirm('Sigur doriți să ștergeți acest preț?')) return;
+    if (!confirm(t('confirmations.deletePrice'))) return;
 
     try {
       await agentPortalService.deletePrice(priceId);
       addToast('Prețul a fost șters', 'success');
       loadData();
     } catch (err: unknown) {
-      addToast(getErrorMessage(err, 'Eroare la ștergere'), 'error');
+      addToast(getErrorMessage(err, t('errors.deleting')), 'error');
     }
   };
 

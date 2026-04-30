@@ -151,7 +151,45 @@
     "invalidEmail": "Неверный email",
     "invalidPassword": "Неверный пароль",
     "loadingFailed": "Ошибка загрузки",
-    "saveFailed": "Ошибка сохранения"
+    "saveFailed": "Ошибка сохранения",
+    "loadingData": "Ошибка загрузки данных",
+    "saving": "Ошибка сохранения",
+    "deleting": "Ошибка удаления",
+    "loadingPorts": "Ошибка загрузки портов",
+    "loadingPrices": "Ошибка загрузки цен",
+    "emailProcessing": "Ошибка обработки писем",
+    "gpsLocation": "Ошибка получения GPS-координат",
+    "gpsAssign": "Ошибка назначения транспортного средства",
+    "emailEmpty": "Содержимое письма не может быть пустым.",
+    "emailInvalidJson": "Получен неверный JSON-ответ от AI.",
+    "verificationFailed": "Подтверждение email не удалось. Токен мог устареть.",
+    "verificationTokenMissing": "Токен подтверждения отсутствует",
+    "rejectionReasonRequired": "Причина отклонения обязательна",
+    "approvePriceFailed": "Ошибка при одобрении цены",
+    "rejectPriceFailed": "Ошибка при отклонении цены"
+  },
+  "confirmations": {
+    "deleteShippingLine": "Удалить конфигурацию {{line}} - {{container}}?",
+    "deleteTransportRate": "Удалить тариф {{container}} / {{weightRange}}?",
+    "deletePort": "Вы уверены, что хотите удалить порт \"{{name}}\"?",
+    "deletePrice": "Вы уверены, что хотите удалить эту цену?"
+  },
+  "placeholders": {
+    "emailContent": "Вставьте содержимое письма сюда...",
+    "rejectionReason": "Напр.: Цена слишком высокая по сравнению с текущим рынком...",
+    "portName": "напр.: Shanghai, Ningbo, Constanta",
+    "portCode": "напр.: CNSHA, ROCON",
+    "portCountry": "напр.: China, Romania, Ukraine",
+    "emailAddress": "Ваш адрес email"
+  },
+  "validation": {
+    "emailRequired": "Адрес email обязателен",
+    "passwordRequired": "Пароль обязателен",
+    "nameRequired": "Имя обязательно",
+    "fieldRequired": "Поле {{field}} обязательно",
+    "minLength": "Минимум {{min}} символов",
+    "maxLength": "Максимум {{max}} символов",
+    "invalidFormat": "Неверный формат"
   },
   "calculator": {
     "title": "Калькулятор цен",

@@ -24,6 +24,24 @@
   --color-accent-900: #005c46;
 }
 
+/* Reduced motion support — vestibular accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Focus-visible global outline */
+:focus-visible {
+  outline: 2px solid var(--border-focus, #2e5c7f);
+  outline-offset: 2px;
+}
+
 @layer base {
   :root {
     --bg-primary: #ffffff;

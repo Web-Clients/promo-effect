@@ -151,7 +151,45 @@
     "invalidEmail": "Invalid email",
     "invalidPassword": "Invalid password",
     "loadingFailed": "Loading failed",
-    "saveFailed": "Save failed"
+    "saveFailed": "Save failed",
+    "loadingData": "Error loading data",
+    "saving": "Error saving",
+    "deleting": "Error deleting",
+    "loadingPorts": "Error loading ports",
+    "loadingPrices": "Error loading prices",
+    "emailProcessing": "Error processing emails",
+    "gpsLocation": "Error retrieving GPS location",
+    "gpsAssign": "Error assigning vehicle",
+    "emailEmpty": "Email content cannot be empty.",
+    "emailInvalidJson": "Received an invalid JSON response from AI.",
+    "verificationFailed": "Email verification failed. The token may have expired.",
+    "verificationTokenMissing": "Verification token missing",
+    "rejectionReasonRequired": "Rejection reason is required",
+    "approvePriceFailed": "Error approving price",
+    "rejectPriceFailed": "Error rejecting price"
+  },
+  "confirmations": {
+    "deleteShippingLine": "Delete configuration {{line}} - {{container}}?",
+    "deleteTransportRate": "Delete rate {{container}} / {{weightRange}}?",
+    "deletePort": "Are you sure you want to delete the port \"{{name}}\"?",
+    "deletePrice": "Are you sure you want to delete this price?"
+  },
+  "placeholders": {
+    "emailContent": "Paste the email content here...",
+    "rejectionReason": "E.g.: The price is too high compared to the current market...",
+    "portName": "e.g.: Shanghai, Ningbo, Constanta",
+    "portCode": "e.g.: CNSHA, ROCON",
+    "portCountry": "e.g.: China, Romania, Ukraine",
+    "emailAddress": "Your email address"
+  },
+  "validation": {
+    "emailRequired": "Email address is required",
+    "passwordRequired": "Password is required",
+    "nameRequired": "Name is required",
+    "fieldRequired": "The {{field}} field is required",
+    "minLength": "Minimum {{min}} characters",
+    "maxLength": "Maximum {{max}} characters",
+    "invalidFormat": "Invalid format"
   },
   "calculator": {
     "title": "Price Calculator",

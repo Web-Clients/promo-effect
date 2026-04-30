@@ -151,7 +151,45 @@
     "invalidEmail": "Email invalid",
     "invalidPassword": "Parolă invalidă",
     "loadingFailed": "Încărcare eșuată",
-    "saveFailed": "Salvare eșuată"
+    "saveFailed": "Salvare eșuată",
+    "loadingData": "Eroare la încărcarea datelor",
+    "saving": "Eroare la salvare",
+    "deleting": "Eroare la ștergere",
+    "loadingPorts": "Eroare la încărcarea porturilor",
+    "loadingPrices": "Eroare la încărcarea prețurilor",
+    "emailProcessing": "Eroare la procesarea email-urilor",
+    "gpsLocation": "Eroare la obținerea locației GPS",
+    "gpsAssign": "Eroare la atribuirea vehiculului",
+    "emailEmpty": "Conținutul emailului nu poate fi gol.",
+    "emailInvalidJson": "Am primit un răspuns JSON invalid de la AI.",
+    "verificationFailed": "Verificare email eșuată. Token-ul poate fi expirat.",
+    "verificationTokenMissing": "Token de verificare lipsă",
+    "rejectionReasonRequired": "Motivul respingerii este obligatoriu",
+    "approvePriceFailed": "Eroare la aprobare",
+    "rejectPriceFailed": "Eroare la respingere"
+  },
+  "confirmations": {
+    "deleteShippingLine": "Ștergeți configurația {{line}} - {{container}}?",
+    "deleteTransportRate": "Ștergeți rata {{container}} / {{weightRange}}?",
+    "deletePort": "Sigur doriți să ștergeți portul \"{{name}}\"?",
+    "deletePrice": "Sigur doriți să ștergeți acest preț?"
+  },
+  "placeholders": {
+    "emailContent": "Lipiți conținutul emailului aici...",
+    "rejectionReason": "Ex: Prețul este prea mare comparativ cu piața actuală...",
+    "portName": "ex: Shanghai, Ningbo, Constanta",
+    "portCode": "ex: CNSHA, ROCON",
+    "portCountry": "ex: China, Romania, Ukraine",
+    "emailAddress": "Adresa ta de email"
+  },
+  "validation": {
+    "emailRequired": "Adresa de email este obligatorie",
+    "passwordRequired": "Parola este obligatorie",
+    "nameRequired": "Numele este obligatoriu",
+    "fieldRequired": "Câmpul {{field}} este obligatoriu",
+    "minLength": "Minim {{min}} caractere",
+    "maxLength": "Maxim {{max}} caractere",
+    "invalidFormat": "Format invalid"
   },
   "calculator": {
     "title": "Calculator Preț",

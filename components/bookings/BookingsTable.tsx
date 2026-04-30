@@ -13,6 +13,7 @@ import { BookingResponse } from '../../services/bookings';
 import { TlxBadge, DocBadge, StatusBadge } from './BookingsBadges';
 import { Button } from '../ui/Button';
 import { PlusIcon, FileTextIcon } from '../icons';
+import { SkeletonTableRow } from '../ui/Skeleton';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -88,9 +89,16 @@ export const BookingsTable: React.FC<BookingsTableProps> = ({
 
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 p-12 flex flex-col items-center justify-center">
-        <div className="w-10 h-10 border-4 border-primary-800 border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-neutral-500 dark:text-neutral-400">{t('bookings.loadingBookings')}</p>
+      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full" aria-label={t('bookings.loadingBookings')} aria-busy="true">
+            <tbody>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <SkeletonTableRow key={i} cols={12} />
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   }
@@ -105,7 +113,9 @@ export const BookingsTable: React.FC<BookingsTableProps> = ({
           {t('bookings.noBookings')}
         </h3>
         <p className="text-neutral-500 dark:text-neutral-400 text-center max-w-md mb-4">
-          {activeTab !== 'all' ? `${t('bookings.noBookingsInTab')} "${tabLabel}"` : t('bookings.createFirst')}
+          {activeTab !== 'all'
+            ? `${t('bookings.noBookingsInTab')} "${tabLabel}"`
+            : t('bookings.createFirst')}
         </p>
         {activeTab === 'all' && onNewBooking && (
           <Button variant="accent" onClick={onNewBooking}>
@@ -152,9 +162,10 @@ export const BookingsTable: React.FC<BookingsTableProps> = ({
               const containerNumber = getContainerNumber(b);
               const tlx = hasTelexRelease(b);
               const doc = hasDocuments(b);
-              const route = b.portOrigin && b.portDestination
-                ? `${b.portOrigin} → ${b.portDestination}`
-                : b.portDestination || '—';
+              const route =
+                b.portOrigin && b.portDestination
+                  ? `${b.portOrigin} → ${b.portDestination}`
+                  : b.portDestination || '—';
 
               return (
                 <tr
@@ -250,9 +261,7 @@ export const BookingsTable: React.FC<BookingsTableProps> = ({
                   <td className="p-4">
                     <StatusBadge
                       status={b.status}
-                      label={
-                        STATUS_I18N_KEYS[b.status] ? t(STATUS_I18N_KEYS[b.status]) : b.status
-                      }
+                      label={STATUS_I18N_KEYS[b.status] ? t(STATUS_I18N_KEYS[b.status]) : b.status}
                     />
                   </td>
                 </tr>

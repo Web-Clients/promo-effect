@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from './ui/Button';
 import { useToast } from './ui/Toast';
 import agentPortalService, { PendingPriceWithAgent, ApprovalStats } from '../services/agentPortal';
@@ -46,6 +47,7 @@ const RefreshIcon = () => (
 );
 
 const AdminPriceApproval: React.FC = () => {
+  const { t } = useTranslation();
   const [pendingPrices, setPendingPrices] = useState<PendingPriceWithAgent[]>([]);
   const [stats, setStats] = useState<ApprovalStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -91,7 +93,7 @@ const AdminPriceApproval: React.FC = () => {
       addToast('Prețul a fost aprobat', 'success');
       loadData();
     } catch (err: unknown) {
-      addToast(getErrorMessage(err, 'Eroare la aprobare'), 'error');
+      addToast(getErrorMessage(err, t('errors.approvePriceFailed')), 'error');
     } finally {
       setProcessingId(null);
     }
@@ -105,7 +107,7 @@ const AdminPriceApproval: React.FC = () => {
 
   const handleReject = async () => {
     if (!rejectingPriceId || !rejectionReason.trim()) {
-      addToast('Motivul respingerii este obligatoriu', 'error');
+      addToast(t('errors.rejectionReasonRequired'), 'error');
       return;
     }
 
@@ -119,7 +121,7 @@ const AdminPriceApproval: React.FC = () => {
       setRejectionReason('');
       loadData();
     } catch (err: unknown) {
-      addToast(getErrorMessage(err, 'Eroare la respingere'), 'error');
+      addToast(getErrorMessage(err, t('errors.rejectPriceFailed')), 'error');
     } finally {
       setProcessingId(null);
     }
@@ -345,7 +347,7 @@ const AdminPriceApproval: React.FC = () => {
                 onChange={(e) => setRejectionReason(e.target.value)}
                 className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 rounded-lg resize-none"
                 rows={4}
-                placeholder="Ex: Prețul este prea mare comparativ cu piața actuală..."
+                placeholder={t('placeholders.rejectionReason')}
                 autoFocus
               />
             </div>
@@ -359,7 +361,7 @@ const AdminPriceApproval: React.FC = () => {
                   setRejectionReason('');
                 }}
               >
-                Anulează
+                {t('actions.cancel')}
               </Button>
               <Button
                 variant="danger"

@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import shippingLinesService, { TransportRate, TransportRateInput } from '../services/shippingLines';
 import { getErrorMessage } from '../utils/formatters';
 
@@ -66,6 +67,7 @@ const XIcon = () => (
 );
 
 export default function TransportRatesPage() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<TransportRate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -108,7 +110,7 @@ export default function TransportRatesPage() {
       setItems(data);
       setError(null);
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Eroare la încărcarea datelor'));
+      setError(getErrorMessage(err, t('errors.loadingData')));
     } finally {
       setLoading(false);
     }
@@ -134,7 +136,7 @@ export default function TransportRatesPage() {
       resetForm();
       loadData();
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Eroare la salvare'));
+      setError(getErrorMessage(err, t('errors.saving')));
     }
     setTimeout(() => setSuccess(null), 3000);
   };
@@ -152,13 +154,13 @@ export default function TransportRatesPage() {
   };
 
   const handleDelete = async (item: TransportRate) => {
-    if (!confirm(`Ștergeți rata ${item.containerType} / ${item.weightRange}?`)) return;
+    if (!confirm(t('confirmations.deleteTransportRate', { container: item.containerType, weightRange: item.weightRange }))) return;
     try {
       await shippingLinesService.deleteTransportRate(item.id);
       setSuccess('Rată ștearsă');
       loadData();
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Eroare la ștergere'));
+      setError(getErrorMessage(err, t('errors.deleting')));
     }
     setTimeout(() => setSuccess(null), 3000);
   };
@@ -207,7 +209,7 @@ export default function TransportRatesPage() {
       setEditingCell(null);
       loadData();
     } catch (err: unknown) {
-      setError(getErrorMessage(err));
+      setError(getErrorMessage(err, t('errors.saving')));
     }
   };
 
@@ -392,7 +394,7 @@ export default function TransportRatesPage() {
                 className="flex items-center gap-2 px-4 py-2 bg-primary-700 text-white rounded-lg hover:bg-primary-800 transition-colors text-sm font-medium"
               >
                 <SaveIcon />
-                {editingId ? 'Salvează' : 'Adaugă'}
+                {editingId ? t('actions.save') : t('actions.add')}
               </button>
               <button
                 type="button"
@@ -400,7 +402,7 @@ export default function TransportRatesPage() {
                 className="flex items-center gap-2 px-4 py-2 bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 rounded-lg hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors text-sm"
               >
                 <XIcon />
-                Anulează
+                {t('actions.cancel')}
               </button>
             </div>
           </form>

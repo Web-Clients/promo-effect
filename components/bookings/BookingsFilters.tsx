@@ -7,16 +7,16 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../../lib/utils';
-import { SearchIcon, RefreshCwIcon, DownloadIcon } from '../icons';
+import { SearchIcon, RefreshCwIcon, DownloadIcon, XIcon } from '../icons';
 import { Button } from '../ui/Button';
 
 export const BOOKING_TABS = [
-  { key: 'all',       labelKey: 'bookings.tabAll' },
-  { key: 'loading',   labelKey: 'bookings.tabLoading' },
-  { key: 'transit',   labelKey: 'bookings.tabTransit' },
-  { key: 'port',      labelKey: 'bookings.tabPort' },
+  { key: 'all', labelKey: 'bookings.tabAll' },
+  { key: 'loading', labelKey: 'bookings.tabLoading' },
+  { key: 'transit', labelKey: 'bookings.tabTransit' },
+  { key: 'port', labelKey: 'bookings.tabPort' },
   { key: 'delivered', labelKey: 'bookings.tabDelivered' },
-  { key: 'archive',   labelKey: 'bookings.tabArchive' },
+  { key: 'archive', labelKey: 'bookings.tabArchive' },
 ] as const;
 
 export type TabKey = (typeof BOOKING_TABS)[number]['key'];
@@ -79,8 +79,18 @@ export const BookingsFilters: React.FC<BookingsFiltersProps> = ({
             placeholder={t('bookings.searchPlaceholder')}
             value={searchInput}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-neutral-50 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all"
+            className="w-full pl-12 pr-10 py-3 bg-neutral-50 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all"
           />
+          {searchInput && (
+            <button
+              type="button"
+              onClick={() => onSearchChange('')}
+              aria-label={t('common.clearSearch')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors"
+            >
+              <XIcon className="h-4 w-4" />
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -92,7 +102,12 @@ export const BookingsFilters: React.FC<BookingsFiltersProps> = ({
           >
             <RefreshCwIcon className="h-5 w-5" />
           </Button>
-          <Button variant="secondary" size="icon" className="!h-[46px] !w-[46px]" title={t('common.export')}>
+          <Button
+            variant="secondary"
+            size="icon"
+            className="!h-[46px] !w-[46px]"
+            title={t('common.export')}
+          >
             <DownloadIcon className="h-5 w-5" />
           </Button>
         </div>

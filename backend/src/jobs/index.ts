@@ -1,6 +1,6 @@
 /**
  * Background Jobs Manager
- * 
+ *
  * Centralized management for all cron jobs
  */
 
@@ -8,6 +8,7 @@ import { startEmailFetcherJob, stopEmailFetcherJob } from './email-fetcher.job';
 import { startContainerSyncJob, stopContainerSyncJob } from './container-sync.job';
 import { startPaymentRemindersJob, stopPaymentRemindersJob } from './payment-reminders.job';
 import { startDailyReportJob, stopDailyReportJob } from './daily-report.job';
+import { startAuthCleanupJob, stopAuthCleanupJob } from './auth-cleanup.job';
 
 /**
  * Start all background jobs
@@ -20,6 +21,7 @@ export function startAllJobs() {
   startContainerSyncJob();
   startPaymentRemindersJob();
   startDailyReportJob();
+  startAuthCleanupJob(); // B7: cleanup expired reset tokens + B1: cleanup revoked sessions
 
   console.log('✅ All background jobs started');
 }
@@ -34,6 +36,7 @@ export function stopAllJobs() {
   stopContainerSyncJob();
   stopPaymentRemindersJob();
   stopDailyReportJob();
+  stopAuthCleanupJob();
 
   console.log('✅ All background jobs stopped');
 }
@@ -74,6 +77,10 @@ export function getJobsStatus(): JobStatus[] {
       schedule: 'Daily at 6:00 PM (0 18 * * *)',
       enabled: true,
     },
+    {
+      name: 'Auth Cleanup',
+      schedule: 'Daily at 03:00 AM (0 3 * * *)',
+      enabled: true,
+    },
   ];
 }
-

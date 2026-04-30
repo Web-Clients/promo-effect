@@ -1,341 +1,204 @@
+/**
+ * BookingsList — Phase A4/A5 (orchestrator ~150 lines)
+ *
+ * Page central Rezervări. Extracts logic into:
+ * - BookingsFilters (search + tabs)
+ * - BookingsTable (table render)
+ * - BookingsBulkActions (bulk bar)
+ * Tabs: TOATE | LA INCARCARE | IN DRUM | PORT | LIVRATE | ARHIVĂ
+ */
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { User, UserRole } from '../types';
+import { User } from '../types';
 import { Button } from './ui/Button';
-import {
-  PlusIcon,
-  SearchIcon,
-  DownloadIcon,
-  RefreshCwIcon,
-  FileTextIcon,
-  TrashIcon,
-  XIcon,
-} from './icons';
+import { PlusIcon } from './icons';
 import { useToast } from './ui/Toast';
-import bookingsService, { BookingResponse } from '../services/bookings';
+import bookingsService, { BookingResponse, BookingFilters } from '../services/bookings';
 import invoicesService from '../services/invoices';
-import { cn } from '../lib/utils';
 import { getErrorMessage } from '../utils/formatters';
-import { BookingFilters } from '../services/bookings';
 
-const STATUS_I18N_KEYS: { [key: string]: string } = {
-  DRAFT: 'status.pending',
-  PENDING: 'status.pending',
-  SUBMITTED: 'status.processing',
-  CONFIRMED: 'status.confirmed',
-  IN_TRANSIT: 'status.inTransit',
-  DELIVERED: 'status.delivered',
-  CANCELLED: 'status.cancelled',
-};
+import { BookingsFilters, BOOKING_TABS, TabKey } from './bookings/BookingsFilters';
+import { BookingsTable } from './bookings/BookingsTable';
+import { BookingsBulkActions } from './bookings/BookingsBulkActions';
 
-// Status colors for new design
-const statusColors: { [key: string]: string } = {
-  DRAFT: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-700 dark:text-neutral-300',
-  PENDING: 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400',
-  SUBMITTED: 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400',
-  CONFIRMED: 'bg-info-100 text-info-700 dark:bg-info-500/20 dark:text-info-400',
-  IN_TRANSIT: 'bg-warning-100 text-warning-700 dark:bg-warning-500/20 dark:text-warning-400',
-  DELIVERED: 'bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-500',
-  CANCELLED: 'bg-error-50 text-error-700 dark:bg-error-500/20 dark:text-error-400',
-};
+// ─── Tab → status mapping ────────────────────────────────────────────────────
 
-// Tab definitions for the consolidated view
-const BOOKING_TABS = [
-  { key: 'all', labelKey: 'bookings.tabAll' },
-  { key: 'loading', labelKey: 'bookings.tabLoading' },
-  { key: 'transit', labelKey: 'bookings.tabTransit' },
-  { key: 'port', labelKey: 'bookings.tabPort' },
-  { key: 'delivered', labelKey: 'bookings.tabDelivered' },
-] as const;
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
-type TabKey = (typeof BOOKING_TABS)[number]['key'];
+function filterByTab(bookings: BookingResponse[], tab: TabKey): BookingResponse[] {
+  const now = new Date();
 
-// Map tab keys to booking statuses
-const TAB_STATUS_MAP: Record<TabKey, string[]> = {
-  all: [],
-  loading: ['DRAFT', 'PENDING', 'SUBMITTED', 'CONFIRMED'],
-  transit: ['IN_TRANSIT'],
-  port: [], // Special: IN_TRANSIT with portDestination matching (arrived at port)
-  delivered: ['DELIVERED'],
-};
+  if (tab === 'all') return bookings;
 
-// Helper: get BL number from booking (from containers or direct field)
-function getBlNumber(b: BookingResponse): string {
-  if (b.blNumber) return b.blNumber;
-  if (b.containers && b.containers.length > 0 && b.containers[0].blNumber) {
-    return b.containers[0].blNumber;
+  if (tab === 'loading') {
+    return bookings.filter((b) =>
+      ['DRAFT', 'PENDING', 'SUBMITTED', 'CONFIRMED'].includes(b.status)
+    );
   }
-  return '';
-}
 
-// Helper: get container number from booking
-function getContainerNumber(b: BookingResponse): string {
-  if (b.containerNumber) return b.containerNumber;
-  if (b.containers && b.containers.length > 0 && b.containers[0].containerNumber) {
-    return b.containers[0].containerNumber;
+  if (tab === 'transit') {
+    // IN_TRANSIT without arrivalDateConstanta set
+    return bookings.filter((b) => b.status === 'IN_TRANSIT' && !(b as any).arrivalDateConstanta);
   }
-  return '';
-}
 
-// Helper: check if documents are uploaded
-function hasDocuments(b: BookingResponse): boolean {
-  return !!(b.documents && b.documents.length > 0);
-}
-
-// Helper: check telex release
-function hasTelexRelease(b: BookingResponse): boolean {
-  if (b.telexRelease) return true;
-  if (b.containers && b.containers.length > 0 && b.containers[0].telexRelease) {
-    return true;
+  if (tab === 'port') {
+    // IN_TRANSIT with arrivalDateConstanta set, or ARRIVED
+    return bookings.filter((b) => {
+      if (b.status === 'IN_TRANSIT' && (b as any).arrivalDateConstanta) return true;
+      if (
+        b.containers?.length &&
+        ['ARRIVED', 'DISCHARGED'].includes(
+          b.containers[0].currentStatus || b.containers[0].status || ''
+        )
+      )
+        return true;
+      return false;
+    });
   }
-  return false;
+
+  if (tab === 'delivered') {
+    return bookings.filter(
+      (b) =>
+        b.status === 'DELIVERED' && now.getTime() - new Date(b.createdAt).getTime() < THIRTY_DAYS_MS
+    );
+  }
+
+  if (tab === 'archive') {
+    return bookings.filter(
+      (b) =>
+        b.status === 'CANCELLED' ||
+        (b.status === 'DELIVERED' &&
+          now.getTime() - new Date(b.createdAt).getTime() >= THIRTY_DAYS_MS)
+    );
+  }
+
+  return bookings;
 }
+
+function countTabs(bookings: BookingResponse[]): Record<TabKey, number> {
+  return {
+    all: bookings.length,
+    loading: filterByTab(bookings, 'loading').length,
+    transit: filterByTab(bookings, 'transit').length,
+    port: filterByTab(bookings, 'port').length,
+    delivered: filterByTab(bookings, 'delivered').length,
+    archive: filterByTab(bookings, 'archive').length,
+  };
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 const BookingsList = ({ user }: { user: User }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { addToast } = useToast();
+
   const [activeTab, setActiveTab] = useState<TabKey>('all');
+  const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [bookings, setBookings] = useState<BookingResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string>('');
-  const { addToast } = useToast();
-  const navigate = useNavigate();
+  const [error, setError] = useState('');
 
-  // Load all bookings from API (we filter client-side by tab)
+  // Debounce search
   useEffect(() => {
-    const loadBookings = async () => {
-      setIsLoading(true);
-      setError('');
+    const t = setTimeout(() => setSearchTerm(searchInput), 500);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
-      try {
-        const filters: BookingFilters = {
-          limit: 100,
-          offset: 0,
-        };
+  // Load bookings
+  const loadBookings = async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      const filters: BookingFilters = { limit: 100, offset: 0 };
+      if (searchTerm) filters.search = searchTerm;
+      const res = await bookingsService.getBookings(filters);
+      setBookings(res.bookings);
+    } catch (err) {
+      const msg = getErrorMessage(err, 'Eroare la încărcarea rezervărilor');
+      setError(msg);
+      addToast(msg, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-        if (searchTerm) {
-          filters.search = searchTerm;
-        }
-
-        const response = await bookingsService.getBookings(filters);
-        setBookings(response.bookings);
-      } catch (err: unknown) {
-        const msg = getErrorMessage(err, 'Eroare la încărcarea rezervărilor');
-        setError(msg);
-        addToast(msg, 'error');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
+  useEffect(() => {
     loadBookings();
-  }, [searchTerm, addToast]);
+  }, [searchTerm]); // eslint-disable-line
 
-  // Filter bookings by active tab
-  const filteredBookings = useMemo(() => {
-    if (activeTab === 'all') return bookings;
+  const filteredBookings = useMemo(() => filterByTab(bookings, activeTab), [bookings, activeTab]);
+  const tabCounts = useMemo(() => countTabs(bookings), [bookings]);
 
-    if (activeTab === 'port') {
-      // Port tab: IN_TRANSIT bookings where status indicates arrival at port
-      // or CONFIRMED with ETA in the past (likely at port)
-      return bookings.filter((b) => {
-        // Check container-level status if available
-        if (b.containers && b.containers.length > 0) {
-          const containerStatus = b.containers[0].currentStatus || b.containers[0].status;
-          if (['ARRIVED', 'DISCHARGED'].includes(containerStatus)) return true;
-        }
-        // Fallback: IN_TRANSIT with destination port Constanta and past ETA
-        if (b.status === 'IN_TRANSIT' && b.eta) {
-          const eta = new Date(b.eta);
-          const now = new Date();
-          if (eta <= now) return true;
-        }
-        return false;
-      });
-    }
+  const handleSelectAll = (checked: boolean) =>
+    setSelectedRows(checked ? filteredBookings.map((b) => b.id) : []);
 
-    const allowedStatuses = TAB_STATUS_MAP[activeTab];
-    return bookings.filter((b) => allowedStatuses.includes(b.status));
-  }, [bookings, activeTab]);
-
-  // Count per tab
-  const tabCounts = useMemo(() => {
-    const counts: Record<TabKey, number> = {
-      all: 0,
-      loading: 0,
-      transit: 0,
-      port: 0,
-      delivered: 0,
-    };
-    counts.all = bookings.length;
-
-    for (const b of bookings) {
-      if (TAB_STATUS_MAP.loading.includes(b.status)) counts.loading++;
-      if (TAB_STATUS_MAP.transit.includes(b.status)) counts.transit++;
-      if (TAB_STATUS_MAP.delivered.includes(b.status)) counts.delivered++;
-
-      // Port logic
-      if (b.containers && b.containers.length > 0) {
-        const containerStatus = b.containers[0].currentStatus || b.containers[0].status;
-        if (['ARRIVED', 'DISCHARGED'].includes(containerStatus)) {
-          counts.port++;
-          continue;
-        }
-      }
-      if (b.status === 'IN_TRANSIT' && b.eta) {
-        const eta = new Date(b.eta);
-        if (eta <= new Date()) counts.port++;
-      }
-    }
-
-    return counts;
-  }, [bookings]);
-
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedRows(filteredBookings.map((b) => b.id));
-    } else {
-      setSelectedRows([]);
-    }
-  };
-
-  const handleSelectRow = (id: string, checked: boolean) => {
-    if (checked) {
-      setSelectedRows((prev) => [...prev, id]);
-    } else {
-      setSelectedRows((prev) => prev.filter((rowId) => rowId !== id));
-    }
-  };
-
-  const refreshBookings = async () => {
-    const filters: BookingFilters = { limit: 100, offset: 0 };
-    if (searchTerm) filters.search = searchTerm;
-    const response = await bookingsService.getBookings(filters);
-    setBookings(response.bookings);
-  };
+  const handleSelectRow = (id: string, checked: boolean) =>
+    setSelectedRows((prev) => (checked ? [...prev, id] : prev.filter((r) => r !== id)));
 
   const bulkAction = async (action: string) => {
     if (action === 'generateInvoices') {
-      const selectedBookings = bookings.filter((b) => selectedRows.includes(b.id));
-      let successCount = 0;
-      let errorCount = 0;
-
-      for (const booking of selectedBookings) {
+      let ok = 0;
+      let fail = 0;
+      for (const booking of bookings.filter((b) => selectedRows.includes(b.id))) {
         try {
-          const dueDate = new Date();
-          dueDate.setDate(dueDate.getDate() + 30);
-
+          const due = new Date();
+          due.setDate(due.getDate() + 30);
           await invoicesService.createInvoice({
             bookingId: booking.id,
             clientId: booking.clientId,
-            dueDate: dueDate.toISOString(),
+            dueDate: due.toISOString(),
           });
-          successCount++;
-        } catch (err: unknown) {
-          console.error(`Failed to create invoice for ${booking.id}:`, err);
-          errorCount++;
+          ok++;
+        } catch {
+          fail++;
         }
       }
-
-      if (successCount > 0) {
-        addToast(`${successCount} facturi generate cu succes!`, 'success');
-      }
-      if (errorCount > 0) {
-        addToast(`${errorCount} facturi nu au putut fi generate (poate exista deja)`, 'error');
-      }
+      if (ok) addToast(`${ok} facturi generate cu succes!`, 'success');
+      if (fail) addToast(`${fail} facturi nu au putut fi generate`, 'error');
     } else if (action === 'delete') {
-      const confirmDelete = window.confirm(
-        `Sigur doriti sa stergeti ${selectedRows.length} ${selectedRows.length === 1 ? 'rezervare' : 'rezervari'}?`
-      );
-
-      if (!confirmDelete) {
+      if (
+        !window.confirm(
+          `Sigur doriți să ștergeți ${selectedRows.length} ${selectedRows.length === 1 ? 'rezervare' : 'rezervări'}?`
+        )
+      )
         return;
-      }
-
-      let successCount = 0;
-      let errorCount = 0;
-
-      for (const bookingId of selectedRows) {
+      let ok = 0;
+      let fail = 0;
+      for (const id of selectedRows) {
         try {
-          await bookingsService.cancelBooking(bookingId);
-          successCount++;
-        } catch (err: unknown) {
-          console.error(`Failed to delete booking ${bookingId}:`, err);
-          errorCount++;
+          await bookingsService.cancelBooking(id);
+          ok++;
+        } catch {
+          fail++;
         }
       }
-
-      if (successCount > 0) {
-        addToast(
-          `${successCount} ${successCount === 1 ? 'rezervare stearsa' : 'rezervari sterse'} cu succes!`,
-          'success'
-        );
-        await refreshBookings();
+      if (ok) {
+        addToast(`${ok} rezerv${ok === 1 ? 'are ștearsă' : 'ări șterse'} cu succes!`, 'success');
+        await loadBookings();
       }
-      if (errorCount > 0) {
-        addToast(
-          `${errorCount} ${errorCount === 1 ? 'rezervare nu a putut fi stearsa' : 'rezervari nu au putut fi sterse'}`,
-          'error'
-        );
-      }
+      if (fail)
+        addToast(`${fail} rezerv${fail === 1 ? 'are' : 'ări'} nu au putut fi șterse`, 'error');
     } else {
-      addToast(`Actiunea '${action}' nu este implementata inca.`, 'info');
+      addToast(`Acțiunea '${action}' nu este implementată încă.`, 'info');
     }
     setSelectedRows([]);
   };
 
-  // Debounced search
-  const [searchInput, setSearchInput] = useState('');
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchTerm(searchInput);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
+  const tabLabel = t(BOOKING_TABS.find((tab) => tab.key === activeTab)?.labelKey ?? '');
 
   return (
     <div className="space-y-6">
-      {/* Bulk Actions Bar */}
-      {selectedRows.length > 0 && (
-        <div className="fixed bottom-24 md:top-[80px] md:bottom-auto left-1/2 -translate-x-1/2 w-[95%] sm:w-auto z-50 animate-slide-up">
-          <div className="bg-primary-800 text-white p-4 rounded-xl shadow-xl">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-              <span className="font-medium text-sm whitespace-nowrap">
-                {selectedRows.length}{' '}
-                {selectedRows.length === 1
-                  ? t('bookings.bulkSelected_one')
-                  : t('bookings.bulkSelected_other')}
-              </span>
-              <div className="flex items-center gap-2 flex-wrap justify-center">
-                <Button variant="secondary" size="sm" onClick={() => bulkAction('export')}>
-                  <DownloadIcon className="mr-2 h-4 w-4" /> {t('bookings.exportAction')}
-                </Button>
-                <Button variant="secondary" size="sm" onClick={() => bulkAction('changeStatus')}>
-                  <RefreshCwIcon className="mr-2 h-4 w-4" /> {t('bookings.changeStatus')}
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => bulkAction('generateInvoices')}
-                >
-                  <FileTextIcon className="mr-2 h-4 w-4" /> {t('bookings.generateInvoices')}
-                </Button>
-                <Button variant="danger" size="sm" onClick={() => bulkAction('delete')}>
-                  <TrashIcon className="mr-2 h-4 w-4" /> {t('bookings.deleteAction')}
-                </Button>
-                <button
-                  onClick={() => setSelectedRows([])}
-                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                >
-                  <XIcon className="h-4 w-4 text-white" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Bulk Actions */}
+      <BookingsBulkActions
+        selectedCount={selectedRows.length}
+        onAction={bulkAction}
+        onClear={() => setSelectedRows([])}
+      />
 
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -357,340 +220,46 @@ const BookingsList = ({ user }: { user: User }) => {
         </Button>
       </div>
 
-      {/* Status Tabs + Search */}
-      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 p-5">
-        {/* Status Tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-4 -mx-5 px-5">
-          {BOOKING_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => {
-                setActiveTab(tab.key);
-                setSelectedRows([]);
-              }}
-              className={cn(
-                'px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2',
-                activeTab === tab.key
-                  ? 'bg-primary-800 text-white shadow-sm'
-                  : 'bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-600'
-              )}
-            >
-              {t(tab.labelKey)}
-              <span
-                className={cn(
-                  'inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-semibold',
-                  activeTab === tab.key
-                    ? 'bg-white/20 text-white'
-                    : 'bg-neutral-200 dark:bg-neutral-600 text-neutral-600 dark:text-neutral-300'
-                )}
-              >
-                {tabCounts[tab.key]}
-              </span>
-            </button>
-          ))}
-        </div>
+      {/* Filters + Tabs */}
+      <BookingsFilters
+        activeTab={activeTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          setSelectedRows([]);
+        }}
+        searchInput={searchInput}
+        onSearchChange={setSearchInput}
+        tabCounts={tabCounts}
+        onRefresh={loadBookings}
+      />
 
-        {/* Search Row */}
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
-            <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
-            <input
-              type="text"
-              placeholder={t('bookings.searchPlaceholder')}
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-neutral-50 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="secondary"
-              size="icon"
-              className="!h-[46px] !w-[46px]"
-              onClick={refreshBookings}
-            >
-              <RefreshCwIcon className="h-5 w-5" />
-            </Button>
-            <Button variant="secondary" size="icon" className="!h-[46px] !w-[46px]">
-              <DownloadIcon className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Error State */}
+      {/* Error */}
       {error && (
         <div className="p-4 bg-error-50 dark:bg-error-500/20 border border-error-200 dark:border-error-500/30 rounded-xl">
           <p className="text-sm text-error-700 dark:text-error-400">{error}</p>
         </div>
       )}
 
-      {/* Loading State */}
-      {isLoading ? (
-        <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 p-12 flex flex-col items-center justify-center">
-          <div className="w-10 h-10 border-4 border-primary-800 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-neutral-500 dark:text-neutral-400">{t('bookings.loadingBookings')}</p>
-        </div>
-      ) : filteredBookings.length === 0 ? (
-        /* Empty State */
-        <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 p-12 flex flex-col items-center justify-center">
-          <div className="w-16 h-16 rounded-2xl bg-neutral-100 dark:bg-neutral-700 flex items-center justify-center mb-4">
-            <FileTextIcon className="h-8 w-8 text-neutral-400" />
-          </div>
-          <h3 className="text-lg font-semibold text-primary-800 dark:text-white mb-2">
-            {t('bookings.noBookings')}
-          </h3>
-          <p className="text-neutral-500 dark:text-neutral-400 text-center max-w-md mb-4">
-            {activeTab !== 'all'
-              ? `${t('bookings.noBookingsInTab')} "${t(BOOKING_TABS.find((tab) => tab.key === activeTab)?.labelKey ?? '')}"`
-              : t('bookings.createFirst')}
-          </p>
-          {activeTab === 'all' && (
-            <Button variant="accent" onClick={() => navigate('/dashboard/bookings/new')}>
-              <PlusIcon className="mr-2 h-4 w-4" />
-              {t('bookings.createFirstBtn')}
-            </Button>
-          )}
-        </div>
-      ) : (
-        /* Bookings Table */
-        <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full" aria-label={t('bookings.title')}>
-              <thead>
-                <tr className="bg-neutral-50 dark:bg-neutral-700/50 border-b border-neutral-200 dark:border-neutral-700">
-                  <th scope="col" className="text-left p-4 w-12">
-                    <input
-                      type="checkbox"
-                      aria-label={t('bookings.selectAll')}
-                      onChange={(e) => handleSelectAll(e.target.checked)}
-                      checked={
-                        selectedRows.length > 0 && selectedRows.length === filteredBookings.length
-                      }
-                      className="w-4 h-4 rounded border-neutral-300 text-accent-500 focus:ring-accent-500"
-                    />
-                  </th>
-                  <th
-                    scope="col"
-                    className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
-                  >
-                    {t('bookings.date')}
-                  </th>
-                  <th
-                    scope="col"
-                    className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
-                  >
-                    {t('bookings.blNumber')}
-                  </th>
-                  <th
-                    scope="col"
-                    className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
-                  >
-                    {t('bookings.portDest')}
-                  </th>
-                  <th
-                    scope="col"
-                    className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
-                  >
-                    {t('bookings.shippingLineShort')}
-                  </th>
-                  <th
-                    scope="col"
-                    className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
-                  >
-                    {t('bookings.containerNumber')}
-                  </th>
-                  <th
-                    scope="col"
-                    className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
-                  >
-                    {t('bookings.weight')}
-                  </th>
-                  <th
-                    scope="col"
-                    className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
-                  >
-                    {t('bookings.type')}
-                  </th>
-                  {user.role !== UserRole.CLIENT && (
-                    <th
-                      scope="col"
-                      className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
-                    >
-                      {t('bookings.beneficiary')}
-                    </th>
-                  )}
-                  <th
-                    scope="col"
-                    className="text-right p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
-                  >
-                    {t('bookings.price')}
-                  </th>
-                  <th
-                    scope="col"
-                    className="text-center p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
-                  >
-                    TLX
-                  </th>
-                  <th
-                    scope="col"
-                    className="text-center p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
-                  >
-                    DOC
-                  </th>
-                  <th
-                    scope="col"
-                    className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
-                  >
-                    {t('bookings.status')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100 dark:divide-neutral-700">
-                {filteredBookings.map((b, index) => {
-                  const blNumber = getBlNumber(b);
-                  const containerNumber = getContainerNumber(b);
-                  const docUploaded = hasDocuments(b);
-                  const telexDone = hasTelexRelease(b);
+      {/* Table */}
+      <BookingsTable
+        bookings={filteredBookings}
+        selectedRows={selectedRows}
+        onSelectAll={handleSelectAll}
+        onSelectRow={handleSelectRow}
+        user={user}
+        isLoading={isLoading}
+        onNewBooking={() => navigate('/dashboard/bookings/new')}
+        activeTab={activeTab}
+        tabLabel={tabLabel}
+      />
 
-                  return (
-                    <tr
-                      key={b.id}
-                      onClick={() => navigate(`/dashboard/bookings/${b.id}`)}
-                      className={cn(
-                        'cursor-pointer transition-colors',
-                        'hover:bg-neutral-50 dark:hover:bg-neutral-700/30',
-                        selectedRows.includes(b.id) && 'bg-accent-50/50 dark:bg-accent-500/10'
-                      )}
-                      style={{ animationDelay: `${index * 50}ms` }}
-                    >
-                      <td className="p-4" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={selectedRows.includes(b.id)}
-                          onChange={(e) => handleSelectRow(b.id, e.target.checked)}
-                          className="w-4 h-4 rounded border-neutral-300 text-accent-500 focus:ring-accent-500"
-                        />
-                      </td>
-                      {/* Data */}
-                      <td className="p-4">
-                        <span className="text-sm text-neutral-600 dark:text-neutral-300">
-                          {new Date(b.createdAt).toLocaleDateString('ro-RO', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: '2-digit',
-                          })}
-                        </span>
-                      </td>
-                      {/* BL Nr - primary identifier */}
-                      <td className="p-4">
-                        <span className="font-mono font-semibold text-primary-800 dark:text-white text-sm">
-                          {blNumber || (
-                            <span className="text-neutral-400 font-normal italic">fara BL</span>
-                          )}
-                        </span>
-                      </td>
-                      {/* Port Dest. */}
-                      <td className="p-4">
-                        <span className="text-sm text-neutral-600 dark:text-neutral-300">
-                          {b.portDestination || 'Constanta'}
-                        </span>
-                      </td>
-                      {/* Linie */}
-                      <td className="p-4">
-                        <span className="text-sm font-medium text-neutral-700 dark:text-neutral-200">
-                          {b.shippingLine || '—'}
-                        </span>
-                      </td>
-                      {/* Container Nr */}
-                      <td className="p-4">
-                        <span className="font-mono text-sm text-neutral-600 dark:text-neutral-300">
-                          {containerNumber || '—'}
-                        </span>
-                      </td>
-                      {/* Greutate */}
-                      <td className="p-4">
-                        <span className="text-sm text-neutral-600 dark:text-neutral-300">
-                          {b.cargoWeight ? `${b.cargoWeight} kg` : '—'}
-                        </span>
-                      </td>
-                      {/* Tip container */}
-                      <td className="p-4">
-                        <span className="text-sm text-neutral-600 dark:text-neutral-300">
-                          {b.containerType || '—'}
-                        </span>
-                      </td>
-                      {/* Beneficiar (client) */}
-                      {user.role !== UserRole.CLIENT && (
-                        <td className="p-4">
-                          <span className="text-sm text-neutral-600 dark:text-neutral-300">
-                            {b.client?.companyName || 'N/A'}
-                          </span>
-                        </td>
-                      )}
-                      {/* Pret */}
-                      <td className="p-4 text-right">
-                        <span className="font-semibold text-accent-500">
-                          ${b.totalPrice.toFixed(0)}
-                        </span>
-                      </td>
-                      {/* TLX Badge */}
-                      <td className="p-4 text-center">
-                        {telexDone ? (
-                          <span className="inline-flex px-2 py-0.5 bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400 text-xs font-medium rounded">
-                            TLX
-                          </span>
-                        ) : (
-                          <span className="text-neutral-300 dark:text-neutral-600 text-xs">—</span>
-                        )}
-                      </td>
-                      {/* DOC Badge */}
-                      <td className="p-4 text-center">
-                        {docUploaded ? (
-                          <span className="inline-flex px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-400 text-xs font-medium rounded">
-                            DOC
-                          </span>
-                        ) : (
-                          <span className="text-neutral-300 dark:text-neutral-600 text-xs">—</span>
-                        )}
-                      </td>
-                      {/* Status */}
-                      <td className="p-4">
-                        <span
-                          className={cn(
-                            'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium',
-                            statusColors[b.status] || statusColors['DRAFT']
-                          )}
-                        >
-                          {STATUS_I18N_KEYS[b.status] ? t(STATUS_I18N_KEYS[b.status]) : b.status}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Table Footer */}
-          <div className="px-4 py-3 border-t border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-700/30 flex items-center justify-between">
-            <span className="text-sm text-neutral-500 dark:text-neutral-400">
-              {filteredBookings.length}{' '}
-              {filteredBookings.length === 1
-                ? t('bookings.countSingular')
-                : t('bookings.countPlural')}
-              {activeTab !== 'all' &&
-                ` ${t('common.of')} ${bookings.length} ${t('common.total').toLowerCase()}`}
-            </span>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" disabled>
-                {t('bookings.paginationPrev')}
-              </Button>
-              <Button variant="ghost" size="sm" disabled>
-                {t('bookings.paginationNext')}
-              </Button>
-            </div>
-          </div>
+      {/* Footer count */}
+      {!isLoading && filteredBookings.length > 0 && (
+        <div className="px-1 text-sm text-neutral-500 dark:text-neutral-400">
+          {filteredBookings.length}{' '}
+          {filteredBookings.length === 1 ? t('bookings.countSingular') : t('bookings.countPlural')}
+          {activeTab !== 'all' &&
+            ` ${t('common.of')} ${bookings.length} ${t('common.total').toLowerCase()}`}
         </div>
       )}
     </div>

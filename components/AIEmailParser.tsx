@@ -12,7 +12,7 @@ import { useToast } from './ui/Toast';
 import { MailIcon, SparklesIcon, CheckIcon, RefreshCwIcon, ShipIcon, PackageIcon } from './icons';
 import emailParserService, { GmailStatus, RecentEmailContainer } from '../services/emailParser';
 import { cn } from '../lib/utils';
-import { getErrorMessage } from '../utils/formatters';
+import { getErrorMessage, formatDateTime } from '../utils/formatters';
 
 const AIEmailParser: React.FC = () => {
   const { t } = useTranslation();
@@ -69,14 +69,7 @@ const AIEmailParser: React.FC = () => {
 
   const formatTime = (isoString?: string) => {
     if (!isoString) return '—';
-    const d = new Date(isoString);
-    return d.toLocaleString('ro-RO', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatDateTime(isoString);
   };
 
   const formatTimeAgo = (isoString?: string) => {

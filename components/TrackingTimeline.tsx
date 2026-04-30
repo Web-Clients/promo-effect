@@ -2,9 +2,9 @@ import React from 'react';
 import { TrackingEvent } from '../types';
 import { cn } from '../lib/utils';
 import { CheckIcon, MapPinIcon } from './icons';
+import { formatDateShort } from '../utils/formatters';
 
-const formatDate = (dateString: string) =>
-  new Date(dateString).toLocaleDateString('ro-RO', { month: 'short', day: 'numeric' });
+const formatDate = (dateString: string) => formatDateShort(dateString);
 const formatTime = (dateString: string) =>
   new Date(dateString).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
 

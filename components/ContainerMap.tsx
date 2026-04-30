@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
+import { formatDateShort } from '../utils/formatters';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -265,7 +266,7 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
             </span>
             {eta && (
               <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-                ETA: {new Date(eta).toLocaleDateString('ro-RO')}
+                ETA: {formatDateShort(eta)}
               </p>
             )}
           </div>
@@ -372,9 +373,7 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
                     <div className="mt-2 pt-2 border-t border-gray-200">
                       <p className="text-xs">
                         <span className="text-gray-500">ETA:</span>{' '}
-                        <span className="font-medium">
-                          {new Date(eta).toLocaleDateString('ro-RO')}
-                        </span>
+                        <span className="font-medium">{formatDateShort(eta)}</span>
                       </p>
                     </div>
                   )}

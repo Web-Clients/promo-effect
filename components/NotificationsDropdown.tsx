@@ -7,6 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import notificationsService, { Notification } from '../services/notifications';
 import { cn } from '../lib/utils';
+import { formatDateShort } from '../utils/formatters';
 
 // Icons
 const BellIcon = ({ className }: { className?: string }) => (
@@ -94,7 +95,7 @@ const formatTimeAgo = (dateStr: string) => {
   if (diffMins < 60) return `${diffMins} min`;
   if (diffHours < 24) return `${diffHours} ore`;
   if (diffDays < 7) return `${diffDays} zile`;
-  return date.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short' });
+  return formatDateShort(date);
 };
 
 interface NotificationsDropdownProps {

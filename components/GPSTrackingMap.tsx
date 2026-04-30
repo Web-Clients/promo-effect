@@ -6,7 +6,7 @@ import 'leaflet/dist/leaflet.css';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import gpsTrackingService, { GPSLocation, GPSVehicle } from '../services/gpsTracking';
-import { getErrorMessage } from '../utils/formatters';
+import { getErrorMessage, formatDateTime } from '../utils/formatters';
 
 // Truck icon for GPS tracking
 const truckIcon = new L.DivIcon({
@@ -128,16 +128,7 @@ const GPSTrackingMap: React.FC<GPSTrackingMapProps> = ({
   };
 
   // Format timestamp
-  const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleString('ro-RO', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const formatTimestamp = (timestamp: string) => formatDateTime(timestamp);
 
   // No vehicle assigned - show assignment UI for admin
   if (!vehicleId) {

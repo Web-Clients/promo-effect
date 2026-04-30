@@ -5,7 +5,7 @@ import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { useToast } from './ui/Toast';
 import usersService, { User, UserFilters } from '../services/users';
-import { getErrorMessage } from '../utils/formatters';
+import { getErrorMessage, formatDateTime } from '../utils/formatters';
 
 interface CurrentUserShape {
   id: string | number;
@@ -131,13 +131,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) => {
 
   const formatDate = (date?: string) => {
     if (!date) return '-';
-    return new Date(date).toLocaleDateString('ro-RO', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatDateTime(date);
   };
 
   return (

@@ -9,7 +9,7 @@ import { Button } from './ui/Button';
 import { useToast } from './ui/Toast';
 import agentPortalService, { PendingPriceWithAgent, ApprovalStats } from '../services/agentPortal';
 import { cn } from '../lib/utils';
-import { getErrorMessage } from '../utils/formatters';
+import { getErrorMessage, formatDateShort } from '../utils/formatters';
 
 // Icons
 const CheckIcon = () => (
@@ -281,11 +281,11 @@ const AdminPriceApproval: React.FC = () => {
                     {/* Additional Info */}
                     <div className="flex flex-wrap items-center gap-4 mt-3 text-sm">
                       <span className="text-neutral-500">
-                        Valid: {new Date(price.validFrom).toLocaleDateString('ro-RO')} -{' '}
-                        {new Date(price.validUntil).toLocaleDateString('ro-RO')}
+                        Valid: {formatDateShort(price.validFrom)} -{' '}
+                        {formatDateShort(price.validUntil)}
                       </span>
                       <span className="text-neutral-500">
-                        Plecare: {new Date(price.departureDate).toLocaleDateString('ro-RO')}
+                        Plecare: {formatDateShort(price.departureDate)}
                       </span>
                       {price.reason && (
                         <span className="text-neutral-500 italic">"{price.reason}"</span>

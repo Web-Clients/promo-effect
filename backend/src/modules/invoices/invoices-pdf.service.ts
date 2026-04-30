@@ -4,6 +4,11 @@ import { storageService } from '../../services/storage.service';
 import notificationService from '../../services/notification.service';
 import logger from '../../utils/logger';
 
+const formatDateRO = (date: Date | string): string =>
+  new Intl.DateTimeFormat('ro-RO', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(
+    typeof date === 'string' ? new Date(date) : date
+  );
+
 // ============================================
 // PDF GENERATION SERVICE
 // ============================================
@@ -97,13 +102,13 @@ export async function notifyInvoiceSent(invoice: any, pdfUrl: string | null): Pr
           bookingId: invoice.bookingId,
           type: 'INVOICE_SENT',
           title: `Factură ${invoice.invoiceNumber}`,
-          message: `Factura ${invoice.invoiceNumber} în valoare de ${invoice.totalAmount || invoice.amount} ${invoice.currency} a fost emisă. Data scadență: ${new Date(invoice.dueDate).toLocaleDateString('ro-RO')}.`,
+          message: `Factura ${invoice.invoiceNumber} în valoare de ${invoice.totalAmount || invoice.amount} ${invoice.currency} a fost emisă. Data scadență: ${formatDateRO(invoice.dueDate)}.`,
           channels: { email: true, sms: false, whatsapp: false, push: true },
           templateData: {
             invoiceNumber: invoice.invoiceNumber,
             amount: invoice.totalAmount || invoice.amount,
             currency: invoice.currency,
-            dueDate: new Date(invoice.dueDate).toLocaleDateString('ro-RO'),
+            dueDate: formatDateRO(invoice.dueDate),
             clientName: invoice.client.companyName,
             pdfUrl: pdfUrl || undefined,
           },
@@ -143,8 +148,8 @@ export async function notifyPaymentReceived(
         ? `Factură ${updatedInvoice.invoiceNumber} - Plătită Complet`
         : `Plată Primită pentru Factura ${updatedInvoice.invoiceNumber}`,
       message: isFullyPaid
-        ? `Factura ${updatedInvoice.invoiceNumber} a fost plătită complet.\n\nSuma plătită: ${paymentData.amount.toFixed(2)} ${currency}\nMetodă de plată: ${paymentData.paymentMethod}\nData plății: ${new Date(paymentData.paymentDate).toLocaleDateString('ro-RO')}\n\nMulțumim pentru plată!`
-        : `Am primit o plată pentru factura ${updatedInvoice.invoiceNumber}.\n\nSuma plătită: ${paymentData.amount.toFixed(2)} ${currency}\nTotal plătit: ${totalPaid.toFixed(2)} ${currency}\nRest de plată: ${(totalAmount - totalPaid).toFixed(2)} ${currency}\nMetodă de plată: ${paymentData.paymentMethod}\nData plății: ${new Date(paymentData.paymentDate).toLocaleDateString('ro-RO')}`,
+        ? `Factura ${updatedInvoice.invoiceNumber} a fost plătită complet.\n\nSuma plătită: ${paymentData.amount.toFixed(2)} ${currency}\nMetodă de plată: ${paymentData.paymentMethod}\nData plății: ${formatDateRO(paymentData.paymentDate)}\n\nMulțumim pentru plată!`
+        : `Am primit o plată pentru factura ${updatedInvoice.invoiceNumber}.\n\nSuma plătită: ${paymentData.amount.toFixed(2)} ${currency}\nTotal plătit: ${totalPaid.toFixed(2)} ${currency}\nRest de plată: ${(totalAmount - totalPaid).toFixed(2)} ${currency}\nMetodă de plată: ${paymentData.paymentMethod}\nData plății: ${formatDateRO(paymentData.paymentDate)}`,
       channels: { email: true, push: false, sms: false, whatsapp: false },
     });
   } catch (error) {

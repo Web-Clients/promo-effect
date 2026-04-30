@@ -23,6 +23,28 @@ if (JWT_SECRET === 'your-super-secret-jwt-key-change-in-production') {
   exit(1);
 }
 
+// Validate CSRF_SECRET before starting
+const CSRF_SECRET = process.env.CSRF_SECRET;
+if (!CSRF_SECRET || CSRF_SECRET.length < 32) {
+  logger.error('FATAL: CSRF_SECRET must be set and at least 32 characters');
+  exit(1);
+}
+if (CSRF_SECRET === JWT_SECRET) {
+  logger.error('FATAL: CSRF_SECRET must NOT be equal to JWT_SECRET');
+  exit(1);
+}
+
+// B3: Validate JWT_REFRESH_SECRET (separate secret for refresh tokens)
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+if (!JWT_REFRESH_SECRET || JWT_REFRESH_SECRET.length < 32) {
+  logger.error('FATAL: JWT_REFRESH_SECRET must be set and at least 32 characters');
+  exit(1);
+}
+if (JWT_REFRESH_SECRET === JWT_SECRET) {
+  logger.error('FATAL: JWT_REFRESH_SECRET must be different from JWT_SECRET');
+  exit(1);
+}
+
 async function startServer() {
   try {
     // Test database connection

@@ -75,7 +75,7 @@ app.use(cookieParser());
 
 // CSRF protection — double-submit cookie pattern
 const { doubleCsrfProtection, generateCsrfToken } = doubleCsrf({
-  getSecret: () => process.env.CSRF_SECRET || process.env.JWT_SECRET || 'csrf-fallback-secret',
+  getSecret: () => process.env.CSRF_SECRET!,
   getSessionIdentifier: (req) => req.ip || '',
   cookieName: '__csrf',
   cookieOptions: {

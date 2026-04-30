@@ -9,6 +9,7 @@ import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import portsService, { Port, CreatePortDto } from '../services/ports';
 import { getErrorMessage } from '../utils/formatters';
+import { useConfirm } from '../hooks/useConfirm';
 
 // Icons
 const PlusIcon = () => (
@@ -185,6 +186,7 @@ const PortModal: React.FC<PortModalProps> = ({ port, portType, onClose, onSave }
 
 const AdminPortsManager: React.FC = () => {
   const { t } = useTranslation();
+  const { confirm: confirmDialog, ConfirmDialogNode } = useConfirm();
   const [originPorts, setOriginPorts] = useState<Port[]>([]);
   const [destinationPorts, setDestinationPorts] = useState<Port[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -244,13 +246,20 @@ const AdminPortsManager: React.FC = () => {
   };
 
   const handleDeletePort = async (port: Port) => {
-    if (!confirm(t('confirmations.deletePort', { name: port.name }))) return;
+    const ok = await confirmDialog({
+      title: 'Ștergeți portul?',
+      message: `Sigur doriți să ștergeți portul "${port.name}"?`,
+      variant: 'danger',
+      confirmText: 'Șterge',
+    });
+    if (!ok) return;
 
     try {
       await portsService.delete(port.id);
       await loadPorts();
     } catch (err: unknown) {
-      alert(getErrorMessage(err, t('errors.deleting')));
+      // Show error via setError instead of alert
+      setError(getErrorMessage(err, t('errors.deleting')));
     }
   };
 
@@ -358,6 +367,7 @@ const AdminPortsManager: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {ConfirmDialogNode}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

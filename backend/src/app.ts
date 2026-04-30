@@ -191,8 +191,10 @@ app.use(
   })
 );
 
-// Error handling middleware
+// Error handling middleware — uses AppError standard format (C14)
 // FIX: Using explicitly imported Request, Response, and NextFunction types to fix 'status' property not found error.
+import { AppError } from './utils/errors';
+
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   logger.error(`${req.method} ${req.path}: ${err.message}`, {
     stack: err.stack,
@@ -205,13 +207,31 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
     Sentry.captureException(err);
   }
 
+  // AppError — use its standardised format
+  if (err instanceof AppError) {
+    return res.status(err.statusCode).json(err.toJSON());
+  }
+
+  // CSRF errors
+  if ((err as any).code === 'EBADCSRFTOKEN') {
+    return res.status(403).json({
+      success: false,
+      error: { code: 'CSRF_INVALID', message: 'Invalid CSRF token' },
+    });
+  }
+
+  // Generic fallback
   const statusCode = (err as any).statusCode || 500;
-  const message = process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message;
+  const isProd = process.env.NODE_ENV === 'production';
+  const message = isProd ? 'Internal server error' : err.message;
 
   res.status(statusCode).json({
     success: false,
-    error: message,
-    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
+    error: {
+      code: 'INTERNAL_ERROR',
+      message,
+      ...(!isProd && err.stack ? { stack: err.stack } : {}),
+    },
   });
 });
 

@@ -11,6 +11,7 @@ import shippingLinesService, {
   ShippingLineContainerInput,
 } from '../services/shippingLines';
 import { getErrorMessage } from '../utils/formatters';
+import { useConfirm } from '../hooks/useConfirm';
 
 const SHIPPING_LINES = [
   'MSC',
@@ -75,6 +76,7 @@ const XIcon = () => (
 
 export default function ShippingLinesPage() {
   const { t } = useTranslation();
+  const { confirm: confirmDialog, ConfirmDialogNode } = useConfirm();
   const [items, setItems] = useState<ShippingLineContainer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -154,7 +156,13 @@ export default function ShippingLinesPage() {
   };
 
   const handleDelete = async (item: ShippingLineContainer) => {
-    if (!confirm(t('confirmations.deleteShippingLine', { line: item.shippingLine, container: item.containerType }))) return;
+    const ok = await confirmDialog({
+      title: 'Ștergeți configurația?',
+      message: `Sigur doriți să ștergeți configurația ${item.shippingLine} - ${item.containerType}?`,
+      variant: 'danger',
+      confirmText: 'Șterge',
+    });
+    if (!ok) return;
     try {
       await shippingLinesService.deleteShippingLineContainer(item.id);
       setSuccess('Configurație ștearsă');
@@ -187,6 +195,7 @@ export default function ShippingLinesPage() {
 
   return (
     <div className="space-y-6">
+      {ConfirmDialogNode}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

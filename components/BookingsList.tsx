@@ -8,7 +8,7 @@
  * Tabs: TOATE | LA INCARCARE | IN DRUM | PORT | LIVRATE | ARHIVĂ
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { User } from '../types';
@@ -18,10 +18,16 @@ import { useToast } from './ui/Toast';
 import bookingsService, { BookingResponse, BookingFilters } from '../services/bookings';
 import invoicesService from '../services/invoices';
 import { getErrorMessage } from '../utils/formatters';
+import {
+  BULK_FETCH_LIMIT,
+  DEFAULT_INVOICE_DUE_DAYS,
+  SEARCH_DEBOUNCE_MS,
+} from '../config/constants';
 
 import { BookingsFilters, BOOKING_TABS, TabKey } from './bookings/BookingsFilters';
 import { BookingsTable } from './bookings/BookingsTable';
 import { BookingsBulkActions } from './bookings/BookingsBulkActions';
+import { useConfirm } from '../hooks/useConfirm';
 
 // ─── Tab → status mapping ────────────────────────────────────────────────────
 
@@ -94,6 +100,7 @@ const BookingsList = ({ user }: { user: User }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { addToast } = useToast();
+  const { confirm: confirmDialog, ConfirmDialogNode } = useConfirm();
 
   const [activeTab, setActiveTab] = useState<TabKey>('all');
   const [searchInput, setSearchInput] = useState('');
@@ -105,7 +112,7 @@ const BookingsList = ({ user }: { user: User }) => {
 
   // Debounce search
   useEffect(() => {
-    const t = setTimeout(() => setSearchTerm(searchInput), 500);
+    const t = setTimeout(() => setSearchTerm(searchInput), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [searchInput]);
 
@@ -114,7 +121,7 @@ const BookingsList = ({ user }: { user: User }) => {
     setIsLoading(true);
     setError('');
     try {
-      const filters: BookingFilters = { limit: 100, offset: 0 };
+      const filters: BookingFilters = { limit: BULK_FETCH_LIMIT, offset: 0 };
       if (searchTerm) filters.search = searchTerm;
       const res = await bookingsService.getBookings(filters);
       setBookings(res.bookings);
@@ -140,59 +147,67 @@ const BookingsList = ({ user }: { user: User }) => {
   const handleSelectRow = (id: string, checked: boolean) =>
     setSelectedRows((prev) => (checked ? [...prev, id] : prev.filter((r) => r !== id)));
 
-  const bulkAction = async (action: string) => {
-    if (action === 'generateInvoices') {
-      let ok = 0;
-      let fail = 0;
-      for (const booking of bookings.filter((b) => selectedRows.includes(b.id))) {
-        try {
-          const due = new Date();
-          due.setDate(due.getDate() + 30);
-          await invoicesService.createInvoice({
-            bookingId: booking.id,
-            clientId: booking.clientId,
-            dueDate: due.toISOString(),
-          });
-          ok++;
-        } catch {
-          fail++;
+  const bulkAction = useCallback(
+    async (action: string) => {
+      if (action === 'generateInvoices') {
+        let ok = 0;
+        let fail = 0;
+        for (const booking of bookings.filter((b) => selectedRows.includes(b.id))) {
+          try {
+            const due = new Date();
+            due.setDate(due.getDate() + DEFAULT_INVOICE_DUE_DAYS);
+            await invoicesService.createInvoice({
+              bookingId: booking.id,
+              clientId: booking.clientId,
+              dueDate: due.toISOString(),
+            });
+            ok++;
+          } catch {
+            fail++;
+          }
         }
-      }
-      if (ok) addToast(`${ok} facturi generate cu succes!`, 'success');
-      if (fail) addToast(`${fail} facturi nu au putut fi generate`, 'error');
-    } else if (action === 'delete') {
-      if (
-        !window.confirm(
-          `Sigur doriți să ștergeți ${selectedRows.length} ${selectedRows.length === 1 ? 'rezervare' : 'rezervări'}?`
-        )
-      )
-        return;
-      let ok = 0;
-      let fail = 0;
-      for (const id of selectedRows) {
-        try {
-          await bookingsService.cancelBooking(id);
-          ok++;
-        } catch {
-          fail++;
+        if (ok) addToast(`${ok} facturi generate cu succes!`, 'success');
+        if (fail) addToast(`${fail} facturi nu au putut fi generate`, 'error');
+      } else if (action === 'delete') {
+        const confirmed = await confirmDialog({
+          title: t('bookings.deleteConfirmTitle', 'Ștergeți rezervările?'),
+          message: `Sigur doriți să ștergeți ${selectedRows.length} ${selectedRows.length === 1 ? 'rezervare' : 'rezervări'}? Această acțiune nu poate fi anulată.`,
+          variant: 'danger',
+          confirmText: t('common.delete', 'Șterge'),
+        });
+        if (!confirmed) return;
+        let ok = 0;
+        let fail = 0;
+        for (const id of selectedRows) {
+          try {
+            await bookingsService.cancelBooking(id);
+            ok++;
+          } catch {
+            fail++;
+          }
         }
+        if (ok) {
+          addToast(`${ok} rezerv${ok === 1 ? 'are ștearsă' : 'ări șterse'} cu succes!`, 'success');
+          await loadBookings();
+        }
+        if (fail)
+          addToast(`${fail} rezerv${fail === 1 ? 'are' : 'ări'} nu au putut fi șterse`, 'error');
+      } else {
+        addToast(`Acțiunea '${action}' nu este implementată încă.`, 'info');
       }
-      if (ok) {
-        addToast(`${ok} rezerv${ok === 1 ? 'are ștearsă' : 'ări șterse'} cu succes!`, 'success');
-        await loadBookings();
-      }
-      if (fail)
-        addToast(`${fail} rezerv${fail === 1 ? 'are' : 'ări'} nu au putut fi șterse`, 'error');
-    } else {
-      addToast(`Acțiunea '${action}' nu este implementată încă.`, 'info');
-    }
-    setSelectedRows([]);
-  };
+      setSelectedRows([]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [confirmDialog, selectedRows, bookings, addToast, t]
+  );
 
   const tabLabel = t(BOOKING_TABS.find((tab) => tab.key === activeTab)?.labelKey ?? '');
 
   return (
     <div className="space-y-6">
+      {/* Confirm dialog portal */}
+      {ConfirmDialogNode}
+
       {/* Bulk Actions */}
       <BookingsBulkActions
         selectedCount={selectedRows.length}

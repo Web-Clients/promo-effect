@@ -16,6 +16,7 @@ import agentPortalService, {
 import portsService from '../services/ports';
 import { cn } from '../lib/utils';
 import { getErrorMessage } from '../utils/formatters';
+import { useConfirm } from '../hooks/useConfirm';
 
 // Icons
 const PlusIcon = () => (
@@ -96,6 +97,7 @@ const FALLBACK_PORTS = ['Shanghai', 'Ningbo', 'Qingdao', 'Shenzhen', 'Guangzhou'
 
 const AgentPricesDashboard: React.FC = () => {
   const { t } = useTranslation();
+  const { confirm: confirmDialog, ConfirmDialogNode } = useConfirm();
   const [profile, setProfile] = useState<AgentProfile | null>(null);
   const [prices, setPrices] = useState<AgentPrice[]>([]);
   const [stats, setStats] = useState<AgentStats | null>(null);
@@ -226,7 +228,13 @@ const AgentPricesDashboard: React.FC = () => {
   };
 
   const handleDelete = async (priceId: string) => {
-    if (!confirm(t('confirmations.deletePrice'))) return;
+    const ok = await confirmDialog({
+      title: 'Ștergeți prețul?',
+      message: 'Sigur doriți să ștergeți acest preț?',
+      variant: 'danger',
+      confirmText: 'Șterge',
+    });
+    if (!ok) return;
 
     try {
       await agentPortalService.deletePrice(priceId);
@@ -258,6 +266,7 @@ const AgentPricesDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {ConfirmDialogNode}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

@@ -8,6 +8,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import shippingLinesService, { TransportRate, TransportRateInput } from '../services/shippingLines';
 import { getErrorMessage } from '../utils/formatters';
+import { useConfirm } from '../hooks/useConfirm';
 
 const CONTAINER_TYPES = ['20DC', '40DC', '40HC', '20RF', '40RF'];
 const DESTINATIONS = ['Constanța', 'Odessa'];
@@ -68,6 +69,7 @@ const XIcon = () => (
 
 export default function TransportRatesPage() {
   const { t } = useTranslation();
+  const { confirm: confirmDialog, ConfirmDialogNode } = useConfirm();
   const [items, setItems] = useState<TransportRate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -154,7 +156,13 @@ export default function TransportRatesPage() {
   };
 
   const handleDelete = async (item: TransportRate) => {
-    if (!confirm(t('confirmations.deleteTransportRate', { container: item.containerType, weightRange: item.weightRange }))) return;
+    const ok = await confirmDialog({
+      title: 'Ștergeți rata?',
+      message: `Sigur doriți să ștergeți rata ${item.containerType} / ${item.weightRange}?`,
+      variant: 'danger',
+      confirmText: 'Șterge',
+    });
+    if (!ok) return;
     try {
       await shippingLinesService.deleteTransportRate(item.id);
       setSuccess('Rată ștearsă');
@@ -227,6 +235,7 @@ export default function TransportRatesPage() {
 
   return (
     <div className="space-y-6">
+      {ConfirmDialogNode}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

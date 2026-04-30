@@ -1,5 +1,12 @@
-import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import { useSearchParams } from 'react-router-dom';
+/**
+ * TrackingView — orchestrator after C1 extraction.
+ *
+ * Logic moved to: useTracking.ts
+ * Sub-components (existing): StatsCards, RecentContainers, AddEventModal
+ * Shared component: TrackingTimeline, ContainerMap
+ */
+
+import React, { lazy, Suspense } from 'react';
 import { Card } from '../ui/Card';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
@@ -13,322 +20,40 @@ import {
   RefreshCwIcon,
 } from '../icons';
 import { TrackingTimeline } from '../TrackingTimeline';
-import trackingService, {
-  Container,
-  TrackingStats,
-  EventType,
-  RouteData,
-  VesselInfo,
-  ContainerLocation,
-  getStatusLabel,
-} from '../../services/tracking';
+import { getStatusLabel } from '../../services/tracking';
 import { statusVariantMap, convertToTimelineEvents } from './types';
 import AddEventModal from './AddEventModal';
 import StatsCards from './StatsCards';
 import RecentContainers from './RecentContainers';
-import { getErrorMessage } from '../../utils/formatters';
+import { useTracking } from './useTracking';
 
-// Lazy load map component to avoid issues with SSR
 const ContainerMap = lazy(() => import('../ContainerMap'));
 
 const TrackingView: React.FC = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [containerNumber, setContainerNumber] = useState(searchParams.get('container') || '');
-  const [trackingData, setTrackingData] = useState<Container | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const {
+    containerNumber,
+    setContainerNumber,
+    trackingData,
+    isLoading,
+    error,
+    stats,
+    recentContainers,
+    statsLoading,
+    listLoading,
+    eventTypes,
+    showAddEventModal,
+    setShowAddEventModal,
+    showMap,
+    setShowMap,
+    routeData,
+    vesselInfo,
+    locationInfo,
+    handleTrack,
+    handleContainerSelect,
+    handleRefresh,
+    handleEventAdded,
+  } = useTracking();
 
-  // Stats and list states
-  const [stats, setStats] = useState<TrackingStats | null>(null);
-  const [recentContainers, setRecentContainers] = useState<Container[]>([]);
-  const [statsLoading, setStatsLoading] = useState(true);
-  const [listLoading, setListLoading] = useState(true);
-
-  // Event types for modal
-  const [eventTypes, setEventTypes] = useState<EventType[]>([]);
-  const [showAddEventModal, setShowAddEventModal] = useState(false);
-
-  // Map state
-  const [showMap, setShowMap] = useState(true);
-  const [routeData, setRouteData] = useState<RouteData | null>(null);
-  const [vesselInfo, setVesselInfo] = useState<VesselInfo | null>(null);
-  const [locationInfo, setLocationInfo] = useState<ContainerLocation | null>(null);
-
-  // Load initial data
-  const loadInitialData = useCallback(async () => {
-    try {
-      setStatsLoading(true);
-      setListLoading(true);
-
-      const [statsData, containersData, typesData] = await Promise.all([
-        trackingService.getTrackingStats(),
-        trackingService.getContainers({ limit: 10 }),
-        trackingService.getEventTypes(),
-      ]);
-
-      setStats(statsData);
-      setRecentContainers(containersData.containers);
-      setEventTypes(typesData);
-    } catch (err) {
-      console.error('Failed to load tracking data:', err);
-    } finally {
-      setStatsLoading(false);
-      setListLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadInitialData();
-  }, [loadInitialData]);
-
-  // Search container
-  const performTracking = async (number: string) => {
-    if (!number.trim()) {
-      setError('Vă rugăm să introduceți un număr de container.');
-      return;
-    }
-
-    setIsLoading(true);
-    setError('');
-    setTrackingData(null);
-    setRouteData(null);
-    setVesselInfo(null);
-    setLocationInfo(null);
-
-    try {
-      const data = await trackingService.searchContainer(number.trim().toUpperCase());
-      setTrackingData(data);
-
-      // Extract extended data from SeaRates if available
-      if (data._route) {
-        setRouteData(data._route);
-      }
-      if (data._vessel) {
-        setVesselInfo(data._vessel);
-      }
-      if (data._location) {
-        setLocationInfo(data._location);
-      }
-
-      // Also try to fetch route data from public tracking endpoint
-      try {
-        const publicData = await trackingService.trackPublic(number.trim().toUpperCase(), {
-          route: true,
-        });
-        if (publicData.success && publicData.data) {
-          // Set vessel info
-          if (publicData.data.vessel) {
-            setVesselInfo(publicData.data.vessel);
-          }
-
-          // Build route from events if route.path is empty
-          let finalRoute = publicData.data.route;
-          const events = publicData.data.events;
-
-          if (events && events.length > 0) {
-            // Sort events by date (oldest first for building route)
-            const sortedEvents = [...events].sort(
-              (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-            );
-
-            // Build path from events with coordinates
-            const routePoints: Array<[number, number]> = [];
-            const pins: Array<{ coordinates: [number, number]; location?: string; type?: string }> =
-              [];
-
-            for (const event of sortedEvents) {
-              if (event.location?.latitude && event.location?.longitude) {
-                const coords: [number, number] = [
-                  event.location.longitude,
-                  event.location.latitude,
-                ];
-
-                // Add to path if not duplicate
-                const lastPoint = routePoints[routePoints.length - 1];
-                if (!lastPoint || lastPoint[0] !== coords[0] || lastPoint[1] !== coords[1]) {
-                  routePoints.push(coords);
-                }
-
-                // Add pin for significant events
-                if (
-                  event.type?.includes('LOAD') ||
-                  event.type?.includes('DISCHARGE') ||
-                  event.type?.includes('DEPARTURE') ||
-                  event.type?.includes('ARRIVAL') ||
-                  event.type?.includes('GATE')
-                ) {
-                  const existingPin = pins.find(
-                    (p) => p.coordinates[0] === coords[0] && p.coordinates[1] === coords[1]
-                  );
-                  if (!existingPin) {
-                    pins.push({
-                      coordinates: coords,
-                      location: event.location.name || event.location.city,
-                      type:
-                        event.type?.includes('LOAD') || event.type?.includes('DEPARTURE')
-                          ? 'POL'
-                          : event.type?.includes('DISCHARGE') || event.type?.includes('ARRIVAL')
-                            ? 'POD'
-                            : 'TRANSSHIPMENT',
-                    });
-                  }
-                }
-              }
-            }
-
-            // Use built route if original is empty
-            if (!finalRoute?.path || finalRoute.path.length === 0) {
-              finalRoute = {
-                path: routePoints.length >= 2 ? routePoints : [],
-                pins: pins.length > 0 ? pins : finalRoute?.pins || [],
-              };
-            }
-
-            // Find current position from last ACTUAL event (not estimated)
-            const actualEvents = sortedEvents
-              .filter((e) => e.isActual && e.location?.latitude && e.location?.longitude)
-              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-            const lastActualEvent = actualEvents[0];
-
-            // Check if vessel is currently at sea (departed but not arrived)
-            const departureEvents = actualEvents.filter(
-              (e) => e.type?.includes('DEPARTURE') || e.type?.includes('LOAD')
-            );
-            const arrivalEvents = actualEvents.filter(
-              (e) => e.type?.includes('ARRIVAL') || e.type?.includes('DISCHARGE')
-            );
-
-            const lastDeparture = departureEvents[0];
-            const lastArrival = arrivalEvents[0];
-
-            // Vessel is at sea if last departure is more recent than last arrival
-            const isAtSea =
-              lastDeparture &&
-              (!lastArrival || new Date(lastDeparture.date) > new Date(lastArrival.date));
-
-            if (isAtSea && lastDeparture?.location && publicData.data.eta) {
-              // Calculate estimated position between last departure and destination
-              const departureCoords = lastDeparture.location;
-              const destinationCoords = publicData.data.location;
-
-              if (
-                departureCoords?.latitude &&
-                departureCoords?.longitude &&
-                destinationCoords?.latitude &&
-                destinationCoords?.longitude
-              ) {
-                const departureTime = new Date(lastDeparture.date).getTime();
-                const etaTime = new Date(publicData.data.eta).getTime();
-                const nowTime = Date.now();
-
-                // Calculate progress (0 to 1)
-                const totalDuration = etaTime - departureTime;
-                const elapsed = nowTime - departureTime;
-                const progress = Math.min(Math.max(elapsed / totalDuration, 0), 0.95); // Max 95% until arrival
-
-                // Linear interpolation (simplified)
-                const estimatedLat =
-                  departureCoords.latitude +
-                  (destinationCoords.latitude - departureCoords.latitude) * progress;
-                const estimatedLng =
-                  departureCoords.longitude +
-                  (destinationCoords.longitude - departureCoords.longitude) * progress;
-
-                setLocationInfo({
-                  name: `În mare (aprox. ${Math.round(progress * 100)}% din traseu)`,
-                  city: undefined,
-                  country: undefined,
-                  latitude: estimatedLat,
-                  longitude: estimatedLng,
-                });
-              } else if (lastActualEvent?.location) {
-                setLocationInfo({
-                  name: lastActualEvent.location.name,
-                  city: lastActualEvent.location.city,
-                  country: lastActualEvent.location.country,
-                  unlocode: lastActualEvent.location.unlocode,
-                  latitude: lastActualEvent.location.latitude,
-                  longitude: lastActualEvent.location.longitude,
-                });
-              }
-            } else if (lastActualEvent?.location) {
-              // Use last actual event location as current position
-              setLocationInfo({
-                name: lastActualEvent.location.name,
-                city: lastActualEvent.location.city,
-                country: lastActualEvent.location.country,
-                unlocode: lastActualEvent.location.unlocode,
-                latitude: lastActualEvent.location.latitude,
-                longitude: lastActualEvent.location.longitude,
-              });
-            } else if (publicData.data.location) {
-              // Fallback to API location if no actual events with coords
-              setLocationInfo(publicData.data.location);
-            }
-          } else if (publicData.data.location) {
-            setLocationInfo(publicData.data.location);
-          }
-
-          if (finalRoute) {
-            setRouteData(finalRoute);
-          }
-        }
-      } catch {
-        // Ignore errors from public tracking - we already have local data
-      }
-    } catch (err: unknown) {
-      const httpErr = err as { response?: { status?: number; data?: { error?: string } } };
-      if (httpErr.response?.status === 404) {
-        setError(`Containerul "${number}" nu a fost găsit în baza de date.`);
-      } else if (httpErr.response?.status === 403) {
-        setError('Nu aveți permisiunea de a vizualiza acest container.');
-      } else {
-        setError(getErrorMessage(err, 'Eroare la căutarea containerului.'));
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle URL params
-  useEffect(() => {
-    const queryContainer = searchParams.get('container');
-    if (queryContainer) {
-      setContainerNumber(queryContainer);
-      performTracking(queryContainer);
-    }
-  }, [searchParams]);
-
-  const handleTrack = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!containerNumber.trim()) {
-      setError('Vă rugăm să introduceți un număr de container.');
-      return;
-    }
-    setSearchParams({ container: containerNumber.trim().toUpperCase() });
-  };
-
-  const handleContainerSelect = (number: string) => {
-    setContainerNumber(number);
-    setSearchParams({ container: number });
-  };
-
-  const handleRefresh = () => {
-    if (trackingData) {
-      performTracking(trackingData.containerNumber);
-    }
-    loadInitialData();
-  };
-
-  const handleEventAdded = () => {
-    if (trackingData) {
-      performTracking(trackingData.containerNumber);
-    }
-    loadInitialData();
-  };
-
-  // Convert tracking events to timeline format
   const timelineEvents = trackingData?.trackingEvents
     ? convertToTimelineEvents(trackingData.trackingEvents, trackingData.currentStatus)
     : [];
@@ -356,8 +81,8 @@ const TrackingView: React.FC = () => {
 
       {/* Search and Results */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Search Card */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Search Card */}
           <Card>
             <h4 className="text-lg font-semibold text-neutral-800 dark:text-neutral-100 mb-4">
               Caută Container
@@ -377,7 +102,7 @@ const TrackingView: React.FC = () => {
             </form>
           </Card>
 
-          {/* Error Message */}
+          {/* Error */}
           {error && (
             <div className="bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 p-4 rounded-lg flex items-center gap-3">
               <AlertCircleIcon className="h-5 w-5 flex-shrink-0" />
@@ -385,17 +110,17 @@ const TrackingView: React.FC = () => {
             </div>
           )}
 
-          {/* Loading State */}
+          {/* Loading skeleton */}
           {isLoading && (
             <Card className="animate-pulse">
               <div className="h-32 bg-neutral-200 dark:bg-neutral-700 rounded-lg" />
             </Card>
           )}
 
-          {/* Tracking Result */}
+          {/* Result card */}
           {trackingData && !isLoading && (
             <Card>
-              {/* Container Info Header */}
+              {/* Container header */}
               <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 border-b border-neutral-200 dark:border-neutral-700 pb-4 mb-4">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
                   <div>
@@ -431,7 +156,7 @@ const TrackingView: React.FC = () => {
                 </Button>
               </div>
 
-              {/* Additional Info */}
+              {/* Additional info */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div>
                   <p className="text-xs text-neutral-500 dark:text-neutral-400">Booking</p>
@@ -462,7 +187,7 @@ const TrackingView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Map Section */}
+              {/* Map */}
               {(trackingData.currentLat && trackingData.currentLng) || routeData || locationInfo ? (
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-3">
@@ -478,7 +203,7 @@ const TrackingView: React.FC = () => {
                       fallback={
                         <div className="h-[400px] bg-neutral-100 dark:bg-neutral-800 rounded-xl flex items-center justify-center">
                           <div className="text-center">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto mb-2"></div>
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto mb-2" />
                             <p className="text-sm text-neutral-500">Se încarcă harta...</p>
                           </div>
                         </div>

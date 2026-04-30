@@ -120,7 +120,13 @@ const InvoicesList: React.FC = () => {
   };
 
   const handleSendInvoice = async (id: string) => {
-    if (!confirm('Trimiteți această factură clientului?')) return;
+    const ok = await confirmDialog({
+      title: 'Trimiteți factura?',
+      message: 'Factura va fi trimisă clientului prin email.',
+      confirmText: 'Trimite',
+      variant: 'primary',
+    });
+    if (!ok) return;
 
     try {
       const result = await invoicesService.sendInvoice(id);
@@ -168,7 +174,13 @@ const InvoicesList: React.FC = () => {
   };
 
   const handleCancelInvoice = async (id: string) => {
-    const reason = prompt('Motivul anulării (opțional):');
+    const reason = await promptDialog({
+      title: 'Anulați factura?',
+      message: 'Introduceți motivul anulării (opțional):',
+      placeholder: 'ex. Comandă anulată de client',
+      confirmText: 'Anulează factura',
+      cancelText: 'Renunță',
+    });
     if (reason === null) return;
 
     try {
@@ -199,6 +211,9 @@ const InvoicesList: React.FC = () => {
 
   return (
     <div className="space-y-5">
+      {/* Confirm dialog portal */}
+      {ConfirmDialogNode}
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <h3 className="text-2xl font-semibold text-neutral-800 dark:text-neutral-100">Facturi</h3>

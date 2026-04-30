@@ -6,6 +6,7 @@
 import { Router, Request, Response } from 'express';
 import { PaymentsService } from './payments.service';
 import { authMiddleware, requireRole } from '../../middleware/auth.middleware';
+import { idempotencyMiddleware } from '../../middleware/idempotency.middleware';
 
 const router = Router();
 const paymentsService = new PaymentsService();
@@ -81,6 +82,7 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
 router.post(
   '/',
   authMiddleware,
+  idempotencyMiddleware(),
   requireRole(['ADMIN', 'SUPER_ADMIN', 'MANAGER', 'OPERATOR']),
   async (req: Request, res: Response) => {
     try {

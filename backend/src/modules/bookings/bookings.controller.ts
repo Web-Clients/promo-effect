@@ -4,6 +4,7 @@ import { authMiddleware, requireRole } from '../../middleware/auth.middleware';
 import multer from 'multer';
 import path from 'path';
 import { createBookingSchema } from '../../middleware/validate.middleware';
+import { idempotencyMiddleware } from '../../middleware/idempotency.middleware';
 import prisma from '../../lib/prisma';
 import { generateTransportOrderPDF } from './transport-order-pdf.service';
 import { generatePaymentInvoicePDF } from './payment-invoice-pdf.service';
@@ -66,7 +67,7 @@ const bookingsService = new BookingsService();
  * Auth: Required
  * Role: Any authenticated user (CLIENT, AGENT, ADMIN, etc.)
  */
-router.post('/', authMiddleware, async (req: Request, res: Response) => {
+router.post('/', authMiddleware, idempotencyMiddleware(), async (req: Request, res: Response) => {
   const parsed = createBookingSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ success: false, errors: parsed.error.flatten().fieldErrors });

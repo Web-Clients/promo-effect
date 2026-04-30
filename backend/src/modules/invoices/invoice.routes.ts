@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware, requireRole } from '../../middleware/auth.middleware';
+import { idempotencyMiddleware } from '../../middleware/idempotency.middleware';
 import invoicesService, {
   CreateInvoiceData,
   UpdateInvoiceData,
@@ -93,6 +94,7 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
 router.post(
   '/',
   authMiddleware,
+  idempotencyMiddleware(),
   requireRole(['ADMIN', 'SUPER_ADMIN', 'MANAGER']),
   async (req: Request, res: Response) => {
     const parsed = createInvoiceSchema.safeParse(req.body);

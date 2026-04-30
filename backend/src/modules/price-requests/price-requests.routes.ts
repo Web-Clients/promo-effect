@@ -7,6 +7,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import logger from '../../utils/logger';
+import { t } from '../../utils/i18n';
 
 const router = Router();
 
@@ -15,8 +16,8 @@ const router = Router();
 const priceRequestLog: any[] = [];
 
 const PriceRequestSchema = z.object({
-  name: z.string().min(1, 'Numele este obligatoriu'),
-  email: z.string().email('Email invalid'),
+  name: z.string().min(1, t('validation.nameRequired')),
+  email: z.string().email(t('validation.invalidEmail')),
   phone: z.string().optional(),
   message: z.string().optional(),
   portOrigin: z.string().optional(),

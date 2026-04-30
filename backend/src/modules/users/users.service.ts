@@ -46,12 +46,7 @@ export class UsersService {
    * Get all users with pagination and filters
    */
   async findAll(filters: UserFilters) {
-    const {
-      page = 1,
-      limit = 20,
-      role,
-      search,
-    } = filters;
+    const { page = 1, limit = 20, role, search } = filters;
 
     const skip = (page - 1) * limit;
 
@@ -75,24 +70,24 @@ export class UsersService {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        phone: true,
-        company: true,
-        role: true,
-        emailVerified: true,
-        createdAt: true,
-        updatedAt: true,
-        lastLoginAt: true,
-        lastLoginIp: true as any, // Field exists in schema
-        language: true,
-        timezone: true,
-        notificationPreferences: true,
-        twoFactorEnabled: true,
-        // Не возвращаем passwordHash, twoFactorSecret, backupCodes
-      },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          phone: true,
+          company: true,
+          role: true,
+          emailVerified: true,
+          createdAt: true,
+          updatedAt: true,
+          lastLoginAt: true,
+          lastLoginIp: true as any, // Field exists in schema
+          language: true,
+          timezone: true,
+          notificationPreferences: true,
+          twoFactorEnabled: true,
+          // Не возвращаем passwordHash, twoFactorSecret, backupCodes
+        },
       }),
       prisma.user.count({ where }),
     ]);
@@ -307,4 +302,3 @@ export class UsersService {
     };
   }
 }
-

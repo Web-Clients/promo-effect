@@ -15,34 +15,39 @@ const paymentsService = new PaymentsService();
  * List all payments with pagination and filters
  * Access: ADMIN, CONTABIL
  */
-router.get('/', authMiddleware, requireRole(['ADMIN', 'SUPER_ADMIN', 'CONTABIL']), async (req: Request, res: Response) => {
-  try {
-    const filters = {
-      page: req.query.page ? parseInt(req.query.page as string) : 1,
-      limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
-      clientId: req.query.client_id as string,
-      invoiceId: req.query.invoice_id as string,
-      method: req.query.method as string,
-      dateFrom: req.query.date_from ? new Date(req.query.date_from as string) : undefined,
-      dateTo: req.query.date_to ? new Date(req.query.date_to as string) : undefined,
-    };
+router.get(
+  '/',
+  authMiddleware,
+  requireRole(['ADMIN', 'SUPER_ADMIN', 'CONTABIL']),
+  async (req: Request, res: Response) => {
+    try {
+      const filters = {
+        page: req.query.page ? parseInt(req.query.page as string) : 1,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
+        clientId: req.query.client_id as string,
+        invoiceId: req.query.invoice_id as string,
+        method: req.query.method as string,
+        dateFrom: req.query.date_from ? new Date(req.query.date_from as string) : undefined,
+        dateTo: req.query.date_to ? new Date(req.query.date_to as string) : undefined,
+      };
 
-    const result = await paymentsService.findAll(filters);
-    res.json({
-      success: true,
-      data: result.data,
-      meta: result.meta,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to fetch payments';
-    res.status(500).json({
-      success: false,
-      error: message,
-      timestamp: new Date().toISOString(),
-    });
+      const result = await paymentsService.findAll(filters);
+      res.json({
+        success: true,
+        data: result.data,
+        meta: result.meta,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch payments';
+      res.status(500).json({
+        success: false,
+        error: message,
+        timestamp: new Date().toISOString(),
+      });
+    }
   }
-});
+);
 
 /**
  * GET /api/v1/payments/:id
@@ -190,4 +195,3 @@ router.post(
 );
 
 export default router;
-

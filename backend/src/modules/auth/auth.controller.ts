@@ -5,6 +5,7 @@ import {
   authLimiter,
   registerLimiter,
   passwordResetLimiter,
+  backupCodeLimiter,
 } from '../../middleware/rateLimit.middleware';
 import { registerSchema, loginSchema } from '../../middleware/validate.middleware';
 
@@ -300,7 +301,8 @@ router.post('/disable-2fa', authMiddleware, async (req: Request, res: Response) 
 });
 
 // POST /api/auth/complete-2fa-login
-router.post('/complete-2fa-login', async (req: Request, res: Response) => {
+// B6: backupCodeLimiter applied — backup codes are verified here; 5 failures → lockout
+router.post('/complete-2fa-login', backupCodeLimiter, async (req: Request, res: Response) => {
   try {
     const { tempToken, twoFactorCode } = req.body;
     const ipAddress = req.ip || req.socket.remoteAddress || undefined;

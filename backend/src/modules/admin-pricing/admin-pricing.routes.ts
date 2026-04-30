@@ -28,7 +28,8 @@ router.get('/base-prices', authMiddleware, adminOnly, async (req: Request, res: 
       portOrigin: req.query.portOrigin as string,
       portDestination: req.query.portDestination as string,
       containerType: req.query.containerType as string,
-      isActive: req.query.isActive === 'true' ? true : req.query.isActive === 'false' ? false : undefined,
+      isActive:
+        req.query.isActive === 'true' ? true : req.query.isActive === 'false' ? false : undefined,
     };
 
     const basePrices = await adminPricingService.getAllBasePrices(filters);
@@ -99,15 +100,20 @@ router.put('/base-prices/:id', authMiddleware, adminOnly, async (req: Request, r
  * DELETE /api/admin-pricing/base-prices/:id
  * Delete base price
  */
-router.delete('/base-prices/:id', authMiddleware, adminOnly, async (req: Request, res: Response) => {
-  try {
-    await adminPricingService.deleteBasePrice(req.params.id);
-    res.json({ message: 'Base price deleted successfully' });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to delete base price';
-    res.status(400).json({ error: message });
+router.delete(
+  '/base-prices/:id',
+  authMiddleware,
+  adminOnly,
+  async (req: Request, res: Response) => {
+    try {
+      await adminPricingService.deleteBasePrice(req.params.id);
+      res.json({ message: 'Base price deleted successfully' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete base price';
+      res.status(400).json({ error: message });
+    }
   }
-});
+);
 
 /**
  * POST /api/admin-pricing/base-prices/bulk
@@ -201,18 +207,23 @@ router.get('/port-adjustments', authMiddleware, adminOnly, async (req: Request, 
  * GET /api/admin-pricing/port-adjustments/:id
  * Get port adjustment by ID
  */
-router.get('/port-adjustments/:id', authMiddleware, adminOnly, async (req: Request, res: Response) => {
-  try {
-    const portAdjustment = await adminPricingService.getPortAdjustmentById(req.params.id);
-    if (!portAdjustment) {
-      return res.status(404).json({ error: 'Port adjustment not found' });
+router.get(
+  '/port-adjustments/:id',
+  authMiddleware,
+  adminOnly,
+  async (req: Request, res: Response) => {
+    try {
+      const portAdjustment = await adminPricingService.getPortAdjustmentById(req.params.id);
+      if (!portAdjustment) {
+        return res.status(404).json({ error: 'Port adjustment not found' });
+      }
+      res.json(portAdjustment);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to get port adjustment';
+      res.status(500).json({ error: message });
     }
-    res.json(portAdjustment);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to get port adjustment';
-    res.status(500).json({ error: message });
   }
-});
+);
 
 /**
  * POST /api/admin-pricing/port-adjustments
@@ -232,29 +243,42 @@ router.post('/port-adjustments', authMiddleware, adminOnly, async (req: Request,
  * PUT /api/admin-pricing/port-adjustments/:id
  * Update port adjustment
  */
-router.put('/port-adjustments/:id', authMiddleware, adminOnly, async (req: Request, res: Response) => {
-  try {
-    const portAdjustment = await adminPricingService.updatePortAdjustment(req.params.id, req.body);
-    res.json(portAdjustment);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to update port adjustment';
-    res.status(400).json({ error: message });
+router.put(
+  '/port-adjustments/:id',
+  authMiddleware,
+  adminOnly,
+  async (req: Request, res: Response) => {
+    try {
+      const portAdjustment = await adminPricingService.updatePortAdjustment(
+        req.params.id,
+        req.body
+      );
+      res.json(portAdjustment);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update port adjustment';
+      res.status(400).json({ error: message });
+    }
   }
-});
+);
 
 /**
  * DELETE /api/admin-pricing/port-adjustments/:id
  * Delete port adjustment
  */
-router.delete('/port-adjustments/:id', authMiddleware, adminOnly, async (req: Request, res: Response) => {
-  try {
-    await adminPricingService.deletePortAdjustment(req.params.id);
-    res.json({ message: 'Port adjustment deleted successfully' });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to delete port adjustment';
-    res.status(400).json({ error: message });
+router.delete(
+  '/port-adjustments/:id',
+  authMiddleware,
+  adminOnly,
+  async (req: Request, res: Response) => {
+    try {
+      await adminPricingService.deletePortAdjustment(req.params.id);
+      res.json({ message: 'Port adjustment deleted successfully' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete port adjustment';
+      res.status(400).json({ error: message });
+    }
   }
-});
+);
 
 // ============================================
 // ADMIN SETTINGS ENDPOINTS

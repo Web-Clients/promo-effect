@@ -78,7 +78,7 @@ export class BookingsService {
     if (priceId) {
       const selectedPrice = await prisma.agentPrice.findUnique({
         where: { id: priceId },
-        include: { agent: true }
+        include: { agent: true },
       });
 
       if (!selectedPrice) {
@@ -177,14 +177,18 @@ export class BookingsService {
 
         // Send notification in background (don't await - may timeout)
         if (clientUser) {
-          notificationService.sendNotification({
-            userId: clientUser.id, // Use actual User ID
-            bookingId: booking.id,
-            type: 'BOOKING_CREATED',
-            title: `Cerere Nouă: ${booking.id}`,
-            message: `Cererea dumneavoastră ${booking.id} a fost înregistrată și este în așteptare pentru confirmare.\n\nDetalii:\n- Port origine: ${booking.portOrigin}\n- Port destinație: ${booking.portDestination}\n- Tip container: ${booking.containerType}\n- Preț estimat: ${booking.totalPrice} USD\n\nVă vom notifica când cererea va fi confirmată.`,
-            channels: { email: true, sms: true, push: false, whatsapp: false },
-          }).catch(err => console.error('[BookingsService] Background notification failed:', err));
+          notificationService
+            .sendNotification({
+              userId: clientUser.id, // Use actual User ID
+              bookingId: booking.id,
+              type: 'BOOKING_CREATED',
+              title: `Cerere Nouă: ${booking.id}`,
+              message: `Cererea dumneavoastră ${booking.id} a fost înregistrată și este în așteptare pentru confirmare.\n\nDetalii:\n- Port origine: ${booking.portOrigin}\n- Port destinație: ${booking.portDestination}\n- Tip container: ${booking.containerType}\n- Preț estimat: ${booking.totalPrice} USD\n\nVă vom notifica când cererea va fi confirmată.`,
+              channels: { email: true, sms: true, push: false, whatsapp: false },
+            })
+            .catch((err) =>
+              console.error('[BookingsService] Background notification failed:', err)
+            );
         }
       }
 
@@ -192,14 +196,16 @@ export class BookingsService {
       if (booking.agentId) {
         const agent = await prisma.agent.findUnique({ where: { id: booking.agentId } });
         if (agent) {
-          notificationService.sendNotification({
-            userId: agent.userId,
-            bookingId: booking.id,
-            type: 'BOOKING_ASSIGNED',
-            title: `Rezervare Nouă Atribuită: ${booking.id}`,
-            message: `V-a fost atribuită o nouă rezervare.\n\nDetalii:\n- Booking ID: ${booking.id}\n- Port Origine: ${booking.portOrigin}\n- Tip Container: ${booking.containerType}\n\nVă rugăm să verificați detaliile în platformă.`,
-            channels: { email: true, sms: true, push: false, whatsapp: false },
-          }).catch(err => console.error('[BookingsService] Agent notification failed:', err));
+          notificationService
+            .sendNotification({
+              userId: agent.userId,
+              bookingId: booking.id,
+              type: 'BOOKING_ASSIGNED',
+              title: `Rezervare Nouă Atribuită: ${booking.id}`,
+              message: `V-a fost atribuită o nouă rezervare.\n\nDetalii:\n- Booking ID: ${booking.id}\n- Port Origine: ${booking.portOrigin}\n- Tip Container: ${booking.containerType}\n\nVă rugăm să verificați detaliile în platformă.`,
+              channels: { email: true, sms: true, push: false, whatsapp: false },
+            })
+            .catch((err) => console.error('[BookingsService] Agent notification failed:', err));
         }
       }
     } catch (error) {
@@ -474,12 +480,12 @@ export class BookingsService {
 
           if (clientUser) {
             const statusLabels: Record<string, string> = {
-              'PENDING': 'În Așteptare',
-              'CONFIRMED': 'Confirmată',
-              'IN_TRANSIT': 'În Tranzit',
-              'ARRIVED': 'Sosită',
-              'DELIVERED': 'Livrată',
-              'CANCELLED': 'Anulată',
+              PENDING: 'În Așteptare',
+              CONFIRMED: 'Confirmată',
+              IN_TRANSIT: 'În Tranzit',
+              ARRIVED: 'Sosită',
+              DELIVERED: 'Livrată',
+              CANCELLED: 'Anulată',
             };
 
             await notificationService.sendNotification({
@@ -491,7 +497,9 @@ export class BookingsService {
               channels: { email: true, sms: true, push: false, whatsapp: false },
             });
 
-            console.log(`[BookingsService] Status change notification sent to ${clientEmail} for booking ${updated.id}`);
+            console.log(
+              `[BookingsService] Status change notification sent to ${clientEmail} for booking ${updated.id}`
+            );
           } else {
             console.warn(`[BookingsService] No user found for client email ${clientEmail}`);
           }
@@ -514,7 +522,7 @@ export class BookingsService {
     // Find existing booking
     const existing = await prisma.booking.findUnique({
       where: { id },
-      include: { client: true }
+      include: { client: true },
     });
     if (!existing) {
       throw new Error('Booking not found');
@@ -532,7 +540,7 @@ export class BookingsService {
       // Archive instead of delete - booking stays in revenue stats
       await prisma.booking.update({
         where: { id },
-        data: { archived: true }
+        data: { archived: true },
       });
 
       // Audit log
@@ -547,8 +555,8 @@ export class BookingsService {
               id: existing.id,
               clientId: existing.clientId,
               status: existing.status,
-              totalPrice: existing.totalPrice
-            }
+              totalPrice: existing.totalPrice,
+            },
           }),
         },
       });
@@ -580,8 +588,8 @@ export class BookingsService {
             id: existing.id,
             clientId: existing.clientId,
             status: existing.status,
-            totalPrice: existing.totalPrice
-          }
+            totalPrice: existing.totalPrice,
+          },
         }),
       },
     });
@@ -653,7 +661,12 @@ export class BookingsService {
   /**
    * Add document to booking
    */
-  async addDocument(bookingId: string, file: Express.Multer.File, userId: string, userRole: string) {
+  async addDocument(
+    bookingId: string,
+    file: Express.Multer.File,
+    userId: string,
+    userRole: string
+  ) {
     // 1. Check access
     const booking = await this.findOne(bookingId, userId, userRole);
 

@@ -4,7 +4,8 @@
  */
 
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
+import prisma from '../lib/prisma';
 
 /**
  * General API rate limiter
@@ -144,3 +145,56 @@ export const reportLimiter = rateLimit({
   },
 });
 
+/**
+ * B6: Backup code verification rate limiter
+ * 5 attempts per 15 minutes per user/IP.
+ * After 5 failures: lock account for 1 hour + audit log.
+ */
+export const backupCodeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  message: {
+    success: false,
+    error: 'Too many backup code attempts. Account locked for 1 hour.',
+    timestamp: new Date().toISOString(),
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true, // Only count failures toward the limit
+  keyGenerator: (req: Request) => {
+    const user = (req as any).user;
+    if (user?.userId) return `backup_code:${user.userId}`;
+    return `backup_code_ip:${ipKeyGenerator(req.ip || req.socket.remoteAddress || 'unknown')}`;
+  },
+  handler: async (req: Request, res: Response, _next: NextFunction, options: any) => {
+    // B6: Lock account and audit-log after 5 failures
+    const userId = (req as any).user?.userId;
+    if (userId) {
+      try {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { backupCodes: null }, // clear backup codes (force re-enable 2FA)
+        });
+        await prisma.auditLog.create({
+          data: {
+            userId,
+            action: 'BACKUP_CODE_LOCKOUT',
+            entityType: 'User',
+            entityId: userId,
+            ipAddress: req.ip || req.socket.remoteAddress || undefined,
+            userAgent: req.headers['user-agent'] || undefined,
+            changes: JSON.stringify({
+              reason: '5 consecutive backup code failures within 15 minutes',
+              lockedAt: new Date(),
+            }),
+          },
+        });
+      } catch (auditErr) {
+        // Non-critical — log but don't block the 429 response
+        console.error('[backupCodeLimiter] Failed to lock account / write audit log:', auditErr);
+      }
+    }
+
+    res.status(options.statusCode).json(options.message);
+  },
+});

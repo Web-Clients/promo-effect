@@ -35,7 +35,10 @@ async function backfill() {
   });
   for (const c of clients) {
     total++;
-    if (!c.bankAccount || isEncrypted(c.bankAccount)) { skipped++; continue; }
+    if (!c.bankAccount || isEncrypted(c.bankAccount)) {
+      skipped++;
+      continue;
+    }
     await prisma.client.update({
       where: { id: c.id },
       data: { bankAccount: encrypt(c.bankAccount) } as any,
@@ -46,13 +49,17 @@ async function backfill() {
 
   // ── 2. users.phone ───────────────────────────────────────────────────────
   console.log('\n[backfill] Processing users.phone...');
-  encrypted = 0; skipped = 0;
+  encrypted = 0;
+  skipped = 0;
   const users = await prisma.user.findMany({
     select: { id: true, phone: true },
   });
   for (const u of users) {
     total++;
-    if (!u.phone || isEncrypted(u.phone)) { skipped++; continue; }
+    if (!u.phone || isEncrypted(u.phone)) {
+      skipped++;
+      continue;
+    }
     await prisma.user.update({
       where: { id: u.id },
       data: { phone: encrypt(u.phone) },
@@ -63,14 +70,18 @@ async function backfill() {
 
   // ── 3. bookings.supplierEmail ────────────────────────────────────────────
   console.log('\n[backfill] Processing bookings.supplierEmail...');
-  encrypted = 0; skipped = 0;
+  encrypted = 0;
+  skipped = 0;
   const bookings = await prisma.booking.findMany({
     select: { id: true, supplierEmail: true },
   });
   for (const b of bookings) {
     total++;
     const email = (b as any).supplierEmail as string | null;
-    if (!email || isEncrypted(email)) { skipped++; continue; }
+    if (!email || isEncrypted(email)) {
+      skipped++;
+      continue;
+    }
     await prisma.booking.update({
       where: { id: b.id },
       data: { supplierEmail: encrypt(email) } as any,
@@ -81,7 +92,8 @@ async function backfill() {
 
   // ── 4. adminSettings gmail tokens ────────────────────────────────────────
   console.log('\n[backfill] Processing adminSettings gmail tokens...');
-  encrypted = 0; skipped = 0;
+  encrypted = 0;
+  skipped = 0;
   const settings = await prisma.adminSettings.findUnique({ where: { id: 1 } });
   if (settings) {
     const s = settings as any;
@@ -89,11 +101,15 @@ async function backfill() {
     if (s.gmailAccessToken && !isEncrypted(s.gmailAccessToken)) {
       updateData.gmailAccessToken = encrypt(s.gmailAccessToken);
       encrypted++;
-    } else { skipped++; }
+    } else {
+      skipped++;
+    }
     if (s.gmailRefreshToken && !isEncrypted(s.gmailRefreshToken)) {
       updateData.gmailRefreshToken = encrypt(s.gmailRefreshToken);
       encrypted++;
-    } else { skipped++; }
+    } else {
+      skipped++;
+    }
     if (Object.keys(updateData).length > 0) {
       await prisma.adminSettings.update({ where: { id: 1 }, data: updateData });
     }
@@ -105,5 +121,8 @@ async function backfill() {
 }
 
 backfill()
-  .catch((e) => { console.error('[backfill] Error:', e); process.exit(1); })
+  .catch((e) => {
+    console.error('[backfill] Error:', e);
+    process.exit(1);
+  })
   .finally(() => prisma.$disconnect());

@@ -7,6 +7,7 @@ import cookieParser from 'cookie-parser';
 import { doubleCsrf } from 'csrf-csrf';
 import authRoutes from './modules/auth/auth.routes';
 import bookingsRoutes from './modules/bookings/bookings.routes';
+import bookingsMetadataRoutes from './modules/bookings/bookings-metadata.routes';
 import clientRoutes from './modules/clients/client.routes';
 import invoiceRoutes from './modules/invoices/invoice.routes';
 import trackingRoutes from './modules/tracking/tracking.routes';
@@ -29,6 +30,7 @@ import shippingLinesRoutes from './modules/shipping-lines/shipping-lines.routes'
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './config/swagger';
 import { apiLimiter } from './middleware/rateLimit.middleware';
+import { buildOriginMatchers, isOriginAllowed } from './utils/cors.util';
 
 const app = express();
 
@@ -47,11 +49,13 @@ if (process.env.FRONTEND_URL) {
   allowedOrigins.push(process.env.FRONTEND_URL);
 }
 
+const originMatchers = buildOriginMatchers(allowedOrigins);
+
 app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-      if (allowedOrigins.some((allowed) => origin.startsWith(allowed))) {
+      if (isOriginAllowed(origin, originMatchers)) {
         return callback(null, true);
       }
       if (

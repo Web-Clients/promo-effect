@@ -31,6 +31,7 @@ import {
 import { Tab } from './types';
 import { BasePricesTab } from './BasePricesTab';
 import { PortAdjustmentsTab } from './PortAdjustmentsTab';
+import { WeightRangesTab } from './WeightRangesTab';
 import { GeneralSettingsTab } from './GeneralSettingsTab';
 
 export function AdminPricingPanel() {
@@ -308,6 +309,18 @@ export function AdminPricingPanel() {
           )}
           {!isAgent && (
             <button
+              onClick={() => setActiveTab('weight-ranges')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'weight-ranges'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Intervale Greutate
+            </button>
+          )}
+          {!isAgent && (
+            <button
               onClick={() => setActiveTab('settings')}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'settings'
@@ -367,6 +380,8 @@ export function AdminPricingPanel() {
           }}
         />
       )}
+
+      {activeTab === 'weight-ranges' && !isAgent && <WeightRangesTab />}
 
       {activeTab === 'settings' && !isAgent && (
         <GeneralSettingsTab

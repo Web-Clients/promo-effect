@@ -32,6 +32,7 @@ export const PriceCalculatorContainer = ({ user }: PriceCalculatorProps) => {
           availableDestinations={calc.availableDestinations}
           availableContainerTypes={calc.availableContainerTypes}
           availableWeightRanges={calc.availableWeightRanges}
+          availableShippingLines={calc.availableShippingLines}
           isLoading={calc.isLoading}
           error={calc.error}
           showSupplierForm={calc.showSupplierForm}

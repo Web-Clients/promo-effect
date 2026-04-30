@@ -30,6 +30,7 @@ export function useCalculator(user?: User): UseCalculatorReturn {
   const [availableDestinations, setAvailableDestinations] = useState<string[]>([]);
   const [availableContainerTypes, setAvailableContainerTypes] = useState<string[]>([]);
   const [availableWeightRanges, setAvailableWeightRanges] = useState<string[]>([]);
+  const [availableShippingLines, setAvailableShippingLines] = useState<string[]>([]);
 
   const [result, setResult] = useState<CalculatorResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -56,17 +57,19 @@ export function useCalculator(user?: User): UseCalculatorReturn {
   useEffect(() => {
     const loadOptions = async () => {
       try {
-        const [ports, destinations, types, weights] = await Promise.all([
+        const [ports, destinations, types, weights, lines] = await Promise.all([
           calculatorService.getAvailablePorts(),
           calculatorService.getAvailableDestinations(),
           calculatorService.getAvailableContainerTypes(),
           calculatorService.getAvailableWeightRanges(),
+          calculatorService.getAvailableShippingLines(),
         ]);
 
         setAvailablePorts(ports);
         setAvailableDestinations(destinations);
         setAvailableContainerTypes(types);
         setAvailableWeightRanges(weights);
+        setAvailableShippingLines(lines);
 
         if (ports.length > 0) setParams((prev) => ({ ...prev, portOrigin: ports[0] }));
         if (destinations.length > 0)
@@ -110,6 +113,13 @@ export function useCalculator(user?: User): UseCalculatorReturn {
 
     if (containers.length === 0 || containers.every((c) => c.quantity === 0)) {
       setError('Adăugați cel puțin un container cu cantitate > 0');
+      setIsLoading(false);
+      return;
+    }
+
+    // CFR requires shipping line selection
+    if (params.incoterm === 'CFR' && !params.shippingLine) {
+      setError('Pentru CFR selectați linia maritimă');
       setIsLoading(false);
       return;
     }
@@ -186,6 +196,7 @@ export function useCalculator(user?: User): UseCalculatorReturn {
     availableDestinations,
     availableContainerTypes,
     availableWeightRanges,
+    availableShippingLines,
     result,
     isLoading,
     error,

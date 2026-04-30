@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SpinnerIcon, CalculatorIcon, CheckCircleIcon, PackageIcon } from './Icons';
 import { OfferCard } from './OfferCard';
 import { SupplierForm } from './SupplierForm';
+import { ContactRepModal } from './ContactRepModal';
 import { UseCalculatorReturn } from './types';
 
 type Props = Pick<
@@ -48,6 +49,8 @@ export const ResultsSection = ({
   finalDestination,
 }: Props) => {
   const { t } = useTranslation();
+  const [showContactModal, setShowContactModal] = useState(false);
+
   return (
     <div className="lg:col-span-8">
       {/* Loading State */}
@@ -108,45 +111,69 @@ export const ResultsSection = ({
         />
       )}
 
-      {/* No Results / Contact Fallback */}
+      {/* No Results / Contact Fallback (A25: isPriceMissing) */}
       {result && !showSupplierForm && result.offers.length === 0 && (
-        <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 p-12 flex flex-col items-center justify-center min-h-[400px] text-center">
-          <div className="w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-5">
-            <svg
-              className="w-8 h-8 text-amber-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+        <>
+          <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-amber-200 dark:border-amber-700/30 p-10 flex flex-col items-center justify-center min-h-[400px] text-center">
+            <div className="w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-5">
+              <svg
+                className="w-8 h-8 text-amber-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z"
+                />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-primary-800 dark:text-white mb-3">
+              {t('calculator.noPricesFound')}
+            </h3>
+            <p className="text-neutral-500 dark:text-neutral-400 max-w-md mb-2">
+              Pentru această combinație nu avem preț în baza noastră de date.
+            </p>
+            <p className="text-sm text-neutral-400 dark:text-neutral-500 max-w-md mb-6">
+              Completați formularul de contact și un reprezentant vă va trimite o ofertă
+              personalizată.
+            </p>
+            <button
+              onClick={() => setShowContactModal(true)}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-accent-500 text-white rounded-lg hover:bg-accent-600 transition-colors font-semibold shadow-lg shadow-accent-500/20"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z"
-              />
-            </svg>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                />
+              </svg>
+              Contactează reprezentant
+            </button>
           </div>
-          <h3 className="text-lg font-semibold text-primary-800 dark:text-white mb-3">
-            {t('calculator.noPricesFound')}
-          </h3>
-          <p className="text-neutral-500 dark:text-neutral-400 max-w-md mb-6">
-            {t('calculator.noPricesDesc')}
-          </p>
-          <a
-            href="/contact"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-primary-800 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-              />
-            </svg>
-            {t('calculator.contactRep')}
-          </a>
-        </div>
+
+          {/* Contact Modal */}
+          <ContactRepModal
+            isOpen={showContactModal}
+            onClose={() => setShowContactModal(false)}
+            context={
+              result?.input
+                ? {
+                    portOrigin: result.input.portOrigin,
+                    portDestination: result.input.portDestination,
+                    containerType: result.input.containerType,
+                    cargoWeight: result.input.cargoWeight,
+                    incoterm: (result.input as any).incoterm,
+                    finalDestination: (result.input as any).finalDestination,
+                  }
+                : undefined
+            }
+          />
+        </>
       )}
 
       {/* Results */}

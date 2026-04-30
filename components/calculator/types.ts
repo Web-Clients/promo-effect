@@ -9,7 +9,16 @@ import { User } from '../../types';
 export type { CalculatorResult, PriceOffer, SupplierData, ContainerEntry };
 
 export type Incoterm = 'FOB' | 'EXW' | 'CFR';
-export type FinalDestination = 'constanta' | 'chisinau';
+export type FinalDestination =
+  | 'constanta'
+  | 'chisinau'
+  | 'balti'
+  | 'orhei'
+  | 'soroca'
+  | 'cahul'
+  | 'ungheni'
+  | 'comrat'
+  | 'tiraspol';
 
 export interface LandTransportRate {
   transport: number; // Transport terestru
@@ -43,6 +52,7 @@ export interface CalcParams {
   cargoCategory: string;
   incoterm: Incoterm;
   finalDestination: FinalDestination;
+  shippingLine?: string; // required when CFR
 }
 
 export interface UseCalculatorReturn {
@@ -63,6 +73,7 @@ export interface UseCalculatorReturn {
   availableDestinations: string[];
   availableContainerTypes: string[];
   availableWeightRanges: string[];
+  availableShippingLines: string[];
   // Results
   result: CalculatorResult | null;
   isLoading: boolean;

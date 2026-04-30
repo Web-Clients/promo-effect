@@ -7,6 +7,8 @@ export { RouteDisplay } from './RouteDisplay';
 export { FormField, CalcSelect, CalcInput, CalcTextArea } from './FormElements';
 export * from './Icons';
 export { useCalculator } from './useCalculator';
+export { HSCodeAutocomplete } from './HSCodeAutocomplete';
+export { ContactRepModal } from './ContactRepModal';
 export type {
   PriceCalculatorProps,
   UseCalculatorReturn,

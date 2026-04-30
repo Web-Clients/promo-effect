@@ -1,11 +1,30 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../ui/Button';
-import { HsCodeSelector } from '../ui/HsCodeSelector';
-import { HsCode } from '../../services/hscodes';
+import { HSCodeAutocomplete } from './HSCodeAutocomplete';
 import { FormField, CalcSelect, CalcInput } from './FormElements';
 import { CalculatorIcon, PlusCircleIcon, TrashIcon } from './Icons';
 import { UseCalculatorReturn, Incoterm, FinalDestination } from './types';
+
+// Incoterm tooltip descriptions
+const INCOTERM_TOOLTIPS: Record<Incoterm, string> = {
+  FOB: 'Free On Board — Vânzătorul livrează marfa la bordul vasului. Cumpărătorul suportă navlul și livrarea la destinație.',
+  EXW: 'Ex Works — Vânzătorul pune marfa la dispoziție la fabrică. Cumpărătorul suportă toate costurile: transport China, vamă export, navlu, livrare.',
+  CFR: 'Cost and Freight — Vânzătorul plătește navlul până la portul de destinație. Cumpărătorul selectează linia maritimă.',
+};
+
+// Final destination options beyond port
+const FINAL_DESTINATIONS: { value: FinalDestination; label: string }[] = [
+  { value: 'constanta', label: 'Constanța (port)' },
+  { value: 'chisinau', label: 'Chișinău' },
+  { value: 'balti', label: 'Bălți' },
+  { value: 'orhei', label: 'Orhei' },
+  { value: 'soroca', label: 'Soroca' },
+  { value: 'cahul', label: 'Cahul' },
+  { value: 'ungheni', label: 'Ungheni' },
+  { value: 'comrat', label: 'Comrat' },
+  { value: 'tiraspol', label: 'Tiraspol' },
+];
 
 type Props = Pick<
   UseCalculatorReturn,
@@ -20,6 +39,7 @@ type Props = Pick<
   | 'availableDestinations'
   | 'availableContainerTypes'
   | 'availableWeightRanges'
+  | 'availableShippingLines'
   | 'isLoading'
   | 'error'
   | 'showSupplierForm'
@@ -38,12 +58,41 @@ export const CalculatorForm = ({
   availableDestinations,
   availableContainerTypes,
   availableWeightRanges,
+  availableShippingLines,
   isLoading,
   error,
   showSupplierForm,
   handleCalculate,
 }: Props) => {
   const { t } = useTranslation();
+  const [incotermTooltipVisible, setIncotermTooltipVisible] = useState(false);
+
+  // Persist last incoterm in localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('lastIncoterm') as Incoterm | null;
+    if (saved && ['FOB', 'EXW', 'CFR'].includes(saved)) {
+      setParams((prev) => ({ ...prev, incoterm: saved }));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleIncotermChange = (value: Incoterm) => {
+    localStorage.setItem('lastIncoterm', value);
+    setParams({ ...params, incoterm: value });
+  };
+
+  // Compute route display string
+  const getRouteDisplay = () => {
+    if (!params.portOrigin) return null;
+    const portDest = params.portDestination || 'Constanța';
+    const dest = FINAL_DESTINATIONS.find((d) => d.value === params.finalDestination);
+    const finalLabel = dest?.label?.replace(' (port)', '') || portDest;
+    const isPortOnly = params.finalDestination === 'constanta';
+    if (isPortOnly) return `${params.portOrigin} → ${portDest}`;
+    return `${params.portOrigin} → ${portDest} → ${finalLabel}`;
+  };
+
+  const routeDisplay = getRouteDisplay();
+
   return (
     <div className="lg:col-span-4">
       <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 p-6 sticky top-24">
@@ -60,6 +109,7 @@ export const CalculatorForm = ({
         </div>
 
         <form onSubmit={handleCalculate} className="space-y-5">
+          {/* Origin Port */}
           <FormField label={t('calculator.originPort')} required>
             <CalcSelect
               value={params.portOrigin}
@@ -76,23 +126,7 @@ export const CalculatorForm = ({
             </CalcSelect>
           </FormField>
 
-          <FormField
-            label={t('calculator.deliveryCondition')}
-            hint={t('calculator.deliveryConditionHint')}
-          >
-            <CalcSelect
-              value={params.incoterm}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                setParams({ ...params, incoterm: e.target.value as Incoterm })
-              }
-              required
-            >
-              <option value="FOB">FOB (Free On Board)</option>
-              <option value="EXW">EXW (Ex Works)</option>
-              <option value="CFR">CFR (Cost and Freight)</option>
-            </CalcSelect>
-          </FormField>
-
+          {/* Destination Port */}
           <FormField
             label={t('calculator.destinationPort')}
             hint={t('calculator.destinationPortHint')}
@@ -112,6 +146,7 @@ export const CalculatorForm = ({
             </CalcSelect>
           </FormField>
 
+          {/* Final Destination */}
           <FormField
             label={t('calculator.finalDestination')}
             hint={t('calculator.finalDestinationHint')}
@@ -123,10 +158,102 @@ export const CalculatorForm = ({
               }
               required
             >
-              <option value="constanta">Constanța</option>
-              <option value="chisinau">Chișinău</option>
+              {FINAL_DESTINATIONS.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
+              ))}
             </CalcSelect>
+            {/* Route display when destination != port */}
+            {routeDisplay && (
+              <p className="mt-1.5 text-xs font-medium text-accent-600 dark:text-accent-400">
+                Rută: {routeDisplay}
+              </p>
+            )}
           </FormField>
+
+          {/* Incoterm */}
+          <FormField
+            label={t('calculator.deliveryCondition')}
+            hint={t('calculator.deliveryConditionHint')}
+          >
+            {/* Radio group */}
+            <div className="flex gap-2">
+              {(['FOB', 'EXW', 'CFR'] as Incoterm[]).map((inc) => (
+                <button
+                  key={inc}
+                  type="button"
+                  onClick={() => handleIncotermChange(inc)}
+                  className={`flex-1 py-2 px-3 text-sm font-semibold rounded-lg border-2 transition-all ${
+                    params.incoterm === inc
+                      ? 'border-accent-500 bg-accent-50 dark:bg-accent-500/10 text-accent-700 dark:text-accent-400'
+                      : 'border-neutral-200 dark:border-neutral-600 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300'
+                  }`}
+                >
+                  {inc}
+                </button>
+              ))}
+            </div>
+            {/* Tooltip */}
+            <div className="mt-1.5 relative">
+              <button
+                type="button"
+                onMouseEnter={() => setIncotermTooltipVisible(true)}
+                onMouseLeave={() => setIncotermTooltipVisible(false)}
+                onClick={() => setIncotermTooltipVisible((v) => !v)}
+                className="text-xs text-neutral-400 underline underline-offset-2 cursor-help"
+              >
+                Ce înseamnă {params.incoterm}?
+              </button>
+              {incotermTooltipVisible && (
+                <div className="absolute z-20 left-0 top-5 w-64 bg-white dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 rounded-lg p-3 shadow-lg text-xs text-neutral-600 dark:text-neutral-300">
+                  {INCOTERM_TOOLTIPS[params.incoterm]}
+                </div>
+              )}
+            </div>
+            {/* Incoterm-specific info */}
+            {params.incoterm === 'EXW' && (
+              <div className="mt-2 p-2.5 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700/30 rounded-lg">
+                <p className="text-xs text-purple-700 dark:text-purple-300 font-medium">
+                  Taxe export China incluse automat: Transport $500 + Vamă $250 + Depozitare $350
+                </p>
+              </div>
+            )}
+            {params.incoterm === 'FOB' && (
+              <div className="mt-2 p-2.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/30 rounded-lg">
+                <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
+                  Navlu + livrare la destinație calculate automat
+                </p>
+              </div>
+            )}
+            {params.incoterm === 'CFR' && (
+              <div className="mt-2 p-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 rounded-lg">
+                <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
+                  CFR: Selectați linia maritimă (obligatoriu)
+                </p>
+              </div>
+            )}
+          </FormField>
+
+          {/* CFR: Shipping Line selector (required) */}
+          {params.incoterm === 'CFR' && (
+            <FormField label="Linie Maritimă" required>
+              <CalcSelect
+                value={params.shippingLine || ''}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  setParams({ ...params, shippingLine: e.target.value })
+                }
+                required
+              >
+                <option value="">— Selectați linia maritimă —</option>
+                {(availableShippingLines || []).map((sl) => (
+                  <option key={sl} value={sl}>
+                    {sl}
+                  </option>
+                ))}
+              </CalcSelect>
+            </FormField>
+          )}
 
           {/* Multiple Containers Section */}
           <div className="space-y-3">
@@ -219,9 +346,9 @@ export const CalculatorForm = ({
           </FormField>
 
           <FormField label={t('calculator.hsCategory')} hint={t('calculator.hsCategoryHint')}>
-            <HsCodeSelector
+            <HSCodeAutocomplete
               value={params.cargoCategory}
-              onChange={(code: string, _hsCode: HsCode | null) => {
+              onChange={(code: string) => {
                 setParams({ ...params, cargoCategory: code });
               }}
               placeholder="Ex: 9403.30 sau mobilier"

@@ -12,6 +12,7 @@ const { mockCalculateService } = vi.hoisted(() => {
     getAvailableDestinations: vi.fn(),
     getAvailableContainerTypes: vi.fn(),
     getAvailableWeightRanges: vi.fn(),
+    getAvailableShippingLines: vi.fn(),
     calculatePrices: vi.fn(),
     placeOrder: vi.fn(),
   };
@@ -40,6 +41,7 @@ describe('useCalculator', () => {
       defaultOptions.containerTypes
     );
     mockCalculateService.getAvailableWeightRanges.mockResolvedValue(defaultOptions.weightRanges);
+    mockCalculateService.getAvailableShippingLines.mockResolvedValue(['Maersk', 'CMA CGM', 'MSC']);
   });
 
   describe('initial state', () => {

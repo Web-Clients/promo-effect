@@ -18,6 +18,7 @@ import containerRoutes from './tracking-container.routes';
 import searchRoutes from './tracking-search.routes';
 import gpsRoutes from './tracking-gps.routes';
 import webhookRoutes from './tracking-webhook.routes';
+import logger from '../../utils/logger';
 
 const router = Router();
 
@@ -36,7 +37,7 @@ router.get('/stats', authMiddleware, async (req: Request, res: Response) => {
     const stats = await trackingService.getTrackingStats(user.role, user.clientId);
     res.json(stats);
   } catch (error: any) {
-    console.error('Get tracking stats error:', error);
+    logger.error('Get tracking stats error:', error);
     res.status(500).json({ error: error.message || 'Failed to get statistics' });
   }
 });
@@ -54,7 +55,7 @@ router.get('/event-types', authMiddleware, async (req: Request, res: Response) =
     }));
     res.json(eventTypes);
   } catch (error: any) {
-    console.error('Get event types error:', error);
+    logger.error('Get event types error:', error);
     res.status(500).json({ error: error.message || 'Failed to get event types' });
   }
 });
@@ -70,7 +71,7 @@ router.get('/map-data', authMiddleware, async (req: Request, res: Response) => {
     const mapData = await trackingService.getMapData(user.role, user.clientId);
     res.json(mapData);
   } catch (error: any) {
-    console.error('Get map data error:', error);
+    logger.error('Get map data error:', error);
     res.status(500).json({ error: error.message || 'Failed to get map data' });
   }
 });
@@ -105,7 +106,7 @@ router.put(
       const event = await trackingService.updateTrackingEvent(eventId, eventData, user.userId);
       res.json(event);
     } catch (error: any) {
-      console.error('Update tracking event error:', error);
+      logger.error('Update tracking event error:', error);
 
       if (error.message === 'Tracking event not found') {
         return res.status(404).json({ error: 'Tracking event not found' });
@@ -133,7 +134,7 @@ router.delete(
       const result = await trackingService.deleteTrackingEvent(eventId, user.userId);
       res.json({ message: 'Tracking event deleted successfully', ...result });
     } catch (error: any) {
-      console.error('Delete tracking event error:', error);
+      logger.error('Delete tracking event error:', error);
 
       if (error.message === 'Tracking event not found') {
         return res.status(404).json({ error: 'Tracking event not found' });
@@ -166,7 +167,7 @@ router.get(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      console.error('Test connection error:', error);
+      logger.error('Test connection error:', error);
       res.status(500).json({
         service: 'SeaRates API v3',
         configured: searatesIntegration.isConfigured(),
@@ -193,7 +194,7 @@ router.get('/shipping-lines', async (req: Request, res: Response) => {
       shippingLines,
     });
   } catch (error: any) {
-    console.error('Get shipping lines error:', error);
+    logger.error('Get shipping lines error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to get shipping lines',
@@ -232,7 +233,7 @@ router.get('/api-status', authMiddleware, async (req: Request, res: Response) =>
       },
     });
   } catch (error: any) {
-    console.error('API status error:', error);
+    logger.error('API status error:', error);
     res.status(500).json({
       provider: 'SeaRates',
       configured: false,

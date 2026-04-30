@@ -1,4 +1,5 @@
 import { infobipService } from '../../services/infobip.service';
+import logger from '../../utils/logger';
 
 /**
  * Send invoice email with PDF attachment via Infobip
@@ -80,11 +81,11 @@ Echipa Promo-Efect SRL
       throw new Error(result.error || 'Failed to send invoice email');
     }
 
-    console.log(
+    logger.info(
       `[InvoicesService] Invoice email sent to ${client.email} for invoice ${invoice.invoiceNumber}`
     );
   } catch (error: any) {
-    console.error('[InvoicesService] Failed to send invoice email:', error);
+    logger.error('[InvoicesService] Failed to send invoice email:', error);
     throw error;
   }
 }

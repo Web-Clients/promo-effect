@@ -6,6 +6,7 @@
 import { Router, Request, Response } from 'express';
 import { NotificationsService } from './notifications.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
+import logger from '../../utils/logger';
 
 const router = Router();
 const notificationsService = new NotificationsService();
@@ -18,7 +19,13 @@ const notificationsService = new NotificationsService();
 router.get('/', authMiddleware, async (req: Request, res: Response) => {
   try {
     const currentUser = (req as any).user;
-    console.log('[Notifications] GET / - User:', currentUser.userId, currentUser.email, 'Role:', currentUser.role);
+    logger.info(
+      '[Notifications] GET / - User:',
+      currentUser.userId,
+      currentUser.email,
+      'Role:',
+      currentUser.role
+    );
     const filters: any = {
       page: req.query.page ? parseInt(req.query.page as string) : 1,
       limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
@@ -109,27 +116,23 @@ router.post('/read-all', authMiddleware, async (req: Request, res: Response) => 
  * Create new notification
  * Access: ADMIN, MANAGER, OPERATOR
  */
-router.post(
-  '/',
-  authMiddleware,
-  async (req: Request, res: Response) => {
-    try {
-      const notification = await notificationsService.create(req.body);
-      res.status(201).json({
-        success: true,
-        data: notification,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to create notification';
-      res.status(400).json({
-        success: false,
-        error: message,
-        timestamp: new Date().toISOString(),
-      });
-    }
+router.post('/', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const notification = await notificationsService.create(req.body);
+    res.status(201).json({
+      success: true,
+      data: notification,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to create notification';
+    res.status(400).json({
+      success: false,
+      error: message,
+      timestamp: new Date().toISOString(),
+    });
   }
-);
+});
 
 /**
  * GET /api/v1/notifications/:id
@@ -142,7 +145,10 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
     const notification = await notificationsService.findById(req.params.id);
 
     // Check access
-    if (notification.userId !== currentUser.userId && !['ADMIN', 'SUPER_ADMIN'].includes(currentUser.role)) {
+    if (
+      notification.userId !== currentUser.userId &&
+      !['ADMIN', 'SUPER_ADMIN'].includes(currentUser.role)
+    ) {
       return res.status(403).json({
         success: false,
         error: 'Access denied',
@@ -174,13 +180,23 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
 router.patch('/:id/read', authMiddleware, async (req: Request, res: Response) => {
   try {
     const currentUser = (req as any).user;
-    console.log('[Notifications] PATCH /:id/read - User:', currentUser.userId, 'NotificationId:', req.params.id);
+    logger.info(
+      '[Notifications] PATCH /:id/read - User:',
+      currentUser.userId,
+      'NotificationId:',
+      req.params.id
+    );
 
     const notification = await notificationsService.findById(req.params.id);
-    console.log('[Notifications] Notification owner:', notification.userId, 'Current user:', currentUser.userId);
+    logger.info(
+      '[Notifications] Notification owner:',
+      notification.userId,
+      'Current user:',
+      currentUser.userId
+    );
 
     if (notification.userId !== currentUser.userId) {
-      console.log('[Notifications] Access denied - notification belongs to different user');
+      logger.info('[Notifications] Access denied - notification belongs to different user');
       return res.status(403).json({
         success: false,
         error: 'Access denied',
@@ -189,14 +205,14 @@ router.patch('/:id/read', authMiddleware, async (req: Request, res: Response) =>
     }
 
     const updated = await notificationsService.markAsRead(req.params.id);
-    console.log('[Notifications] Marked as read successfully:', updated.id, 'read:', updated.read);
+    logger.info('[Notifications] Marked as read successfully:', updated.id, 'read:', updated.read);
     res.json({
       success: true,
       data: updated,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.log('[Notifications] Error marking as read:', error);
+    logger.info('[Notifications] Error marking as read:', error);
     const message = error instanceof Error ? error.message : 'Failed to mark as read';
     res.status(500).json({
       success: false,

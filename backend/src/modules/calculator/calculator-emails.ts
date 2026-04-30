@@ -6,6 +6,7 @@
 import { infobipService } from '../../services/infobip.service';
 import prisma from '../../lib/prisma';
 import { PriceOffer, CalculatorInput, ContainerEntry, SupplierData } from './calculator.types';
+import logger from '../../utils/logger';
 
 interface SendOrderEmailsData {
   booking: any;
@@ -86,9 +87,9 @@ export async function sendOrderEmails(data: SendOrderEmailsData): Promise<void> 
       subject: `New Export Order - ${booking.id}`,
       html: supplierEmailHtml,
     });
-    console.log(`[Calculator] ✅ Supplier email sent to ${supplierData.supplierEmail}`);
+    logger.info(`[Calculator] ✅ Supplier email sent to ${supplierData.supplierEmail}`);
   } catch (error) {
-    console.error(`[Calculator] ❌ Failed to send supplier email:`, error);
+    logger.error(`[Calculator] ❌ Failed to send supplier email:`, error);
   }
 
   // 2. Email to agent (find an active agent)
@@ -154,12 +155,12 @@ export async function sendOrderEmails(data: SendOrderEmailsData): Promise<void> 
         subject: `新订单 / New Order - ${booking.id}`,
         html: agentEmailHtml,
       });
-      console.log(`[Calculator] ✅ Agent email sent to ${agent.user.email}`);
+      logger.info(`[Calculator] ✅ Agent email sent to ${agent.user.email}`);
     } catch (error) {
-      console.error(`[Calculator] ❌ Failed to send agent email:`, error);
+      logger.error(`[Calculator] ❌ Failed to send agent email:`, error);
     }
   } else {
-    console.log(`[Calculator] ⚠️ No agent found for port ${calculatorInput.portOrigin}`);
+    logger.info(`[Calculator] ⚠️ No agent found for port ${calculatorInput.portOrigin}`);
   }
 
   // 3. Email to customer (in Romanian)
@@ -241,8 +242,8 @@ export async function sendOrderEmails(data: SendOrderEmailsData): Promise<void> 
       subject: `Confirmarea Comenzii - ${booking.id}`,
       html: customerEmailHtml,
     });
-    console.log(`[Calculator] ✅ Customer email sent to ${user.email}`);
+    logger.info(`[Calculator] ✅ Customer email sent to ${user.email}`);
   } catch (error) {
-    console.error(`[Calculator] ❌ Failed to send customer email:`, error);
+    logger.error(`[Calculator] ❌ Failed to send customer email:`, error);
   }
 }

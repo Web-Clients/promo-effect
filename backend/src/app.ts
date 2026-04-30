@@ -8,6 +8,7 @@ import { doubleCsrf } from 'csrf-csrf';
 import authRoutes from './modules/auth/auth.routes';
 import bookingsRoutes from './modules/bookings/bookings.routes';
 import bookingsMetadataRoutes from './modules/bookings/bookings-metadata.routes';
+import bookingsStatsRouter from './modules/bookings/bookings-stats.service';
 import clientRoutes from './modules/clients/client.routes';
 import invoiceRoutes from './modules/invoices/invoice.routes';
 import trackingRoutes from './modules/tracking/tracking.routes';
@@ -135,7 +136,9 @@ app.get('/api-docs.json', (req: Request, res: Response) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', usersRoutes);
 app.use('/api/v1/clients', clientRoutes);
+app.use('/api/v1/bookings', bookingsStatsRouter); // Phase A8: stats — must be before generic routes
 app.use('/api/v1/bookings', bookingsRoutes);
+app.use('/api/v1/bookings', bookingsMetadataRoutes); // Phase A3: telex-release, documents endpoints
 app.use('/api/v1/containers', trackingRoutes); // Containers endpoints
 app.use('/api/v1/tracking', trackingRoutes);
 app.use('/api/v1/invoices', invoiceRoutes);
@@ -150,7 +153,9 @@ app.use('/api/v1/landing', landingRoutes); // Landing page public endpoints
 
 // Legacy routes (backward compatibility - will be deprecated)
 app.use('/api/auth', authRoutes);
+app.use('/api/bookings', bookingsStatsRouter); // Phase A8: stats (legacy path)
 app.use('/api/bookings', bookingsRoutes);
+app.use('/api/bookings', bookingsMetadataRoutes); // Phase A3: telex-release, documents (legacy path)
 app.use('/api/clients', clientRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/tracking', trackingRoutes);

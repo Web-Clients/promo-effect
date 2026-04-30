@@ -1,15 +1,16 @@
 /**
  * Email Fetcher Background Job
- * 
+ *
  * Fetches unread emails from Gmail every 15 minutes
  * Processes them with AI and creates bookings automatically
- * 
+ *
  * Schedule: Every 15 minutes
  */
 
 import cron from 'node-cron';
 import { gmailIntegration } from '../integrations/gmail.integration';
 import { EmailService } from '../modules/emails/email.service';
+import logger from '../../utils/logger';
 
 const emailService = new EmailService();
 
@@ -22,7 +23,7 @@ export function startEmailFetcherJob() {
   // Run every 15 minutes
   cron.schedule('*/15 * * * *', async () => {
     if (isRunning) {
-      console.log('[Email Fetcher] Previous job still running, skipping...');
+      logger.info('[Email Fetcher] Previous job still running, skipping...');
       return;
     }
 
@@ -30,21 +31,21 @@ export function startEmailFetcherJob() {
     const startTime = Date.now();
 
     try {
-      console.log('[Email Fetcher] Starting scheduled email fetch...');
+      logger.info('[Email Fetcher] Starting scheduled email fetch...');
 
       // Check if Gmail is configured
       if (!gmailIntegration.isConfigured()) {
-        console.log('[Email Fetcher] Gmail not configured, skipping');
+        logger.info('[Email Fetcher] Gmail not configured, skipping');
         isRunning = false;
         return;
       }
 
       // Fetch unread emails (max 50 at a time)
       const emails = await gmailIntegration.fetchUnreadEmails(50);
-      console.log(`[Email Fetcher] Fetched ${emails.length} unread emails`);
+      logger.info(`[Email Fetcher] Fetched ${emails.length} unread emails`);
 
       if (emails.length === 0) {
-        console.log('[Email Fetcher] No new emails to process');
+        logger.info('[Email Fetcher] No new emails to process');
         isRunning = false;
         return;
       }
@@ -56,15 +57,15 @@ export function startEmailFetcherJob() {
           await emailService.queueEmailForProcessing(email);
           queued++;
         } catch (error) {
-          console.error(`[Email Fetcher] Failed to queue email ${email.id}:`, error);
+          logger.error(`[Email Fetcher] Failed to queue email ${email.id}:`, error);
         }
       }
 
-      console.log(`[Email Fetcher] Queued ${queued} emails for processing`);
+      logger.info(`[Email Fetcher] Queued ${queued} emails for processing`);
 
       // Process pending emails from queue
       const pending = await emailService.getPendingEmails();
-      console.log(`[Email Fetcher] Processing ${pending.length} pending emails`);
+      logger.info(`[Email Fetcher] Processing ${pending.length} pending emails`);
 
       let processed = 0;
       let created = 0;
@@ -73,7 +74,7 @@ export function startEmailFetcherJob() {
       for (const email of pending) {
         try {
           // Small delay between emails to avoid Gemini API rate limits (15 RPM on free tier)
-          if (processed > 0) await new Promise(r => setTimeout(r, 4000));
+          if (processed > 0) await new Promise((r) => setTimeout(r, 4000));
 
           const result = await emailService.processEmail(email, true, 80);
 
@@ -88,17 +89,19 @@ export function startEmailFetcherJob() {
 
           if (result.status === 'SUCCESS' && result.bookingId) {
             created++;
-            console.log(`[Email Fetcher] Created booking: ${result.bookingId} from email ${email.id}`);
+            logger.info(
+              `[Email Fetcher] Created booking: ${result.bookingId} from email ${email.id}`
+            );
           } else if (result.status === 'FAILED') {
             failed++;
-            console.error(`[Email Fetcher] Failed to process email ${email.id}:`, result.error);
+            logger.error(`[Email Fetcher] Failed to process email ${email.id}:`, result.error);
           }
 
           processed++;
         } catch (error) {
           failed++;
-          console.error(`[Email Fetcher] Error processing email ${email.id}:`, error);
-          
+          logger.error(`[Email Fetcher] Error processing email ${email.id}:`, error);
+
           await emailService.markEmailProcessed(
             email.id,
             'FAILED',
@@ -108,7 +111,9 @@ export function startEmailFetcherJob() {
       }
 
       const duration = Date.now() - startTime;
-      console.log(`[Email Fetcher] Completed in ${duration}ms: ${processed} processed, ${created} bookings created, ${failed} failed`);
+      logger.info(
+        `[Email Fetcher] Completed in ${duration}ms: ${processed} processed, ${created} bookings created, ${failed} failed`
+      );
 
       // Save fetch log to database (as JSON in AdminSettings)
       const fetchResult = {
@@ -134,19 +139,18 @@ export function startEmailFetcherJob() {
             lastEmailFetchResult: JSON.stringify(fetchResult),
           },
         });
-        console.log('[Email Fetcher] Log saved to database');
+        logger.info('[Email Fetcher] Log saved to database');
       } catch (logError: any) {
-        console.error('[Email Fetcher] Failed to save fetch log:', logError);
+        logger.error('[Email Fetcher] Failed to save fetch log:', logError);
       }
-
     } catch (error) {
-      console.error('[Email Fetcher] Fatal error:', error);
+      logger.error('[Email Fetcher] Fatal error:', error);
     } finally {
       isRunning = false;
     }
   });
 
-  console.log('✅ Email Fetcher job started (runs every 15 minutes)');
+  logger.info('✅ Email Fetcher job started (runs every 15 minutes)');
 }
 
 /**
@@ -154,6 +158,5 @@ export function startEmailFetcherJob() {
  */
 export function stopEmailFetcherJob() {
   // Cron jobs are automatically stopped when process exits
-  console.log('⏹️ Email Fetcher job stopped');
+  logger.info('⏹️ Email Fetcher job stopped');
 }
-

@@ -10,6 +10,7 @@
 import cron from 'node-cron';
 import prisma from '../lib/prisma';
 import { trackingService } from '../modules/tracking/tracking.service';
+import logger from '../../utils/logger';
 
 let isRunning = false;
 
@@ -20,7 +21,7 @@ export function startContainerSyncJob() {
   // Run every 30 minutes
   cron.schedule('*/30 * * * *', async () => {
     if (isRunning) {
-      console.log('[Container Sync] Previous job still running, skipping...');
+      logger.info('[Container Sync] Previous job still running, skipping...');
       return;
     }
 
@@ -28,7 +29,7 @@ export function startContainerSyncJob() {
     const startTime = Date.now();
 
     try {
-      console.log('[Container Sync] Starting scheduled container sync...');
+      logger.info('[Container Sync] Starting scheduled container sync...');
 
       // Find all active containers (not delivered)
       const activeContainers = await prisma.container.findMany({
@@ -47,10 +48,10 @@ export function startContainerSyncJob() {
         take: 100, // Process max 100 at a time to avoid overload
       });
 
-      console.log(`[Container Sync] Found ${activeContainers.length} active containers to sync`);
+      logger.info(`[Container Sync] Found ${activeContainers.length} active containers to sync`);
 
       if (activeContainers.length === 0) {
-        console.log('[Container Sync] No active containers to sync');
+        logger.info('[Container Sync] No active containers to sync');
         isRunning = false;
         return;
       }
@@ -67,39 +68,47 @@ export function startContainerSyncJob() {
 
           if (result.success && result.eventsFound > 0) {
             updated++;
-            console.log(`[Container Sync] Updated container ${container.containerNumber}: ${result.eventsFound} new events`);
+            logger.info(
+              `[Container Sync] Updated container ${container.containerNumber}: ${result.eventsFound} new events`
+            );
           } else if (result.success) {
             synced++;
           } else {
             failed++;
-            console.error(`[Container Sync] Failed to sync container ${container.containerNumber}:`, result.error);
+            logger.error(
+              `[Container Sync] Failed to sync container ${container.containerNumber}:`,
+              result.error
+            );
           }
         } catch (error) {
           failed++;
-          console.error(`[Container Sync] Error syncing container ${container.containerNumber}:`, error);
+          logger.error(
+            `[Container Sync] Error syncing container ${container.containerNumber}:`,
+            error
+          );
         }
 
         // Small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
       const duration = Date.now() - startTime;
-      console.log(`[Container Sync] Completed in ${duration}ms: ${synced} synced, ${updated} updated, ${failed} failed`);
-
+      logger.info(
+        `[Container Sync] Completed in ${duration}ms: ${synced} synced, ${updated} updated, ${failed} failed`
+      );
     } catch (error) {
-      console.error('[Container Sync] Fatal error:', error);
+      logger.error('[Container Sync] Fatal error:', error);
     } finally {
       isRunning = false;
     }
   });
 
-  console.log('✅ Container Sync job started (runs every 30 minutes)');
+  logger.info('✅ Container Sync job started (runs every 30 minutes)');
 }
 
 /**
  * Stop the container sync job
  */
 export function stopContainerSyncJob() {
-  console.log('⏹️ Container Sync job stopped');
+  logger.info('⏹️ Container Sync job stopped');
 }
-

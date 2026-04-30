@@ -2,6 +2,7 @@ import prisma from '../../lib/prisma';
 import { generateInvoicePDF } from '../../services/pdf.service';
 import { storageService } from '../../services/storage.service';
 import notificationService from '../../services/notification.service';
+import logger from '../../utils/logger';
 
 // ============================================
 // PDF GENERATION SERVICE
@@ -38,7 +39,7 @@ export async function uploadInvoicePDF(
   try {
     return await storageService.uploadFile(pdfBuffer, `${invoiceNumber}.pdf`, 'invoices');
   } catch (error) {
-    console.error('[InvoicesPdfService] Failed to save PDF to storage:', error);
+    logger.error('[InvoicesPdfService] Failed to save PDF to storage:', error);
     return null;
   }
 }
@@ -108,14 +109,11 @@ export async function notifyInvoiceSent(invoice: any, pdfUrl: string | null): Pr
           },
         });
       } catch (error) {
-        console.error(
-          `[InvoicesPdfService] Failed to send notification to user ${user.id}:`,
-          error
-        );
+        logger.error(`[InvoicesPdfService] Failed to send notification to user ${user.id}:`, error);
       }
     }
   } catch (error) {
-    console.error('[InvoicesPdfService] Failed to send invoice notifications:', error);
+    logger.error('[InvoicesPdfService] Failed to send invoice notifications:', error);
   }
 }
 
@@ -150,6 +148,6 @@ export async function notifyPaymentReceived(
       channels: { email: true, push: false, sms: false, whatsapp: false },
     });
   } catch (error) {
-    console.error('[InvoicesPdfService] Failed to send payment notification email:', error);
+    logger.error('[InvoicesPdfService] Failed to send payment notification email:', error);
   }
 }

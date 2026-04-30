@@ -1,12 +1,13 @@
 /**
  * Gemini AI Service
- * 
+ *
  * Handles AI-powered email parsing using Google's Gemini API
  * This runs on the backend to keep API keys secure
  */
 
 // @ts-ignore - Package types may not be available immediately after install
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import logger from '../utils/logger';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
@@ -15,9 +16,9 @@ let genAI: GoogleGenerativeAI | null = null;
 
 if (GEMINI_API_KEY) {
   genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-  console.log('✅ Gemini AI service initialized');
+  logger.info('✅ Gemini AI service initialized');
 } else {
-  console.warn('⚠️ GEMINI_API_KEY not configured - AI parsing disabled');
+  logger.warn('⚠️ GEMINI_API_KEY not configured - AI parsing disabled');
 }
 
 // Response schema for email parsing
@@ -66,8 +67,9 @@ export function isGeminiConfigured(): boolean {
 export async function parseEmailWithGemini(emailContent: string): Promise<ParsedEmailData> {
   if (!genAI) {
     return {
-      error: 'Gemini API key is not configured. Please add GEMINI_API_KEY to your backend .env file.',
-      confidence: 0
+      error:
+        'Gemini API key is not configured. Please add GEMINI_API_KEY to your backend .env file.',
+      confidence: 0,
     };
   }
 
@@ -106,39 +108,40 @@ ${emailContent}
       // Remove markdown code blocks if present
       const cleanedText = text.replace(/```json\n?|\n?```/g, '').trim();
       const parsed = JSON.parse(cleanedText);
-      
+
       return {
         ...parsed,
-        confidence: parsed.confidence || 75
+        confidence: parsed.confidence || 75,
       };
     } catch (parseError) {
-      console.error('Failed to parse Gemini response as JSON:', text);
+      logger.error('Failed to parse Gemini response as JSON:', text);
       return {
-        error: 'Failed to parse AI response. The email may not contain recognizable shipping information.',
-        confidence: 0
+        error:
+          'Failed to parse AI response. The email may not contain recognizable shipping information.',
+        confidence: 0,
       };
     }
   } catch (error: any) {
-    console.error('Gemini API error:', error);
-    
+    logger.error('Gemini API error:', error);
+
     // Handle specific error types
     if (error.message?.includes('API_KEY_INVALID')) {
       return {
         error: 'Invalid Gemini API key. Please check your configuration.',
-        confidence: 0
+        confidence: 0,
       };
     }
-    
+
     if (error.message?.includes('QUOTA_EXCEEDED')) {
       return {
         error: 'Gemini API quota exceeded. Please try again later.',
-        confidence: 0
+        confidence: 0,
       };
     }
 
     return {
       error: `AI parsing failed: ${error.message || 'Unknown error'}`,
-      confidence: 0
+      confidence: 0,
     };
   }
 }
@@ -154,7 +157,7 @@ export async function parseShippingDocumentWithGemini(
   if (!genAI) {
     return {
       error: 'Gemini API key is not configured.',
-      confidence: 0
+      confidence: 0,
     };
   }
 
@@ -212,20 +215,20 @@ ${pdfText.substring(0, 8000)}
 
       return {
         ...parsed,
-        confidence: parsed.confidence || 80
+        confidence: parsed.confidence || 80,
       };
     } catch (parseError) {
-      console.error('[Gemini] Failed to parse shipping document response:', text);
+      logger.error('[Gemini] Failed to parse shipping document response:', text);
       return {
         error: 'Failed to parse AI response for shipping document.',
-        confidence: 0
+        confidence: 0,
       };
     }
   } catch (error: any) {
-    console.error('[Gemini] Shipping document parsing error:', error);
+    logger.error('[Gemini] Shipping document parsing error:', error);
     return {
       error: `AI parsing failed: ${error.message || 'Unknown error'}`,
-      confidence: 0
+      confidence: 0,
     };
   }
 }

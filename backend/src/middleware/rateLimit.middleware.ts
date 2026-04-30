@@ -6,6 +6,7 @@
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { Request, Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
+import logger from '../utils/logger';
 
 /**
  * General API rate limiter
@@ -191,7 +192,7 @@ export const backupCodeLimiter = rateLimit({
         });
       } catch (auditErr) {
         // Non-critical — log but don't block the 429 response
-        console.error('[backupCodeLimiter] Failed to lock account / write audit log:', auditErr);
+        logger.error('[backupCodeLimiter] Failed to lock account / write audit log:', auditErr);
       }
     }
 

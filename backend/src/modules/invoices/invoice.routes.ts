@@ -6,6 +6,7 @@ import invoicesService, {
   PaymentData,
 } from './invoices.service';
 import { createInvoiceSchema, markPaidSchema } from '../../middleware/validate.middleware';
+import logger from '../../utils/logger';
 
 const router = Router();
 
@@ -26,7 +27,7 @@ router.get('/stats', authMiddleware, async (req: Request, res: Response) => {
     const stats = await invoicesService.getStats(clientId);
     res.json(stats);
   } catch (error: any) {
-    console.error('Get invoice stats error:', error);
+    logger.error('Get invoice stats error:', error);
     res.status(500).json({ error: error.message || 'Failed to get statistics' });
   }
 });
@@ -53,7 +54,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
     const result = await invoicesService.findAll(filters, user.role, user.clientId);
     res.json(result);
   } catch (error: any) {
-    console.error('List invoices error:', error);
+    logger.error('List invoices error:', error);
     res.status(500).json({ error: error.message || 'Failed to list invoices' });
   }
 });
@@ -71,7 +72,7 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
     const invoice = await invoicesService.findOne(id, user.role, user.clientId);
     res.json(invoice);
   } catch (error: any) {
-    console.error('Get invoice error:', error);
+    logger.error('Get invoice error:', error);
 
     if (error.message === 'Invoice not found') {
       return res.status(404).json({ error: 'Invoice not found' });
@@ -119,7 +120,7 @@ router.post(
       const invoice = await invoicesService.create(invoiceData, user.userId);
       res.status(201).json(invoice);
     } catch (error: any) {
-      console.error('Create invoice error:', error);
+      logger.error('Create invoice error:', error);
 
       if (error.message.includes('not found')) {
         return res.status(404).json({ error: error.message });
@@ -165,7 +166,7 @@ router.put(
       const invoice = await invoicesService.update(id, updateData, user.userId);
       res.json(invoice);
     } catch (error: any) {
-      console.error('Update invoice error:', error);
+      logger.error('Update invoice error:', error);
 
       if (error.message === 'Invoice not found') {
         return res.status(404).json({ error: 'Invoice not found' });
@@ -196,7 +197,7 @@ router.post(
       const result = await invoicesService.send(id, user.userId);
       res.json(result);
     } catch (error: any) {
-      console.error('Send invoice error:', error);
+      logger.error('Send invoice error:', error);
 
       if (error.message === 'Invoice not found') {
         return res.status(404).json({ error: 'Invoice not found' });
@@ -240,7 +241,7 @@ router.post(
       const result = await invoicesService.markPaid(id, paymentData, user.userId);
       res.json(result);
     } catch (error: any) {
-      console.error('Mark paid error:', error);
+      logger.error('Mark paid error:', error);
 
       if (error.message === 'Invoice not found') {
         return res.status(404).json({ error: 'Invoice not found' });
@@ -272,7 +273,7 @@ router.delete(
       const invoice = await invoicesService.cancel(id, user.userId, reason);
       res.json({ message: 'Invoice cancelled successfully', invoice });
     } catch (error: any) {
-      console.error('Cancel invoice error:', error);
+      logger.error('Cancel invoice error:', error);
 
       if (error.message === 'Invoice not found') {
         return res.status(404).json({ error: 'Invoice not found' });
@@ -303,7 +304,7 @@ router.get('/:id/pdf', authMiddleware, async (req: Request, res: Response) => {
     res.setHeader('Content-Length', result.buffer.length);
     res.send(result.buffer);
   } catch (error: any) {
-    console.error('Generate PDF error:', error);
+    logger.error('Generate PDF error:', error);
 
     if (error.message === 'Invoice not found') {
       return res.status(404).json({ error: 'Invoice not found' });
@@ -358,7 +359,7 @@ router.post(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      console.error('Bulk generate invoices error:', error);
+      logger.error('Bulk generate invoices error:', error);
       res.status(500).json({
         success: false,
         error: error.message || 'Failed to bulk generate invoices',
@@ -382,7 +383,7 @@ router.post(
       const count = await invoicesService.updateOverdueStatus();
       res.json({ message: `Updated ${count} invoices to overdue status` });
     } catch (error: any) {
-      console.error('Update overdue error:', error);
+      logger.error('Update overdue error:', error);
       res.status(500).json({ error: error.message || 'Failed to update overdue status' });
     }
   }

@@ -6,6 +6,7 @@
 
 import axios, { AxiosInstance } from 'axios';
 import prisma from '../lib/prisma';
+import logger from '../utils/logger';
 
 interface TrackGPSAuth {
   access_token: string;
@@ -93,7 +94,7 @@ class TrackGPSService {
     }
 
     try {
-      console.log('[TrackGPS] Authenticating with user:', this.username);
+      logger.info('[TrackGPS] Authenticating with user:', this.username);
 
       // TrackGPS API requires form-urlencoded authentication
       const params = new URLSearchParams();
@@ -114,11 +115,12 @@ class TrackGPSService {
       // Set expiry 5 minutes before actual expiry for safety
       this.tokenExpiry = new Date(Date.now() + (response.data.expires_in - 300) * 1000);
 
-      console.log('[TrackGPS] Authentication successful, token expires:', this.tokenExpiry);
+      logger.info('[TrackGPS] Authentication successful, token expires:', this.tokenExpiry);
       return this.accessToken;
     } catch (error: any) {
-      const errorMsg = error.response?.data?.error_description || error.response?.data?.error || error.message;
-      console.error('[TrackGPS] Authentication failed:', errorMsg);
+      const errorMsg =
+        error.response?.data?.error_description || error.response?.data?.error || error.message;
+      logger.error('[TrackGPS] Authentication failed:', errorMsg);
       throw new Error(`TrackGPS authentication failed: ${errorMsg}`);
     }
   }
@@ -133,7 +135,7 @@ class TrackGPSService {
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
     });
   }
@@ -144,22 +146,28 @@ class TrackGPSService {
    */
   async getVehicles(): Promise<Vehicle[]> {
     // Check cache first (API rate limit: min 30s between requests)
-    if (this.vehiclesCache.length > 0 && this.vehiclesCacheExpiry && new Date() < this.vehiclesCacheExpiry) {
-      console.log('[TrackGPS] Returning cached vehicles');
+    if (
+      this.vehiclesCache.length > 0 &&
+      this.vehiclesCacheExpiry &&
+      new Date() < this.vehiclesCacheExpiry
+    ) {
+      logger.info('[TrackGPS] Returning cached vehicles');
       return this.vehiclesCache;
     }
 
     try {
       const client = await this.getAuthorizedClient();
       // Correct endpoint with hyphen: /carriers/company-vehicles
-      const response = await client.get<TrackGPSVehiclesResponse>('/carriers/company-vehicles?api-version=2.0');
+      const response = await client.get<TrackGPSVehiclesResponse>(
+        '/carriers/company-vehicles?api-version=2.0'
+      );
 
       if (!response.data.IsSuccess) {
         throw new Error('API returned unsuccessful response');
       }
 
       // Map API response to our normalized format
-      const vehicles: Vehicle[] = response.data.Payload.map(v => ({
+      const vehicles: Vehicle[] = response.data.Payload.map((v) => ({
         id: v.VehicleUId, // Use UUID as ID
         name: v.VehicleName,
         plateNumber: v.VehicleRegistrationNumber,
@@ -175,10 +183,10 @@ class TrackGPSService {
       this.vehiclesCache = vehicles;
       this.vehiclesCacheExpiry = new Date(Date.now() + this.CACHE_TTL_MS);
 
-      console.log(`[TrackGPS] Fetched ${vehicles.length} vehicles`);
+      logger.info(`[TrackGPS] Fetched ${vehicles.length} vehicles`);
       return vehicles;
     } catch (error: any) {
-      console.error('[TrackGPS] Failed to fetch vehicles:', error.response?.data || error.message);
+      logger.error('[TrackGPS] Failed to fetch vehicles:', error.response?.data || error.message);
       throw new Error('Failed to fetch vehicles from TrackGPS');
     }
   }
@@ -190,10 +198,10 @@ class TrackGPSService {
   async getCurrentPosition(vehicleId: string): Promise<GPSLocation | null> {
     try {
       const vehicles = await this.getVehicles();
-      const vehicle = vehicles.find(v => v.id === vehicleId);
+      const vehicle = vehicles.find((v) => v.id === vehicleId);
 
       if (!vehicle) {
-        console.log(`[TrackGPS] Vehicle ${vehicleId} not found`);
+        logger.info(`[TrackGPS] Vehicle ${vehicleId} not found`);
         return null;
       }
 
@@ -206,7 +214,7 @@ class TrackGPSService {
         course: vehicle.course,
       };
     } catch (error) {
-      console.error('[TrackGPS] Failed to get current position:', error);
+      logger.error('[TrackGPS] Failed to get current position:', error);
       return null;
     }
   }
@@ -217,9 +225,9 @@ class TrackGPSService {
   async getVehicleInfo(vehicleId: string): Promise<Vehicle | null> {
     try {
       const vehicles = await this.getVehicles();
-      return vehicles.find(v => v.id === vehicleId) || null;
+      return vehicles.find((v) => v.id === vehicleId) || null;
     } catch (error) {
-      console.error('[TrackGPS] Failed to get vehicle info:', error);
+      logger.error('[TrackGPS] Failed to get vehicle info:', error);
       return null;
     }
   }
@@ -270,7 +278,7 @@ class TrackGPSService {
         },
       });
 
-      console.log(`[TrackGPS] Updated booking ${bookingId} with GPS location:`, {
+      logger.info(`[TrackGPS] Updated booking ${bookingId} with GPS location:`, {
         lat: location.latitude,
         lng: location.longitude,
         speed: location.speed,
@@ -278,7 +286,7 @@ class TrackGPSService {
 
       return { success: true, location };
     } catch (error: any) {
-      console.error('[TrackGPS] Failed to update booking GPS location:', error);
+      logger.error('[TrackGPS] Failed to update booking GPS location:', error);
       return { success: false, error: error.message || 'Failed to update GPS location' };
     }
   }

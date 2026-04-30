@@ -18,6 +18,7 @@ import {
   getContainerByNumber as queryContainerByNumber,
 } from './tracking-parser';
 import { refreshTracking, sendTrackingEventNotification } from './tracking-webhook.handler';
+import logger from '../../utils/logger';
 
 // Re-export types for backward compatibility
 export {
@@ -276,7 +277,7 @@ class TrackingService {
         },
       });
     } catch (error) {
-      console.error('Failed to log audit:', error);
+      logger.error('Failed to log audit:', error);
     }
   }
 }

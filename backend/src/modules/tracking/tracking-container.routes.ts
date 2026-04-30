@@ -3,6 +3,7 @@ import { authMiddleware, requireRole } from '../../middleware/auth.middleware';
 import trackingService, { TrackingEventInput } from './tracking.service';
 import notificationService from '../../services/notification.service';
 import prisma from '../../lib/prisma';
+import logger from '../../utils/logger';
 
 const router = Router();
 
@@ -27,7 +28,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
     const result = await trackingService.getContainers(filters, user.role, user.clientId);
     res.json(result);
   } catch (error: any) {
-    console.error('List containers error:', error);
+    logger.error('List containers error:', error);
     res.status(500).json({ error: error.message || 'Failed to list containers' });
   }
 });
@@ -45,7 +46,7 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
     const container = await trackingService.getContainerById(id, user.role, user.clientId);
     res.json(container);
   } catch (error: any) {
-    console.error('Get container error:', error);
+    logger.error('Get container error:', error);
 
     if (error.message === 'Container not found') {
       return res.status(404).json({ error: 'Container not found' });
@@ -69,7 +70,7 @@ router.get('/:id/route', authMiddleware, async (req: Request, res: Response) => 
     const route = await trackingService.getContainerRoute(id);
     res.json(route);
   } catch (error: any) {
-    console.error('Get route error:', error);
+    logger.error('Get route error:', error);
     res.status(500).json({ error: error.message || 'Failed to get route' });
   }
 });
@@ -115,7 +116,7 @@ router.post(
       const event = await trackingService.addTrackingEvent(id, eventData, user.userId);
       res.status(201).json(event);
     } catch (error: any) {
-      console.error('Add tracking event error:', error);
+      logger.error('Add tracking event error:', error);
 
       if (error.message === 'Container not found') {
         return res.status(404).json({ error: 'Container not found' });
@@ -168,7 +169,7 @@ router.post(
         lastSyncAt: new Date(),
       });
     } catch (error: any) {
-      console.error('Refresh tracking error:', error);
+      logger.error('Refresh tracking error:', error);
       res.status(500).json({ error: error.message || 'Failed to refresh tracking' });
     }
   }
@@ -283,7 +284,7 @@ router.get('/:id/timeline', authMiddleware, async (req: Request, res: Response) 
       timeline,
     });
   } catch (error: any) {
-    console.error('Get timeline error:', error);
+    logger.error('Get timeline error:', error);
     res.status(500).json({ error: error.message || 'Failed to get timeline' });
   }
 });
@@ -353,7 +354,7 @@ router.post(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      console.error('Send notification error:', error);
+      logger.error('Send notification error:', error);
       res.status(500).json({ error: error.message || 'Failed to send notification' });
     }
   }

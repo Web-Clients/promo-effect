@@ -3,6 +3,7 @@ import { authMiddleware, requireRole } from '../../middleware/auth.middleware';
 import { TrackingWebhookService } from './tracking-webhook.service';
 import { webhookLimiter, emailParseLimiter } from '../../middleware/rateLimit.middleware';
 import { parseEmailWithGemini, isGeminiConfigured } from '../../services/gemini.service';
+import logger from '../../utils/logger';
 
 const router = Router();
 const webhookService = new TrackingWebhookService();
@@ -49,7 +50,7 @@ router.post('/', webhookLimiter, async (req: Request, res: Response) => {
       res.status(404).json(result);
     }
   } catch (error: any) {
-    console.error('Webhook processing error:', error);
+    logger.error('Webhook processing error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to process webhook',
@@ -98,7 +99,7 @@ router.post(
         confidence: parsed.confidence,
       });
     } catch (error: any) {
-      console.error('Parse email error:', error);
+      logger.error('Parse email error:', error);
       res.status(500).json({ error: error.message || 'Failed to parse email' });
     }
   }

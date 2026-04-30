@@ -16,6 +16,7 @@ import { ImapFlow } from 'imapflow';
 import { simpleParser, ParsedMail } from 'mailparser';
 import prisma from '../lib/prisma';
 import { ParsedEmail, EmailAttachment } from '../modules/emails/email.service';
+import logger from '../../utils/logger';
 
 // ===== GMAIL IMAP SERVICE =====
 
@@ -52,7 +53,7 @@ export class GmailIntegration {
         pass: this.appPassword,
       },
       logger: false,
-      greetingTimeout: 30000,  // 30s (default 16s is too short on some VPS)
+      greetingTimeout: 30000, // 30s (default 16s is too short on some VPS)
       connectionTimeout: 30000,
       socketTimeout: 60000,
     });
@@ -137,7 +138,7 @@ export class GmailIntegration {
               emails.push(email);
             }
           } catch (msgError: any) {
-            console.error(`[Gmail IMAP] Failed to fetch message ${uid}:`, msgError.message);
+            logger.error(`[Gmail IMAP] Failed to fetch message ${uid}:`, msgError.message);
           }
         }
       } finally {
@@ -150,15 +151,14 @@ export class GmailIntegration {
         update: { lastEmailFetchAt: new Date() },
         create: { id: 1, lastEmailFetchAt: new Date() },
       });
-
     } catch (error: any) {
-      console.error('[Gmail IMAP] Fetch error:', error.message);
+      logger.error('[Gmail IMAP] Fetch error:', error.message);
       throw error;
     } finally {
       await client.logout();
     }
 
-    console.log(`[Gmail IMAP] Fetched ${emails.length} unread emails`);
+    logger.info(`[Gmail IMAP] Fetched ${emails.length} unread emails`);
     return emails;
   }
 
@@ -224,7 +224,7 @@ export class GmailIntegration {
         mailbox.release();
       }
     } catch (error: any) {
-      console.error(`[Gmail IMAP] Failed to mark message ${uid} as read:`, error.message);
+      logger.error(`[Gmail IMAP] Failed to mark message ${uid} as read:`, error.message);
     } finally {
       await client.logout();
     }

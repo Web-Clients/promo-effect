@@ -1,14 +1,15 @@
 /**
  * Daily Report Background Job
- * 
+ *
  * Generates and sends daily reports to admins
- * 
+ *
  * Schedule: Daily at 6:00 PM (0 18 * * *)
  */
 
 import cron from 'node-cron';
 import prisma from '../lib/prisma';
 import notificationService from '../services/notification.service';
+import logger from '../../utils/logger';
 
 let isRunning = false;
 
@@ -19,7 +20,7 @@ export function startDailyReportJob() {
   // Run daily at 6:00 PM
   cron.schedule('0 18 * * *', async () => {
     if (isRunning) {
-      console.log('[Daily Report] Previous job still running, skipping...');
+      logger.info('[Daily Report] Previous job still running, skipping...');
       return;
     }
 
@@ -27,7 +28,7 @@ export function startDailyReportJob() {
     const startTime = Date.now();
 
     try {
-      console.log('[Daily Report] Starting daily report generation...');
+      logger.info('[Daily Report] Starting daily report generation...');
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -166,7 +167,7 @@ Generat automat de Promo-Efect Platform
         },
       });
 
-      console.log(`[Daily Report] Sending report to ${adminUsers.length} admins`);
+      logger.info(`[Daily Report] Sending report to ${adminUsers.length} admins`);
 
       let sent = 0;
       let failed = 0;
@@ -200,27 +201,25 @@ Generat automat de Promo-Efect Platform
           sent++;
         } catch (error) {
           failed++;
-          console.error(`[Daily Report] Failed to send to admin ${admin.id}:`, error);
+          logger.error(`[Daily Report] Failed to send to admin ${admin.id}:`, error);
         }
       }
 
       const duration = Date.now() - startTime;
-      console.log(`[Daily Report] Completed in ${duration}ms: ${sent} sent, ${failed} failed`);
-
+      logger.info(`[Daily Report] Completed in ${duration}ms: ${sent} sent, ${failed} failed`);
     } catch (error) {
-      console.error('[Daily Report] Fatal error:', error);
+      logger.error('[Daily Report] Fatal error:', error);
     } finally {
       isRunning = false;
     }
   });
 
-  console.log('✅ Daily Report job started (runs daily at 6:00 PM)');
+  logger.info('✅ Daily Report job started (runs daily at 6:00 PM)');
 }
 
 /**
  * Stop the daily report job
  */
 export function stopDailyReportJob() {
-  console.log('⏹️ Daily Report job stopped');
+  logger.info('⏹️ Daily Report job stopped');
 }
-

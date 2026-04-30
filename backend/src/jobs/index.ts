@@ -9,12 +9,13 @@ import { startContainerSyncJob, stopContainerSyncJob } from './container-sync.jo
 import { startPaymentRemindersJob, stopPaymentRemindersJob } from './payment-reminders.job';
 import { startDailyReportJob, stopDailyReportJob } from './daily-report.job';
 import { startAuthCleanupJob, stopAuthCleanupJob } from './auth-cleanup.job';
+import logger from '../../utils/logger';
 
 /**
  * Start all background jobs
  */
 export function startAllJobs() {
-  console.log('🚀 Starting background jobs...');
+  logger.info('🚀 Starting background jobs...');
 
   // Start all jobs
   startEmailFetcherJob();
@@ -23,14 +24,14 @@ export function startAllJobs() {
   startDailyReportJob();
   startAuthCleanupJob(); // B7: cleanup expired reset tokens + B1: cleanup revoked sessions
 
-  console.log('✅ All background jobs started');
+  logger.info('✅ All background jobs started');
 }
 
 /**
  * Stop all background jobs
  */
 export function stopAllJobs() {
-  console.log('⏹️ Stopping background jobs...');
+  logger.info('⏹️ Stopping background jobs...');
 
   stopEmailFetcherJob();
   stopContainerSyncJob();
@@ -38,7 +39,7 @@ export function stopAllJobs() {
   stopDailyReportJob();
   stopAuthCleanupJob();
 
-  console.log('✅ All background jobs stopped');
+  logger.info('✅ All background jobs stopped');
 }
 
 /**

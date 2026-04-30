@@ -13,6 +13,7 @@
 import prisma from '../../lib/prisma';
 import notificationService from '../../services/notification.service';
 import { extractTextFromPDF } from '../../services/pdf-parser.service';
+import logger from '../../utils/logger';
 import {
   ParsedEmail,
   EmailAttachment,
@@ -187,7 +188,7 @@ export class EmailService {
       const geminiService = await import('../../services/gemini.service');
 
       if (!geminiService.isGeminiConfigured()) {
-        console.warn('Gemini API key not configured, skipping AI parsing');
+        logger.warn('Gemini API key not configured, skipping AI parsing');
         return {
           confidence: 0,
           extractionMethod: 'AI',
@@ -208,7 +209,7 @@ ${email.body.substring(0, 5000)}
       const geminiResult = await geminiService.parseEmailWithGemini(emailContent);
 
       if (geminiResult.error) {
-        console.warn('Gemini parsing failed:', geminiResult.error);
+        logger.warn('Gemini parsing failed:', geminiResult.error);
         return {
           confidence: 0,
           extractionMethod: 'AI',
@@ -240,7 +241,7 @@ ${email.body.substring(0, 5000)}
 
       return extracted;
     } catch (error) {
-      console.error('AI parsing failed:', error);
+      logger.error('AI parsing failed:', error);
       return {
         confidence: 0,
         extractionMethod: 'AI',
@@ -265,7 +266,7 @@ ${email.body.substring(0, 5000)}
       if (email.attachments && email.attachments.length > 0) {
         for (const attachment of email.attachments) {
           if (attachment.mimeType === 'application/pdf' && attachment.data) {
-            console.log(`[EmailService] Extracting text from PDF: ${attachment.filename}`);
+            logger.info(`[EmailService] Extracting text from PDF: ${attachment.filename}`);
             const text = await extractTextFromPDF(attachment.data);
             if (text.trim()) {
               pdfTexts.push(`--- ${attachment.filename} ---\n${text}`);
@@ -315,13 +316,13 @@ ${email.body.substring(0, 5000)}
                 extractionMethod: 'AI',
                 rawEmailId: email.id,
               };
-              console.log(
+              logger.info(
                 `[EmailService] PDF AI parsing: confidence=${pdfResult.confidence}%, BL=${pdfResult.billOfLading}, container=${pdfResult.containerNumber}`
               );
             }
           }
         } catch (pdfAiError) {
-          console.error('[EmailService] PDF AI parsing failed:', pdfAiError);
+          logger.error('[EmailService] PDF AI parsing failed:', pdfAiError);
         }
       }
       // Step 2b: If no PDFs or PDF parsing failed and confidence still low, try regular AI parsing
@@ -345,6 +346,8 @@ ${email.body.substring(0, 5000)}
 
       // Step 3: Check if container already exists (by container number, BL, or booking ref in subject)
       let existingContainer = null;
+      let existingBookingByBl: any = null;
+
       if (extractedData.containerNumber) {
         existingContainer = await prisma.container.findUnique({
           where: { containerNumber: extractedData.containerNumber.toUpperCase() },
@@ -352,7 +355,7 @@ ${email.body.substring(0, 5000)}
         });
       }
       if (!existingContainer && extractedData.blNumber) {
-        // Try matching by BL number — check both exact and partial match
+        // Try matching by BL number on Container.blNumber
         const blClean = extractedData.blNumber.toUpperCase().replace(/[\s\/]/g, '');
         existingContainer = await prisma.container.findFirst({
           where: { blNumber: { contains: blClean, mode: 'insensitive' } } as any,
@@ -360,18 +363,23 @@ ${email.body.substring(0, 5000)}
         });
       }
       if (!existingContainer && extractedData.blNumber) {
-        // Try matching booking by subject keywords (booking reference in internal notes)
-        const booking = await prisma.booking.findFirst({
+        // Try matching by Booking.blNumber (Phase A1 new field)
+        const blClean = extractedData.blNumber.toUpperCase().replace(/[\s\/]/g, '');
+        existingBookingByBl = await prisma.booking.findFirst({
           where: {
             OR: [
-              { internalNotes: { contains: extractedData.blNumber, mode: 'insensitive' } } as any,
-              { clientNotes: { contains: extractedData.blNumber, mode: 'insensitive' } } as any,
+              { blNumber: { contains: blClean, mode: 'insensitive' } } as any,
+              { internalNotes: { contains: blClean, mode: 'insensitive' } } as any,
+              { clientNotes: { contains: blClean, mode: 'insensitive' } } as any,
             ],
           },
           include: { containers: true },
         });
-        if (booking && booking.containers.length > 0) {
-          existingContainer = { ...booking.containers[0], booking } as any;
+        if (existingBookingByBl && existingBookingByBl.containers.length > 0) {
+          existingContainer = {
+            ...existingBookingByBl.containers[0],
+            booking: existingBookingByBl,
+          } as any;
         }
       }
 
@@ -409,12 +417,12 @@ ${email.body.substring(0, 5000)}
               });
             }
           } catch (error) {
-            console.error(
+            logger.error(
               `[EmailService] Failed to send notification about container ${existingContainer.containerNumber}:`,
               error
             );
           }
-          console.log(
+          logger.info(
             `[EmailService] Container ${existingContainer.containerNumber} has significant changes, needs review`
           );
         } else {
@@ -433,6 +441,18 @@ ${email.body.substring(0, 5000)}
             where: { id: existingContainer.id },
             data: updateData,
           });
+
+          // Also update Booking.blNumber (Phase A1) if not set yet
+          const bookingRecord = (existingContainer as any).booking;
+          if (extractedData.blNumber && bookingRecord && !(bookingRecord as any).blNumber) {
+            await prisma.booking.update({
+              where: { id: bookingRecord.id },
+              data: {
+                blNumber: extractedData.blNumber.toUpperCase(),
+                shipperName: extractedData.supplierName || undefined,
+              } as any,
+            });
+          }
 
           // Create tracking event
           await prisma.trackingEvent.create({
@@ -510,6 +530,9 @@ ${email.body.substring(0, 5000)}
                 supplierName: extractedData.supplierName,
                 supplierPhone: extractedData.supplierPhone,
                 supplierEmail: extractedData.supplierEmail || email.from,
+                // Phase A1: populate BL-level fields
+                blNumber: extractedData.blNumber?.toUpperCase() || null,
+                shipperName: extractedData.supplierName || null,
                 clientNotes: `Auto-created from email: ${email.subject}\n\nContainer: ${extractedData.containerNumber || 'N/A'}\nB/L: ${extractedData.blNumber || 'N/A'}`,
                 status: 'DRAFT', // Admin will review
               } as any,
@@ -572,12 +595,12 @@ ${email.body.substring(0, 5000)}
                   });
                 }
               } catch (error) {
-                console.error(
+                logger.error(
                   `[EmailService] Failed to send notification about new container ${container.containerNumber}:`,
                   error
                 );
               }
-              console.log(
+              logger.info(
                 `[EmailService] Created container ${container.containerNumber} from email, needs review`
               );
             }
@@ -622,7 +645,7 @@ ${email.body.substring(0, 5000)}
         processingTime: Date.now() - startTime,
       };
     } catch (error: any) {
-      console.error('Email processing failed:', error);
+      logger.error('Email processing failed:', error);
       return {
         emailId: email.id,
         status: 'FAILED',

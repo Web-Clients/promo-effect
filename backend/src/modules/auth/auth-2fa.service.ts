@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import prisma from '../../lib/prisma';
 import { generateAccessToken, generateRefreshToken } from '../../utils/jwt.util';
 import { AuthResponse, Complete2FALoginDTO } from './auth.types';
+import logger from '../../utils/logger';
 
 /**
  * Verify 2FA TOTP code
@@ -24,7 +25,7 @@ export async function verify2FACode(secret: string, code: string): Promise<boole
       window: 2, // Allow 2 time steps (60 seconds) of tolerance
     });
   } catch (error) {
-    console.error('2FA verification error:', error);
+    logger.error('2FA verification error:', error);
     return false;
   }
 }

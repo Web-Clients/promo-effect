@@ -1,6 +1,7 @@
 /**
- * Calculator Service v2
- * Calculates shipping prices for ALL 6 shipping lines and returns top 5 sorted by price
+ * Calculator Service v3
+ * Calculates shipping prices for ALL shipping lines and returns top 5 sorted by price
+ * Refactored: logic split into engine / incoterms / routes / validation modules
  *
  * Uses:
  * - BasePrice: Base freight prices per shipping line
@@ -20,6 +21,15 @@ import {
   PlaceOrderResult,
 } from './calculator.types';
 import { sendOrderEmails } from './calculator-emails';
+import {
+  computeFromBasePrices,
+  computeFromAgentPrices,
+  finalizeOffers,
+  getExchangeRate,
+  ExtendedCalculatorInput,
+} from './calculator-engine';
+import { validateCalculatorInput } from './calculator-validation';
+import { estimateTransitDays, checkAvailability } from './calculator-routes';
 
 // Re-export types for backward compatibility
 export {
@@ -37,534 +47,131 @@ export class CalculatorService {
   /**
    * Calculate prices for ALL shipping lines and return top 5 sorted by price
    * Supports multiple container types with quantities
+   * Delegates to calculator-engine.ts for core computation
    */
   async calculatePrices(input: CalculatorInput): Promise<CalculatorResult> {
     // Validate input
     this.validateInput(input);
 
-    const portDestination = input.portDestination || 'Constanta';
-    const readyDate = new Date(input.cargoReadyDate);
+    const extInput = input as ExtendedCalculatorInput;
+    const portDestination = extInput.portDestination || 'Constanta';
 
-    // Normalize containers: use containers array if provided, otherwise use single containerType
+    // Normalize containers
     const containers: ContainerEntry[] =
-      input.containers && input.containers.length > 0
-        ? input.containers.filter((c) => c.quantity > 0)
-        : [{ type: input.containerType, quantity: 1 }];
+      extInput.containers && extInput.containers.length > 0
+        ? extInput.containers.filter((c) => c.quantity > 0)
+        : [{ type: extInput.containerType, quantity: 1 }];
 
     const totalContainerCount = containers.reduce((sum, c) => sum + c.quantity, 0);
 
-    // 1. Get admin settings (fixed costs)
-    const settings = await prisma.adminSettings.findUnique({
-      where: { id: 1 },
-    });
-
+    // 1. Get admin settings
+    const settings = await prisma.adminSettings.findUnique({ where: { id: 1 } });
     if (!settings) {
       throw new Error('Admin settings not configured. Please contact administrator.');
     }
 
-    // 2. Get port adjustment for origin port
+    // 2. Port adjustment for origin
     const portAdjustment = await prisma.portAdjustment.findUnique({
-      where: { portName: input.portOrigin },
+      where: { portName: extInput.portOrigin },
     });
-
     const originAdjustment = portAdjustment?.adjustment || 0;
 
-    // 3. Get fixed costs based on destination port
+    // 3. Fixed costs based on destination
     const isConstanta =
       portDestination.toLowerCase().includes('constanta') ||
       portDestination.toLowerCase().includes('constanța');
 
     const portTaxes = isConstanta ? settings.portTaxesConstanta : settings.portTaxesOdessa;
-
     const terrestrialTransport = isConstanta
       ? settings.terrestrialTransportConstanta
       : settings.terrestrialTransportOdessa;
+    const insurance = extInput.includeInsurance ? settings.insuranceCost : 0;
 
-    const insurance = input.includeInsurance ? settings.insuranceCost : 0;
-
-    // 3b. Calculate weight surcharges from weight ranges
+    // 3b. Weight surcharges
     let freightSurcharge = 0;
     let terrestrialSurcharge = 0;
     try {
       const weightRanges = JSON.parse(settings.weightRanges || '[]');
-      if (Array.isArray(weightRanges) && input.cargoWeight) {
+      if (Array.isArray(weightRanges) && extInput.cargoWeight) {
         const matchedRange = weightRanges.find(
-          (r: any) => r.enabled && r.label === input.cargoWeight
+          (r: any) => r.enabled && r.label === extInput.cargoWeight
         );
         if (matchedRange) {
           freightSurcharge = matchedRange.freightSurcharge || 0;
           terrestrialSurcharge = matchedRange.terrestrialSurcharge || 0;
         }
       }
-    } catch (e) {
+    } catch {
       // Invalid weight ranges JSON, skip surcharges
     }
 
-    // 4. Query BasePrice for ALL container types
-    const containerTypes = [...new Set(containers.map((c) => c.type))];
+    const commonArgs: [
+      ExtendedCalculatorInput,
+      any,
+      number,
+      number,
+      number,
+      number,
+      ContainerEntry[],
+      number,
+      number,
+      number,
+    ] = [
+      extInput,
+      settings,
+      originAdjustment,
+      portTaxes,
+      terrestrialTransport,
+      insurance,
+      containers,
+      totalContainerCount,
+      freightSurcharge,
+      terrestrialSurcharge,
+    ];
 
-    const basePrices = await prisma.basePrice.findMany({
-      where: {
-        portOrigin: input.portOrigin,
-        ...(isConstanta
-          ? {
-              OR: [
-                { portDestination: { contains: 'Constanta', mode: 'insensitive' } },
-                { portDestination: { contains: 'Constanța', mode: 'insensitive' } },
-              ],
-            }
-          : { portDestination: { contains: 'Odessa', mode: 'insensitive' } }),
-        containerType: { in: containerTypes },
-        isActive: true,
-        validFrom: { lte: readyDate },
-        validUntil: { gte: readyDate },
-      },
-    });
+    // 4. Try BasePrice, fall back to AgentPrice
+    let offers = await computeFromBasePrices(...commonArgs);
 
-    // If no prices found in BasePrice, fall back to AgentPrice
-    if (basePrices.length === 0) {
-      return this.calculateWithAgentPrices(
-        input,
-        settings,
-        originAdjustment,
-        portTaxes,
-        terrestrialTransport,
-        insurance,
-        containers,
-        totalContainerCount,
-        freightSurcharge,
-        terrestrialSurcharge
-      );
-    }
-
-    // Group base prices by shipping line
-    const pricesByShippingLine = new Map<string, typeof basePrices>();
-    for (const price of basePrices) {
-      if (!pricesByShippingLine.has(price.shippingLine)) {
-        pricesByShippingLine.set(price.shippingLine, []);
-      }
-      pricesByShippingLine.get(price.shippingLine)!.push(price);
-    }
-
-    // 4b. Preload ShippingLineContainer configs (for local port taxes lookup)
-    const shippingLineContainers = await prisma.shippingLineContainer.findMany({
-      where: { isActive: true },
-    });
-    const slcMap = new Map<string, number>(); // "MSC__20DC" → portTaxes
-    for (const slc of shippingLineContainers) {
-      slcMap.set(`${slc.shippingLine}__${slc.containerType}`, slc.portTaxes);
-    }
-
-    // 4c. Preload TransportRate configs (for transport rate lookup)
-    const transportRates = await prisma.transportRate.findMany({
-      where: {
-        isActive: true,
-        destination: isConstanta ? 'Constanța' : 'Odessa',
-      },
-    });
-    const trMap = new Map<string, number>(); // "20DC__1-10 tone" → rate
-    for (const tr of transportRates) {
-      trMap.set(`${tr.containerType}__${tr.weightRange}`, tr.rate);
-    }
-
-    // 5. Calculate total price for each shipping line across all container types
-    const offers: PriceOffer[] = [];
-
-    for (const [shippingLine, prices] of pricesByShippingLine) {
-      // Build price map by container type for this shipping line
-      const priceByType = new Map<string, (typeof basePrices)[0]>();
-      for (const price of prices) {
-        priceByType.set(price.containerType, price);
-      }
-
-      // Check if we have prices for all requested container types
-      const missingTypes = containerTypes.filter((t) => !priceByType.has(t));
-      if (missingTypes.length > 0) {
-        // Skip this shipping line if it doesn't have prices for all container types
-        continue;
-      }
-
-      // Calculate breakdown per container type
-      const containerBreakdown: ContainerPriceBreakdown[] = [];
-      let totalFreight = 0;
-      let totalPortAdjustment = 0;
-      let maxTransitDays = 0;
-
-      for (const container of containers) {
-        const price = priceByType.get(container.type)!;
-        const unitPrice = price.basePrice + originAdjustment;
-        const containerTotal = unitPrice * container.quantity;
-
-        containerBreakdown.push({
-          type: container.type,
-          quantity: container.quantity,
-          unitPriceUSD: price.basePrice,
-          totalPriceUSD: containerTotal,
-          freightPrice: price.basePrice * container.quantity,
-          portAdjustment: originAdjustment * container.quantity,
-        });
-
-        totalFreight += price.basePrice * container.quantity;
-        totalPortAdjustment += originAdjustment * container.quantity;
-        maxTransitDays = Math.max(maxTransitDays, price.transitDays);
-      }
-
-      // Per-line cost overrides
-      // Priority: BasePrice override → ShippingLineContainer / TransportRate table → global AdminSettings
-      const firstPrice = prices[0];
-      const primaryContainerType = containers[0]?.type || containerTypes[0];
-
-      // Port taxes: BasePrice → ShippingLineContainer → AdminSettings
-      const slcPortTaxes = slcMap.get(`${shippingLine}__${primaryContainerType}`);
-      const linePortTaxes = firstPrice.portTaxes ?? slcPortTaxes ?? portTaxes;
-
-      // Transport: BasePrice → TransportRate → AdminSettings
-      const trRate = trMap.get(`${primaryContainerType}__${input.cargoWeight}`);
-      const lineTerrestrialTransport =
-        firstPrice.terrestrialTransport ?? trRate ?? terrestrialTransport;
-
-      const lineCustomsTaxes = firstPrice.customsTaxes ?? settings.customsTaxes;
-      const lineCommission = firstPrice.commission ?? settings.commission;
-
-      // Apply weight surcharges
-      const adjustedTerrestrialTransport = lineTerrestrialTransport + terrestrialSurcharge;
-      const adjustedFreight = totalFreight + freightSurcharge;
-
-      // Fixed costs are per shipment, not per container
-      const totalFixedCosts =
-        linePortTaxes +
-        lineCustomsTaxes +
-        adjustedTerrestrialTransport +
-        lineCommission +
-        insurance;
-
-      // Total price = container costs + fixed costs
-      const totalPriceUSD = adjustedFreight + totalPortAdjustment + totalFixedCosts;
-
-      const portIntermediate = isConstanta ? 'Constanța' : 'Odessa';
-      const route = `${input.portOrigin} → ${portIntermediate} → Chișinău`;
-
-      offers.push({
-        rank: 0,
-        shippingLine,
-        basePriceId: prices[0].id, // Use first price ID as reference
-        route,
-        portOrigin: input.portOrigin,
-        portIntermediate,
-        portFinal: 'Chișinău',
-        freightPrice: adjustedFreight,
-        portAdjustment: totalPortAdjustment,
-        portTaxes: linePortTaxes,
-        customsTaxes: lineCustomsTaxes,
-        terrestrialTransport: adjustedTerrestrialTransport,
-        commission: lineCommission,
-        insurance,
-        totalPriceUSD,
-        totalPriceMDL: 0,
-        containerBreakdown,
-        totalContainers: totalContainerCount,
-        estimatedTransitDays:
-          maxTransitDays > 0
-            ? maxTransitDays
-            : this.estimateTransitDays(input.portOrigin, input.portDestination),
-        availability: this.checkAvailability(readyDate),
-      });
+    if (offers.length === 0) {
+      offers = await computeFromAgentPrices(...commonArgs);
     }
 
     if (offers.length === 0) {
       throw new Error(
-        `Nu s-au găsit prețuri pentru toate tipurile de containere selectate (${containerTypes.join(', ')})`
+        `Nu s-au găsit prețuri pentru combinația selectată (${extInput.portOrigin} → ${portDestination}, containere: ${containers.map((c) => c.type).join(', ')})`
       );
     }
 
-    // 6. Sort by price (lowest first)
-    offers.sort((a, b) => a.totalPriceUSD - b.totalPriceUSD);
-
-    // 7. Take top 5 and assign ranks
-    const top5 = offers.slice(0, 5).map((offer, index) => ({
-      ...offer,
-      rank: index + 1,
-    }));
-
-    // 8. Get exchange rate USD → MDL
-    const exchangeRate = await this.getExchangeRate('USD', 'MDL');
-
-    // 9. Convert to MDL
-    const withMDL = top5.map((offer) => ({
-      ...offer,
-      totalPriceMDL: Math.round(offer.totalPriceUSD * exchangeRate * 100) / 100,
-    }));
-
-    return {
-      offers: withMDL,
-      exchangeRate,
-      calculatedAt: new Date(),
-      totalContainers: totalContainerCount,
-      input: {
-        ...input,
-        portDestination,
-        containers,
-      },
-    };
+    const exchangeRate = await getExchangeRate('USD', 'MDL');
+    return finalizeOffers(offers, exchangeRate, totalContainerCount, extInput);
   }
 
   /**
-   * Fallback to AgentPrice if BasePrice not configured
-   */
-  private async calculateWithAgentPrices(
-    input: CalculatorInput,
-    settings: any,
-    originAdjustment: number,
-    portTaxes: number,
-    terrestrialTransport: number,
-    insurance: number,
-    containers?: ContainerEntry[],
-    totalContainerCount?: number,
-    freightSurcharge: number = 0,
-    terrestrialSurcharge: number = 0
-  ): Promise<CalculatorResult> {
-    const readyDate = new Date(input.cargoReadyDate);
-    const isConstanta =
-      input.portDestination.toLowerCase().includes('constanta') ||
-      input.portDestination.toLowerCase().includes('constanța');
-
-    const containerList =
-      containers && containers.length > 0
-        ? containers
-        : [{ type: input.containerType, quantity: 1 }];
-
-    const containerTypes = [...new Set(containerList.map((c) => c.type))];
-    const totalContainers =
-      totalContainerCount || containerList.reduce((sum, c) => sum + c.quantity, 0);
-
-    const agentPrices = await prisma.agentPrice.findMany({
-      where: {
-        portOrigin: input.portOrigin,
-        containerType: { in: containerTypes },
-        weightRange: input.cargoWeight,
-      },
-      include: {
-        agent: true,
-      },
-    });
-
-    if (agentPrices.length === 0) {
-      throw new Error(
-        `Nu s-au găsit prețuri pentru ${input.portOrigin} → ${input.portDestination}, ${containerTypes.join(', ')}, ${input.cargoWeight}`
-      );
-    }
-
-    // Group by shipping line
-    const pricesByShippingLine = new Map<string, typeof agentPrices>();
-    for (const price of agentPrices) {
-      if (!pricesByShippingLine.has(price.shippingLine)) {
-        pricesByShippingLine.set(price.shippingLine, []);
-      }
-      pricesByShippingLine.get(price.shippingLine)!.push(price);
-    }
-
-    const offers: PriceOffer[] = [];
-
-    for (const [shippingLine, prices] of pricesByShippingLine) {
-      const priceByType = new Map<string, (typeof agentPrices)[0]>();
-      for (const price of prices) {
-        priceByType.set(price.containerType, price);
-      }
-
-      // Skip if missing container types
-      const missingTypes = containerTypes.filter((t) => !priceByType.has(t));
-      if (missingTypes.length > 0) continue;
-
-      // Calculate breakdown
-      const containerBreakdown: ContainerPriceBreakdown[] = [];
-      let totalFreight = 0;
-      let totalPortAdjustment = 0;
-      let latestDeparture: Date | null = null;
-
-      for (const container of containerList) {
-        const price = priceByType.get(container.type)!;
-        const unitPrice = price.freightPrice + originAdjustment;
-        const containerTotal = unitPrice * container.quantity;
-
-        containerBreakdown.push({
-          type: container.type,
-          quantity: container.quantity,
-          unitPriceUSD: price.freightPrice,
-          totalPriceUSD: containerTotal,
-          freightPrice: price.freightPrice * container.quantity,
-          portAdjustment: originAdjustment * container.quantity,
-        });
-
-        totalFreight += price.freightPrice * container.quantity;
-        totalPortAdjustment += originAdjustment * container.quantity;
-
-        if (!latestDeparture || price.departureDate > latestDeparture) {
-          latestDeparture = price.departureDate;
-        }
-      }
-
-      const adjustedTerrestrialTransportAP = terrestrialTransport + terrestrialSurcharge;
-      const adjustedFreightAP = totalFreight + freightSurcharge;
-      const totalFixedCosts =
-        portTaxes +
-        settings.customsTaxes +
-        adjustedTerrestrialTransportAP +
-        settings.commission +
-        insurance;
-      const totalPriceUSD = adjustedFreightAP + totalPortAdjustment + totalFixedCosts;
-
-      const portIntermediate = isConstanta ? 'Constanța' : 'Odessa';
-      const route = `${input.portOrigin} → ${portIntermediate} → Chișinău`;
-
-      offers.push({
-        rank: 0,
-        shippingLine,
-        basePriceId: prices[0].id,
-        route,
-        portOrigin: input.portOrigin,
-        portIntermediate,
-        portFinal: 'Chișinău',
-        freightPrice: adjustedFreightAP,
-        portAdjustment: totalPortAdjustment,
-        portTaxes,
-        customsTaxes: settings.customsTaxes,
-        terrestrialTransport: adjustedTerrestrialTransportAP,
-        commission: settings.commission,
-        insurance,
-        totalPriceUSD,
-        totalPriceMDL: 0,
-        containerBreakdown,
-        totalContainers,
-        estimatedTransitDays: this.estimateTransitDays(input.portOrigin, input.portDestination),
-        availability: this.checkAvailability(latestDeparture || readyDate),
-      });
-    }
-
-    if (offers.length === 0) {
-      throw new Error(
-        `Nu s-au găsit prețuri pentru ${input.portOrigin} → ${input.portDestination}, ${containerTypes.join(', ')}, ${input.cargoWeight}`
-      );
-    }
-
-    offers.sort((a, b) => a.totalPriceUSD - b.totalPriceUSD);
-
-    const top5 = offers.slice(0, 5).map((offer, index) => ({
-      ...offer,
-      rank: index + 1,
-    }));
-
-    const exchangeRate = await this.getExchangeRate('USD', 'MDL');
-
-    const withMDL = top5.map((offer) => ({
-      ...offer,
-      totalPriceMDL: Math.round(offer.totalPriceUSD * exchangeRate * 100) / 100,
-    }));
-
-    return {
-      offers: withMDL,
-      exchangeRate,
-      calculatedAt: new Date(),
-      totalContainers,
-      input: {
-        ...input,
-        containers: containerList,
-      },
-    };
-  }
-
-  /**
-   * Validate input parameters
+   * Validate input parameters — delegates to calculator-validation.ts
    */
   private validateInput(input: CalculatorInput): void {
-    if (!input.portOrigin) {
-      throw new Error('Portul de origine este obligatoriu');
-    }
-
-    if (!input.containerType) {
-      throw new Error('Tipul containerului este obligatoriu');
-    }
-
-    if (!input.cargoWeight) {
-      throw new Error('Greutatea mărfii este obligatorie');
-    }
-
-    if (!input.cargoReadyDate) {
-      throw new Error('Data pregătirii mărfii este obligatorie');
-    }
-
-    // Validate date is in future
-    const readyDate = new Date(input.cargoReadyDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (readyDate < today) {
-      throw new Error('Data pregătirii mărfii trebuie să fie în viitor');
-    }
+    validateCalculatorInput(input);
   }
 
   /**
-   * Estimate transit days based on route (fallback)
+   * Estimate transit days — delegates to calculator-routes.ts
    */
   private estimateTransitDays(origin: string, destination: string): number {
-    const isConstanta = destination.toLowerCase().includes('constanta');
-    const estimates: { [key: string]: { constanta: number; odessa: number } } = {
-      Shanghai: { constanta: 32, odessa: 30 },
-      Qingdao: { constanta: 30, odessa: 28 },
-      Ningbo: { constanta: 33, odessa: 31 },
-      Shenzhen: { constanta: 35, odessa: 33 },
-      Guangzhou: { constanta: 35, odessa: 33 },
-      Tianjin: { constanta: 28, odessa: 26 },
-      Dalian: { constanta: 26, odessa: 24 },
-      Xiamen: { constanta: 34, odessa: 32 },
-    };
-
-    const estimate = estimates[origin];
-    if (estimate) {
-      return isConstanta ? estimate.constanta : estimate.odessa;
-    }
-    return 30; // Default 30 days
+    return estimateTransitDays(origin, destination);
   }
 
   /**
-   * Check availability based on date
+   * Check availability — delegates to calculator-routes.ts
    */
   private checkAvailability(date: Date): 'AVAILABLE' | 'LIMITED' | 'UNAVAILABLE' {
-    const today = new Date();
-    const daysUntil = Math.floor((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-    if (daysUntil > 14) {
-      return 'AVAILABLE';
-    } else if (daysUntil > 7) {
-      return 'LIMITED';
-    } else {
-      return 'UNAVAILABLE';
-    }
+    return checkAvailability(date);
   }
 
   /**
-   * Get exchange rate from external API
+   * Get exchange rate — delegates to calculator-engine.ts
    */
   private async getExchangeRate(from: string, to: string): Promise<number> {
-    try {
-      const response = await fetch(`https://api.exchangerate-api.com/v4/latest/${from}`);
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch exchange rate');
-      }
-
-      const data = await response.json();
-      const rate = data.rates[to];
-
-      if (!rate) {
-        throw new Error(`Exchange rate not found for ${from} → ${to}`);
-      }
-
-      return rate;
-    } catch (error) {
-      console.error('Exchange rate error:', error);
-      // Fallback to hardcoded rate
-      return 18.0;
-    }
+    return getExchangeRate(from, to);
   }
 
   /**

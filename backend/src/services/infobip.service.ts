@@ -12,6 +12,7 @@
 
 import axios from 'axios';
 import FormData from 'form-data';
+import logger from '../utils/logger';
 
 interface InfobipAttachment {
   filename: string;
@@ -50,7 +51,8 @@ class InfobipService {
   private isConfigured: boolean = false;
 
   constructor() {
-    this.fromEmail = process.env.INFOBIP_FROM_EMAIL || process.env.SMTP_FROM_EMAIL || 'noreply@promo-efect.md';
+    this.fromEmail =
+      process.env.INFOBIP_FROM_EMAIL || process.env.SMTP_FROM_EMAIL || 'noreply@promo-efect.md';
     this.fromName = process.env.INFOBIP_FROM_NAME || process.env.SMTP_FROM_NAME || 'Promo-Efect';
     this.smsFrom = process.env.INFOBIP_SMS_FROM || 'Promo-Efect';
     this.initializeClient();
@@ -61,13 +63,15 @@ class InfobipService {
     this.baseUrl = process.env.INFOBIP_BASE_URL || '';
 
     if (!this.apiKey || !this.baseUrl) {
-      console.warn('[Infobip] Missing INFOBIP_API_KEY or INFOBIP_BASE_URL. Email sending will be logged to console.');
+      logger.warn(
+        '[Infobip] Missing INFOBIP_API_KEY or INFOBIP_BASE_URL. Email sending will be logged to console.'
+      );
       this.isConfigured = false;
       return;
     }
 
     this.isConfigured = true;
-    console.log(`[Infobip] Email service configured with base URL: ${this.baseUrl}`);
+    logger.info(`[Infobip] Email service configured with base URL: ${this.baseUrl}`);
   }
 
   /**
@@ -85,19 +89,19 @@ class InfobipService {
 
     // If not configured, log to console
     if (!this.isReady()) {
-      console.log('='.repeat(60));
-      console.log('[Infobip] EMAIL (API not configured - logging to console)');
-      console.log('='.repeat(60));
-      console.log(`To: ${to}`);
-      console.log(`From: ${fromName || this.fromName} <${from || this.fromEmail}>`);
-      console.log(`Subject: ${subject}`);
-      console.log(`Content: ${text || html?.substring(0, 200)}...`);
-      console.log('='.repeat(60));
-      console.log('\nTo enable Infobip email, configure in .env:');
-      console.log('  INFOBIP_API_KEY=your_api_key');
-      console.log('  INFOBIP_BASE_URL=xxxxx.api.infobip.com');
-      console.log('  INFOBIP_FROM_EMAIL=verified@yourdomain.com');
-      console.log('='.repeat(60));
+      logger.info('='.repeat(60));
+      logger.info('[Infobip] EMAIL (API not configured - logging to console)');
+      logger.info('='.repeat(60));
+      logger.info(`To: ${to}`);
+      logger.info(`From: ${fromName || this.fromName} <${from || this.fromEmail}>`);
+      logger.info(`Subject: ${subject}`);
+      logger.info(`Content: ${text || html?.substring(0, 200)}...`);
+      logger.info('='.repeat(60));
+      logger.info('\nTo enable Infobip email, configure in .env:');
+      logger.info('  INFOBIP_API_KEY=your_api_key');
+      logger.info('  INFOBIP_BASE_URL=xxxxx.api.infobip.com');
+      logger.info('  INFOBIP_FROM_EMAIL=verified@yourdomain.com');
+      logger.info('='.repeat(60));
       return { success: true, messageId: 'console-log' };
     }
 
@@ -123,39 +127,36 @@ class InfobipService {
         }
       }
 
-      const response = await axios.post(
-        `https://${this.baseUrl}/email/3/send`,
-        formData,
-        {
-          headers: {
-            'Authorization': `App ${this.apiKey}`,
-            'Accept': 'application/json',
-            ...formData.getHeaders(),
-          },
-        }
-      );
+      const response = await axios.post(`https://${this.baseUrl}/email/3/send`, formData, {
+        headers: {
+          Authorization: `App ${this.apiKey}`,
+          Accept: 'application/json',
+          ...formData.getHeaders(),
+        },
+      });
 
       if (response.data?.messages?.[0]?.messageId) {
         const messageId = response.data.messages[0].messageId;
-        console.log(`[Infobip] Email sent successfully to ${to}, messageId: ${messageId}`);
+        logger.info(`[Infobip] Email sent successfully to ${to}, messageId: ${messageId}`);
         return { success: true, messageId };
       }
 
-      console.log(`[Infobip] Email sent to ${to}`);
+      logger.info(`[Infobip] Email sent to ${to}`);
       return { success: true };
     } catch (error: any) {
-      const errorMessage = error.response?.data?.requestError?.serviceException?.text
-        || error.response?.data?.message
-        || error.message
-        || 'Unknown error';
+      const errorMessage =
+        error.response?.data?.requestError?.serviceException?.text ||
+        error.response?.data?.message ||
+        error.message ||
+        'Unknown error';
 
-      console.error(`[Infobip] Failed to send email to ${to}: ${errorMessage}`);
+      logger.error(`[Infobip] Failed to send email to ${to}: ${errorMessage}`);
 
       if (error.response?.status) {
-        console.error(`[Infobip] HTTP Status: ${error.response.status}`);
+        logger.error(`[Infobip] HTTP Status: ${error.response.status}`);
       }
       if (error.response?.data) {
-        console.error('[Infobip] Response:', JSON.stringify(error.response.data, null, 2));
+        logger.error('[Infobip] Response:', JSON.stringify(error.response.data, null, 2));
       }
 
       return { success: false, error: errorMessage };
@@ -180,8 +181,8 @@ class InfobipService {
 
     return {
       total: recipients.length,
-      successful: results.filter(r => r.success).length,
-      failed: results.filter(r => !r.success).length,
+      successful: results.filter((r) => r.success).length,
+      failed: results.filter((r) => !r.success).length,
       results,
     };
   }
@@ -194,13 +195,13 @@ class InfobipService {
 
     // If not configured, log to console
     if (!this.isReady()) {
-      console.log('='.repeat(60));
-      console.log('[Infobip] SMS (API not configured - logging to console)');
-      console.log('='.repeat(60));
-      console.log(`To: ${to}`);
-      console.log(`From: ${from || this.smsFrom}`);
-      console.log(`Text: ${text}`);
-      console.log('='.repeat(60));
+      logger.info('='.repeat(60));
+      logger.info('[Infobip] SMS (API not configured - logging to console)');
+      logger.info('='.repeat(60));
+      logger.info(`To: ${to}`);
+      logger.info(`From: ${from || this.smsFrom}`);
+      logger.info(`Text: ${text}`);
+      logger.info('='.repeat(60));
       return { success: true, messageId: 'console-log' };
     }
 
@@ -218,40 +219,39 @@ class InfobipService {
         ],
       };
 
-      const response = await axios.post(
-        `https://${this.baseUrl}/sms/2/text/advanced`,
-        payload,
-        {
-          headers: {
-            'Authorization': `App ${this.apiKey}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-        }
-      );
+      const response = await axios.post(`https://${this.baseUrl}/sms/2/text/advanced`, payload, {
+        headers: {
+          Authorization: `App ${this.apiKey}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+      });
 
       if (response.data?.messages?.[0]?.messageId) {
         const messageId = response.data.messages[0].messageId;
         const status = response.data.messages[0].status;
-        console.log(`[Infobip] SMS sent to ${formattedPhone}, messageId: ${messageId}, status: ${status?.name || 'PENDING'}`);
+        logger.info(
+          `[Infobip] SMS sent to ${formattedPhone}, messageId: ${messageId}, status: ${status?.name || 'PENDING'}`
+        );
         return { success: true, messageId };
       }
 
-      console.log(`[Infobip] SMS sent to ${formattedPhone}`);
+      logger.info(`[Infobip] SMS sent to ${formattedPhone}`);
       return { success: true };
     } catch (error: any) {
-      const errorMessage = error.response?.data?.requestError?.serviceException?.text
-        || error.response?.data?.message
-        || error.message
-        || 'Unknown error';
+      const errorMessage =
+        error.response?.data?.requestError?.serviceException?.text ||
+        error.response?.data?.message ||
+        error.message ||
+        'Unknown error';
 
-      console.error(`[Infobip] Failed to send SMS to ${to}: ${errorMessage}`);
+      logger.error(`[Infobip] Failed to send SMS to ${to}: ${errorMessage}`);
 
       if (error.response?.status) {
-        console.error(`[Infobip] HTTP Status: ${error.response.status}`);
+        logger.error(`[Infobip] HTTP Status: ${error.response.status}`);
       }
       if (error.response?.data) {
-        console.error('[Infobip] Response:', JSON.stringify(error.response.data, null, 2));
+        logger.error('[Infobip] Response:', JSON.stringify(error.response.data, null, 2));
       }
 
       return { success: false, error: errorMessage };

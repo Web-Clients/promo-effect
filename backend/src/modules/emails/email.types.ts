@@ -68,7 +68,8 @@ export const REGEX_PATTERNS = {
   containerNumber: /\b([A-Z]{4}[0-9]{7})\b/gi,
 
   // B/L number: Various formats
-  blNumber: /\b(BL[A-Z0-9\-]{6,15}|[A-Z]{4}[0-9]{9,12}|MEDUEN[0-9]+)\b/gi,
+  // Covers: MEDUKC298446, FTAU1173171, MAEU1234567890, BL-ABC123456, HLCUSHA123456789
+  blNumber: /\b([A-Z]{4,}[0-9]{6,}|BL[A-Z0-9\-]{6,15}|MEDUEN[0-9]+)\b/gi,
 
   // Weight patterns
   weight: /(\d+(?:\.\d+)?)\s*(?:kg|KG|ton|t|MT|metric\s*ton)/gi,

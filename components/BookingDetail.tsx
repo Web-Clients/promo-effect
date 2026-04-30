@@ -5,14 +5,22 @@ import { SHIPPING_LINES, ORIGIN_PORTS, DESTINATION_PORTS, CONTAINER_TYPES } from
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/Tabs';
 import { useToast } from './ui/Toast';
 import bookingsService, {
   CreateBookingData,
   UpdateBookingData,
   BookingResponse,
 } from '../services/bookings';
-import GPSTrackingMap from './GPSTrackingMap';
 import { getErrorMessage } from '../utils/formatters';
+
+// Sub-components
+import BookingHeader from './bookings/detail/BookingHeader';
+import BookingRouteMap from './bookings/detail/BookingRouteMap';
+import BookingPricingPanel, { PricingData } from './bookings/detail/BookingPricingPanel';
+import BookingDocuments, { BookingDocument } from './bookings/detail/BookingDocuments';
+import BookingTimeline from './bookings/detail/BookingTimeline';
+import BookingActions from './bookings/detail/BookingActions';
 
 interface BookingDetailProps {
   user: User;
@@ -34,6 +42,10 @@ interface BookingFormState extends Partial<Booking> {
   trackingVehicleId?: string | null;
   trackingVehicleName?: string | null;
   trackingStartedAt?: string | null;
+  // Pricing
+  pricingData?: PricingData | null;
+  // Documents
+  documents?: BookingDocument[];
 }
 
 // Map API response to form state
@@ -66,6 +78,9 @@ const mapApiToFormState = (apiBooking: BookingResponse): BookingFormState => {
     trackingVehicleId: apiBooking.trackingVehicleId,
     trackingVehicleName: apiBooking.trackingVehicleName,
     trackingStartedAt: apiBooking.trackingStartedAt,
+    // Pricing & documents
+    pricingData: (apiBooking as any).pricingData ?? null,
+    documents: (apiBooking as any).documents ?? [],
   };
 };
 
@@ -162,7 +177,6 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
           setError(message);
           addToast(message, 'error');
 
-          // Handle specific errors
           const statusErr = err as { status?: number; response?: { status?: number } };
           const httpStatus = statusErr.status ?? statusErr.response?.status;
           if (httpStatus === 404) {
@@ -185,21 +199,17 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-
-      if (isSubmitting) return; // Prevent double submit
-
+      if (isSubmitting) return;
       setIsSubmitting(true);
       setError(null);
 
       try {
         if (isNew) {
-          // CREATE new booking
           const createData = mapToCreateData(bookingData);
           const newBooking = await bookingsService.createBooking(createData);
           addToast('Rezervare creată cu succes!', 'success');
           navigate(`/dashboard/bookings/${newBooking.id}`);
         } else {
-          // UPDATE existing booking
           const updateData = mapToUpdateData(bookingData);
           const updatedBooking = await bookingsService.updateBooking(bookingId!, updateData);
           setBookingData(mapApiToFormState(updatedBooking));
@@ -243,361 +253,492 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center">
-        <button
-          onClick={onBack}
-          className="p-2 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-700 mr-3"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-6 w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-            />
-          </svg>
-        </button>
-        <h3 className="text-2xl font-semibold text-neutral-800 dark:text-neutral-100">
-          {isNew ? 'Cerere de Rezervare Nouă' : `Rezervare ${bookingData.booking_number}`}
-        </h3>
-      </div>
+      {/* A9: Header — BL number, status, back button */}
+      <BookingHeader
+        bookingNumber={bookingData.booking_number}
+        blNumber={bookingData.bl_number}
+        status={bookingData.status}
+        isNew={isNew}
+        isAdmin={isAdmin}
+        onBack={onBack}
+      />
 
+      {/* Form wraps the main card so submit button can trigger it */}
       <form onSubmit={handleSubmit}>
-        <Card className="space-y-6">
-          <div>
-            <h4 className="text-base font-semibold text-neutral-700 dark:text-neutral-200 border-b border-neutral-200 dark:border-neutral-700 pb-2 mb-4">
-              Detalii Rută
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-                  Port Origine
-                </label>
-                <BookingSelect
-                  disabled={isReadOnly}
-                  value={bookingData.origin_port || ''}
-                  onChange={(e) => setBookingData({ ...bookingData, origin_port: e.target.value })}
-                >
-                  {ORIGIN_PORTS.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </BookingSelect>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-                  Port Destinație
-                </label>
-                <BookingSelect disabled value={bookingData.destination_port || ''}>
-                  {DESTINATION_PORTS.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </BookingSelect>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="text-base font-semibold text-neutral-700 dark:text-neutral-200 border-b border-neutral-200 dark:border-neutral-700 pb-2 mb-4">
-              Detalii Container
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-                  Tip Container
-                </label>
-                <BookingSelect
-                  disabled={isReadOnly}
-                  value={bookingData.container_type || ''}
-                  onChange={(e) =>
-                    setBookingData({ ...bookingData, container_type: e.target.value })
-                  }
-                >
-                  {CONTAINER_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </BookingSelect>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-                  Linie Maritimă Preferată
-                </label>
-                <BookingSelect
-                  disabled={isReadOnly}
-                  value={bookingData.shipping_line || ''}
-                  onChange={(e) =>
-                    setBookingData({ ...bookingData, shipping_line: e.target.value })
-                  }
-                >
-                  {SHIPPING_LINES.map((l) => (
-                    <option key={l} value={l}>
-                      {l}
-                    </option>
-                  ))}
-                </BookingSelect>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-                  Număr Container
-                </label>
-                <Input
-                  type="text"
-                  value={bookingData.container_number || ''}
-                  onChange={(e) =>
-                    setBookingData({ ...bookingData, container_number: e.target.value })
-                  }
-                  className="font-mono"
-                  disabled={isReadOnly}
-                  placeholder="Ex: MSCU1234567"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-                  Număr BL (Bill of Lading)
-                </label>
-                <Input
-                  type="text"
-                  value={bookingData.bl_number || ''}
-                  onChange={(e) => setBookingData({ ...bookingData, bl_number: e.target.value })}
-                  className="font-mono"
-                  disabled={isReadOnly}
-                  placeholder="Ex: MEDU1234567"
-                />
-              </div>
-            </div>
-          </div>
-
-          {isAdmin && !isNew && (
-            <div>
-              <h4 className="text-base font-semibold text-neutral-700 dark:text-neutral-200 border-b border-neutral-200 dark:border-neutral-700 pb-2 mb-4">
-                Informații Administrative
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-                    Stare Rezervare
-                  </label>
-                  <BookingSelect
-                    value={bookingData.status || ''}
-                    onChange={(e) =>
-                      setBookingData({ ...bookingData, status: e.target.value as BookingStatus })
-                    }
-                  >
-                    {Object.values(BookingStatus).map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </BookingSelect>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-                    Număr Container
-                  </label>
-                  <Input
-                    type="text"
-                    value={bookingData.container_number || ''}
-                    onChange={(e) =>
-                      setBookingData({ ...bookingData, container_number: e.target.value })
-                    }
-                    className="font-mono"
-                    placeholder="Ex: MSCU1234567"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-                    Număr BL
-                  </label>
-                  <Input
-                    type="text"
-                    value={bookingData.bl_number || ''}
-                    onChange={(e) => setBookingData({ ...bookingData, bl_number: e.target.value })}
-                    className="font-mono"
-                    placeholder="Ex: MEDU1234567"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-                    Preț Ofertat (USD)
-                  </label>
-                  <Input
-                    type="number"
-                    value={bookingData.quoted_price_usd || ''}
-                    onChange={(e) =>
-                      setBookingData({
-                        ...bookingData,
-                        quoted_price_usd: parseFloat(e.target.value),
-                      })
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Shipper / Beneficiary */}
-          {!isNew &&
-            (bookingData.supplierName ||
-              bookingData.client_name ||
-              bookingData.quoted_price_usd) && (
-              <div>
-                <h4 className="text-base font-semibold text-neutral-700 dark:text-neutral-200 border-b border-neutral-200 dark:border-neutral-700 pb-2 mb-4">
-                  Expeditor & Beneficiar
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {bookingData.client_name && (
-                    <div>
-                      <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-                        Beneficiar (Client)
-                      </label>
-                      <p className="mt-1 text-sm text-neutral-800 dark:text-neutral-200 font-medium">
-                        {bookingData.client_name}
-                      </p>
-                    </div>
-                  )}
-                  {bookingData.supplierName && (
-                    <div>
-                      <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-                        Expeditor (Furnizor)
-                      </label>
-                      <p className="mt-1 text-sm text-neutral-800 dark:text-neutral-200">
-                        {bookingData.supplierName}
-                      </p>
-                      {bookingData.supplierAddress && (
-                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                          {bookingData.supplierAddress}
-                        </p>
-                      )}
-                      {bookingData.supplierPhone && (
-                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                          {bookingData.supplierPhone}
-                        </p>
-                      )}
-                      {bookingData.supplierEmail && (
-                        <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                          {bookingData.supplierEmail}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  {bookingData.quoted_price_usd !== undefined &&
-                    bookingData.quoted_price_usd !== null && (
-                      <div>
-                        <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-                          Preț / Tarif
-                        </label>
-                        <p className="mt-1 text-lg font-bold text-primary-700 dark:text-primary-400">
-                          $
-                          {Number(bookingData.quoted_price_usd).toLocaleString('en-US', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}{' '}
-                          USD
-                        </p>
-                      </div>
-                    )}
-                </div>
-              </div>
-            )}
-
-          {!isReadOnly && (
-            <div className="flex justify-end pt-4">
-              <Button type="button" variant="secondary" onClick={onBack} className="mr-4">
-                Anulează
-              </Button>
-              <Button type="submit" disabled={isSubmitting} loading={isSubmitting}>
-                {isSubmitting
-                  ? 'Se salvează...'
-                  : isNew
-                    ? 'Trimite Cererea'
-                    : 'Salvează Modificările'}
-              </Button>
-            </div>
-          )}
-        </Card>
-      </form>
-
-      {/* Print Button */}
-      {!isNew && (
-        <div className="flex justify-end print:hidden">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => window.print()}
-            className="flex items-center gap-2"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+        {isNew ? (
+          /* New booking: single card, no tabs */
+          <Card className="space-y-6">
+            {renderRouteSection()}
+            {renderContainerSection()}
+            {renderCargoSection()}
+            {renderSupplierSection()}
+            {renderNotesSection()}
+            <div className="pt-4">
+              <BookingActions
+                bookingId={bookingId ?? ''}
+                isAdmin={isAdmin}
+                isNew={isNew}
+                isSubmitting={isSubmitting}
+                isReadOnly={isReadOnly}
+                onBack={onBack}
               />
-            </svg>
-            Tipărește
-          </Button>
-        </div>
-      )}
+            </div>
+          </Card>
+        ) : (
+          /* Existing booking: tabbed layout */
+          <Tabs defaultValue="details">
+            <TabsList>
+              <TabsTrigger value="details">Detalii</TabsTrigger>
+              <TabsTrigger value="pricing">Preț</TabsTrigger>
+              <TabsTrigger value="map">Hartă</TabsTrigger>
+              <TabsTrigger value="documents">Documente</TabsTrigger>
+              <TabsTrigger value="timeline">Status</TabsTrigger>
+            </TabsList>
 
-      {/* GPS Tracking Map - show when booking exists and status is IN_TRANSIT or has vehicle assigned */}
-      {!isNew &&
-        bookingId &&
-        (bookingData.status === 'IN_TRANSIT' || bookingData.trackingVehicleId) && (
-          <GPSTrackingMap
-            bookingId={bookingId}
-            vehicleId={bookingData.trackingVehicleId}
-            vehicleName={bookingData.trackingVehicleName}
-            isAdmin={isAdmin}
-            onVehicleAssigned={() => {
-              // Reload booking to get updated tracking info
-              if (bookingId) {
-                bookingsService.getBookingById(bookingId).then((apiBooking) => {
-                  setBookingData(mapApiToFormState(apiBooking));
-                });
-              }
-            }}
-          />
-        )}
+            {/* --- TAB: Details --- */}
+            <TabsContent value="details">
+              <Card className="space-y-6">
+                {renderRouteSection()}
+                {renderContainerSection()}
+                {isAdmin && renderAdminSection()}
+                {renderShipperBeneficiarySection()}
+                {renderCargoSection()}
+                {renderSupplierSection()}
+                {renderNotesSection()}
+                <div className="pt-2">
+                  <BookingActions
+                    bookingId={bookingId ?? ''}
+                    isAdmin={isAdmin}
+                    isNew={isNew}
+                    isSubmitting={isSubmitting}
+                    isReadOnly={isReadOnly}
+                    onBack={onBack}
+                  />
+                </div>
+              </Card>
+            </TabsContent>
 
-      {/* Show GPS Tracking section for admin even if no vehicle - allow assignment */}
-      {!isNew &&
-        bookingId &&
-        isAdmin &&
-        !bookingData.trackingVehicleId &&
-        bookingData.status !== 'IN_TRANSIT' && (
-          <GPSTrackingMap
-            bookingId={bookingId}
-            vehicleId={null}
-            vehicleName={null}
-            isAdmin={isAdmin}
-            onVehicleAssigned={() => {
-              if (bookingId) {
-                bookingsService.getBookingById(bookingId).then((apiBooking) => {
-                  setBookingData(mapApiToFormState(apiBooking));
-                });
-              }
-            }}
-          />
+            {/* --- TAB: Pricing (A11) --- */}
+            <TabsContent value="pricing">
+              <BookingPricingPanel
+                bookingId={bookingId ?? ''}
+                isAdmin={isAdmin}
+                initialPricingData={bookingData.pricingData}
+                onSaved={(p) => setBookingData((prev) => ({ ...prev, pricingData: p }))}
+              />
+            </TabsContent>
+
+            {/* --- TAB: Route Map (A10) --- */}
+            <TabsContent value="map">
+              <BookingRouteMap
+                portOrigin={bookingData.origin_port}
+                portDestination={bookingData.destination_port}
+                finalDestination={
+                  bookingData.destination_port?.toLowerCase().includes('constanta') ||
+                  bookingData.destination_port?.toLowerCase().includes('constanța')
+                    ? 'Chișinău'
+                    : undefined
+                }
+              />
+            </TabsContent>
+
+            {/* --- TAB: Documents --- */}
+            <TabsContent value="documents">
+              <BookingDocuments
+                bookingId={bookingId ?? ''}
+                documents={bookingData.documents}
+                canUpload={true}
+                onDocumentsChange={(docs) =>
+                  setBookingData((prev) => ({ ...prev, documents: docs }))
+                }
+              />
+            </TabsContent>
+
+            {/* --- TAB: Timeline --- */}
+            <TabsContent value="timeline">
+              <BookingTimeline bookingStatus={bookingData.status} />
+            </TabsContent>
+          </Tabs>
         )}
+      </form>
     </div>
   );
+
+  // ─── Section renderers ───────────────────────────────────────────────────────
+
+  function renderRouteSection() {
+    return (
+      <div>
+        <h4 className="text-base font-semibold text-neutral-700 dark:text-neutral-200 border-b border-neutral-200 dark:border-neutral-700 pb-2 mb-4">
+          Detalii Rută
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+              Port Origine
+            </label>
+            <BookingSelect
+              disabled={isReadOnly}
+              value={bookingData.origin_port || ''}
+              onChange={(e) => setBookingData({ ...bookingData, origin_port: e.target.value })}
+            >
+              {ORIGIN_PORTS.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </BookingSelect>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+              Port Destinație
+            </label>
+            <BookingSelect disabled value={bookingData.destination_port || ''}>
+              {DESTINATION_PORTS.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </BookingSelect>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderContainerSection() {
+    return (
+      <div>
+        <h4 className="text-base font-semibold text-neutral-700 dark:text-neutral-200 border-b border-neutral-200 dark:border-neutral-700 pb-2 mb-4">
+          Detalii Container
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+              Tip Container
+            </label>
+            <BookingSelect
+              disabled={isReadOnly}
+              value={bookingData.container_type || ''}
+              onChange={(e) =>
+                setBookingData({ ...bookingData, container_type: e.target.value })
+              }
+            >
+              {CONTAINER_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </BookingSelect>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+              Linie Maritimă Preferată
+            </label>
+            <BookingSelect
+              disabled={isReadOnly}
+              value={bookingData.shipping_line || ''}
+              onChange={(e) =>
+                setBookingData({ ...bookingData, shipping_line: e.target.value })
+              }
+            >
+              {SHIPPING_LINES.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </BookingSelect>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+              Număr Container
+            </label>
+            <Input
+              type="text"
+              value={bookingData.container_number || ''}
+              onChange={(e) =>
+                setBookingData({ ...bookingData, container_number: e.target.value })
+              }
+              className="font-mono"
+              disabled={isReadOnly}
+              placeholder="Ex: MSCU1234567"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+              Număr BL (Bill of Lading)
+            </label>
+            <Input
+              type="text"
+              value={bookingData.bl_number || ''}
+              onChange={(e) => setBookingData({ ...bookingData, bl_number: e.target.value })}
+              className="font-mono"
+              disabled={isReadOnly}
+              placeholder="Ex: MEDU1234567"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderAdminSection() {
+    return (
+      <div>
+        <h4 className="text-base font-semibold text-neutral-700 dark:text-neutral-200 border-b border-neutral-200 dark:border-neutral-700 pb-2 mb-4">
+          Informații Administrative
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+              Stare Rezervare
+            </label>
+            <BookingSelect
+              value={bookingData.status || ''}
+              onChange={(e) =>
+                setBookingData({ ...bookingData, status: e.target.value as BookingStatus })
+              }
+            >
+              {Object.values(BookingStatus).map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </BookingSelect>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+              Data Estimată Sosire (ETA)
+            </label>
+            <Input
+              type="date"
+              value={bookingData.estimated_arrival_date || ''}
+              onChange={(e) =>
+                setBookingData({ ...bookingData, estimated_arrival_date: e.target.value })
+              }
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+              Preț Ofertat (USD)
+            </label>
+            <Input
+              type="number"
+              value={bookingData.quoted_price_usd || ''}
+              onChange={(e) =>
+                setBookingData({
+                  ...bookingData,
+                  quoted_price_usd: parseFloat(e.target.value),
+                })
+              }
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderShipperBeneficiarySection() {
+    if (
+      !bookingData.supplierName &&
+      !bookingData.client_name &&
+      bookingData.quoted_price_usd == null
+    )
+      return null;
+
+    return (
+      <div>
+        <h4 className="text-base font-semibold text-neutral-700 dark:text-neutral-200 border-b border-neutral-200 dark:border-neutral-700 pb-2 mb-4">
+          Expeditor & Beneficiar
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {bookingData.client_name && (
+            <div>
+              <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+                Beneficiar (Client)
+              </label>
+              <p className="mt-1 text-sm text-neutral-800 dark:text-neutral-200 font-medium">
+                {bookingData.client_name}
+              </p>
+            </div>
+          )}
+          {bookingData.supplierName && (
+            <div>
+              <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+                Expeditor (Furnizor)
+              </label>
+              <p className="mt-1 text-sm text-neutral-800 dark:text-neutral-200">
+                {bookingData.supplierName}
+              </p>
+              {bookingData.supplierAddress && (
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                  {bookingData.supplierAddress}
+                </p>
+              )}
+              {bookingData.supplierPhone && (
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                  {bookingData.supplierPhone}
+                </p>
+              )}
+              {bookingData.supplierEmail && (
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                  {bookingData.supplierEmail}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  function renderCargoSection() {
+    return (
+      <div>
+        <h4 className="text-base font-semibold text-neutral-700 dark:text-neutral-200 border-b border-neutral-200 dark:border-neutral-700 pb-2 mb-4">
+          Detalii Marfă
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+              Categorie Marfă
+            </label>
+            <Input
+              type="text"
+              value={bookingData.cargoCategory || ''}
+              onChange={(e) => setBookingData({ ...bookingData, cargoCategory: e.target.value })}
+              disabled={isReadOnly}
+              placeholder="Ex: general, refrigerat, periculos"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+              Greutate
+            </label>
+            <Input
+              type="text"
+              value={bookingData.cargoWeight || ''}
+              onChange={(e) => setBookingData({ ...bookingData, cargoWeight: e.target.value })}
+              disabled={isReadOnly}
+              placeholder="Ex: 1-10 tone"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+              Data Disponibilitate Marfă
+            </label>
+            <Input
+              type="date"
+              value={bookingData.cargoReadyDate || ''}
+              onChange={(e) =>
+                setBookingData({ ...bookingData, cargoReadyDate: e.target.value })
+              }
+              disabled={isReadOnly}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderSupplierSection() {
+    return (
+      <div>
+        <h4 className="text-base font-semibold text-neutral-700 dark:text-neutral-200 border-b border-neutral-200 dark:border-neutral-700 pb-2 mb-4">
+          Date Furnizor
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+              Nume Furnizor
+            </label>
+            <Input
+              type="text"
+              value={bookingData.supplierName || ''}
+              onChange={(e) => setBookingData({ ...bookingData, supplierName: e.target.value })}
+              disabled={isReadOnly}
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+              Telefon Furnizor
+            </label>
+            <Input
+              type="text"
+              value={bookingData.supplierPhone || ''}
+              onChange={(e) => setBookingData({ ...bookingData, supplierPhone: e.target.value })}
+              disabled={isReadOnly}
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+              Email Furnizor
+            </label>
+            <Input
+              type="email"
+              value={bookingData.supplierEmail || ''}
+              onChange={(e) => setBookingData({ ...bookingData, supplierEmail: e.target.value })}
+              disabled={isReadOnly}
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+              Adresă Furnizor
+            </label>
+            <Input
+              type="text"
+              value={bookingData.supplierAddress || ''}
+              onChange={(e) =>
+                setBookingData({ ...bookingData, supplierAddress: e.target.value })
+              }
+              disabled={isReadOnly}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderNotesSection() {
+    return (
+      <div>
+        <h4 className="text-base font-semibold text-neutral-700 dark:text-neutral-200 border-b border-neutral-200 dark:border-neutral-700 pb-2 mb-4">
+          Note
+        </h4>
+        <div className="grid grid-cols-1 gap-4">
+          <div>
+            <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+              Note Client
+            </label>
+            <textarea
+              value={bookingData.clientNotes || ''}
+              onChange={(e) => setBookingData({ ...bookingData, clientNotes: e.target.value })}
+              disabled={isReadOnly}
+              rows={3}
+              className="w-full mt-1 p-2 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-neutral-100 dark:disabled:bg-neutral-700 resize-y"
+              placeholder="Observații sau instrucțiuni speciale"
+            />
+          </div>
+          {isAdmin && (
+            <div>
+              <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+                Note Interne (Admin)
+              </label>
+              <textarea
+                value={bookingData.internalNotes || ''}
+                onChange={(e) =>
+                  setBookingData({ ...bookingData, internalNotes: e.target.value })
+                }
+                rows={3}
+                className="w-full mt-1 p-2 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y"
+                placeholder="Note interne, vizibile doar pentru admin"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 };
 
 export default BookingDetail;

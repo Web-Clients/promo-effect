@@ -6,6 +6,7 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../../lib/prisma';
 import notificationService from '../../services/notification.service';
+import logger from '../../utils/logger';
 
 const router = Router();
 
@@ -57,7 +58,7 @@ router.post('/contact', async (req: Request, res: Response) => {
       },
     });
 
-    console.log('[Landing Contact] Lead saved to audit log:', { name, company, email });
+    logger.info('[Landing Contact] Lead saved to audit log:', { name, company, email });
 
     // Send email notification to sales team
     try {
@@ -81,10 +82,10 @@ router.post('/contact', async (req: Request, res: Response) => {
         });
       } else {
         // Fallback: log the lead if no admin user found
-        console.log(`[Landing Contact] New lead: ${name} (${email}) from ${company || 'N/A'}`);
+        logger.info(`[Landing Contact] New lead: ${name} (${email}) from ${company || 'N/A'}`);
       }
     } catch (error) {
-      console.error('[Landing Contact] Failed to send notification email:', error);
+      logger.error('[Landing Contact] Failed to send notification email:', error);
       // Don't fail the request if email fails
     }
 
@@ -94,7 +95,7 @@ router.post('/contact', async (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
-    console.error('Landing contact error:', error);
+    logger.error('Landing contact error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to submit contact form',

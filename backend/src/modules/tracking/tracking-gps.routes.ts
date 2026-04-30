@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authMiddleware, requireRole } from '../../middleware/auth.middleware';
 import prisma from '../../lib/prisma';
 import trackGPSService from '../../services/trackgps.service';
+import logger from '../../utils/logger';
 
 const router = Router();
 
@@ -41,7 +42,7 @@ router.get(
         configured: true,
       });
     } catch (error: any) {
-      console.error('TrackGPS connection test error:', error);
+      logger.error('TrackGPS connection test error:', error);
       res.status(500).json({
         success: false,
         message: 'Connection test failed',
@@ -78,7 +79,7 @@ router.get(
         count: vehicles.length,
       });
     } catch (error: any) {
-      console.error('Get GPS vehicles error:', error);
+      logger.error('Get GPS vehicles error:', error);
       res.status(500).json({
         success: false,
         error: error.message || 'Failed to fetch vehicles from TrackGPS',
@@ -145,7 +146,7 @@ router.get('/vehicles/:vehicleId/location', authMiddleware, async (req: Request,
       },
     });
   } catch (error: any) {
-    console.error('Get vehicle location error:', error);
+    logger.error('Get vehicle location error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to get vehicle location',
@@ -235,7 +236,7 @@ router.put(
           : null,
       });
     } catch (error: any) {
-      console.error('Assign vehicle error:', error);
+      logger.error('Assign vehicle error:', error);
 
       if (error.code === 'P2025') {
         return res.status(404).json({
@@ -334,7 +335,7 @@ router.get(
           : null,
       });
     } catch (error: any) {
-      console.error('Get booking GPS location error:', error);
+      logger.error('Get booking GPS location error:', error);
       res.status(500).json({
         success: false,
         error: error.message || 'Failed to get GPS location',

@@ -18,7 +18,7 @@ export async function extractTextFromPDF(base64Data: string): Promise<string> {
     const data = await pdfParse(buffer);
     return data.text || '';
   } catch (error: any) {
-    console.error('[PDF Parser] Failed to extract text:', error.message);
+    logger.error('[PDF Parser] Failed to extract text:', error.message);
     return '';
   }
 }
@@ -31,7 +31,7 @@ export async function extractTextFromPDFBuffer(buffer: Buffer): Promise<string> 
     const data = await pdfParse(buffer);
     return data.text || '';
   } catch (error: any) {
-    console.error('[PDF Parser] Failed to extract text from buffer:', error.message);
+    logger.error('[PDF Parser] Failed to extract text from buffer:', error.message);
     return '';
   }
 }

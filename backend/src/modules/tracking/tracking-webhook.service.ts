@@ -6,6 +6,7 @@
 import prisma from '../../lib/prisma';
 import notificationService from '../../services/notification.service';
 import { searatesIntegration } from '../../integrations/searates.integration';
+import logger from '../../utils/logger';
 
 export interface WebhookPayload {
   containerNumber?: string;
@@ -215,7 +216,7 @@ export class TrackingWebhookService {
             : null;
 
           if (!clientUser) {
-            console.warn(
+            logger.warn(
               `[Webhook] No user found for clientId ${container.booking.clientId}, skipping delay notification`
             );
           } else {
@@ -234,7 +235,7 @@ export class TrackingWebhookService {
             });
           }
         } catch (error) {
-          console.error('Failed to send delay notification:', error);
+          logger.error('Failed to send delay notification:', error);
         }
       }
     }
@@ -267,7 +268,7 @@ export class TrackingWebhookService {
               : null;
 
             if (!clientUser) {
-              console.warn(
+              logger.warn(
                 `[Webhook] No user found for clientId ${container.booking.clientId}, skipping ETA notification`
               );
             } else {
@@ -287,7 +288,7 @@ export class TrackingWebhookService {
             }
           }
         } catch (error) {
-          console.error('Failed to send ETA change notification:', error);
+          logger.error('Failed to send ETA change notification:', error);
         }
       }
     }

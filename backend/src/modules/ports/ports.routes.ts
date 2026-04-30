@@ -6,6 +6,7 @@
 import { Router, Request, Response } from 'express';
 import portsService, { PortType } from './ports.service';
 import { authMiddleware, requireRole } from '../../middleware/auth.middleware';
+import logger from '../../utils/logger';
 
 const router = Router();
 
@@ -22,7 +23,7 @@ router.get('/', async (req: Request, res: Response) => {
     );
     res.json(ports);
   } catch (error: any) {
-    console.error('[Ports] Error fetching ports:', error);
+    logger.error('[Ports] Error fetching ports:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -37,7 +38,7 @@ router.get('/origin', async (req: Request, res: Response) => {
     const ports = await portsService.getOriginPorts(includeInactive === 'true');
     res.json(ports);
   } catch (error: any) {
-    console.error('[Ports] Error fetching origin ports:', error);
+    logger.error('[Ports] Error fetching origin ports:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -52,7 +53,7 @@ router.get('/destination', async (req: Request, res: Response) => {
     const ports = await portsService.getDestinationPorts(includeInactive === 'true');
     res.json(ports);
   } catch (error: any) {
-    console.error('[Ports] Error fetching destination ports:', error);
+    logger.error('[Ports] Error fetching destination ports:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -69,7 +70,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
     res.json(port);
   } catch (error: any) {
-    console.error('[Ports] Error fetching port:', error);
+    logger.error('[Ports] Error fetching port:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -97,7 +98,7 @@ router.post('/', async (req: Request, res: Response) => {
     const port = await portsService.create({ name, code, country, type });
     res.status(201).json(port);
   } catch (error: any) {
-    console.error('[Ports] Error creating port:', error);
+    logger.error('[Ports] Error creating port:', error);
     res.status(400).json({ error: error.message });
   }
 });
@@ -112,7 +113,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     const port = await portsService.update(req.params.id, { name, code, country, isActive });
     res.json(port);
   } catch (error: any) {
-    console.error('[Ports] Error updating port:', error);
+    logger.error('[Ports] Error updating port:', error);
     res.status(400).json({ error: error.message });
   }
 });
@@ -126,7 +127,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
     await portsService.delete(req.params.id);
     res.json({ success: true });
   } catch (error: any) {
-    console.error('[Ports] Error deleting port:', error);
+    logger.error('[Ports] Error deleting port:', error);
     res.status(400).json({ error: error.message });
   }
 });
@@ -140,7 +141,7 @@ router.post('/seed', async (req: Request, res: Response) => {
     const result = await portsService.seedPorts();
     res.json({ success: true, ...result });
   } catch (error: any) {
-    console.error('[Ports] Error seeding ports:', error);
+    logger.error('[Ports] Error seeding ports:', error);
     res.status(500).json({ error: error.message });
   }
 });

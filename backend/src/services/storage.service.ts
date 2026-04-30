@@ -1,6 +1,6 @@
 /**
  * Storage Service
- * 
+ *
  * Handles file storage for PDFs, documents, and other files
  * Supports: Local filesystem, AWS S3, Azure Blob, Google Cloud Storage
  */
@@ -8,6 +8,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import logger from '../utils/logger';
 
 export interface StorageConfig {
   provider: 'LOCAL_FILESYSTEM' | 'AWS_S3' | 'AZURE_BLOB' | 'GOOGLE_CLOUD_STORAGE';
@@ -51,11 +52,7 @@ class StorageService {
    * @param folder Folder path (e.g., 'invoices', 'documents')
    * @returns URL to access the file
    */
-  async uploadFile(
-    buffer: Buffer,
-    fileName: string,
-    folder: string = 'files'
-  ): Promise<string> {
+  async uploadFile(buffer: Buffer, fileName: string, folder: string = 'files'): Promise<string> {
     const fileExtension = path.extname(fileName);
     const uniqueFileName = `${uuidv4()}${fileExtension}`;
     const filePath = path.join(folder, uniqueFileName);
@@ -81,11 +78,7 @@ class StorageService {
   /**
    * Upload to local filesystem
    */
-  private async uploadToLocal(
-    buffer: Buffer,
-    filePath: string,
-    folder: string
-  ): Promise<string> {
+  private async uploadToLocal(buffer: Buffer, filePath: string, folder: string): Promise<string> {
     const fullPath = path.join(this.config.localStoragePath!, folder);
     this.ensureDirectoryExists(fullPath);
 
@@ -103,7 +96,7 @@ class StorageService {
   private async uploadToS3(buffer: Buffer, filePath: string): Promise<string> {
     // Check if credentials are configured
     if (!this.config.awsAccessKeyId || !this.config.awsSecretAccessKey) {
-      console.warn('AWS S3 credentials not configured, using local storage');
+      logger.warn('AWS S3 credentials not configured, using local storage');
       return this.uploadToLocal(buffer, filePath, 'invoices');
     }
 
@@ -138,9 +131,11 @@ class StorageService {
     } catch (error: any) {
       // If @aws-sdk/client-s3 is not installed, provide helpful error
       if (error.code === 'MODULE_NOT_FOUND' || error.message?.includes('Cannot find module')) {
-        console.error('@aws-sdk/client-s3 is not installed. Install it with: npm install @aws-sdk/client-s3');
+        logger.error(
+          '@aws-sdk/client-s3 is not installed. Install it with: npm install @aws-sdk/client-s3'
+        );
       }
-      console.error('S3 upload failed, falling back to local storage:', error.message || error);
+      logger.error('S3 upload failed, falling back to local storage:', error.message || error);
       return this.uploadToLocal(buffer, filePath, 'invoices');
     }
   }
@@ -150,7 +145,7 @@ class StorageService {
    */
   private async uploadToAzure(buffer: Buffer, filePath: string): Promise<string> {
     // TODO: Implement Azure Blob upload
-    console.warn('Azure Blob Storage not yet implemented, using local storage');
+    logger.warn('Azure Blob Storage not yet implemented, using local storage');
     return this.uploadToLocal(buffer, filePath, 'invoices');
   }
 
@@ -159,7 +154,7 @@ class StorageService {
    */
   private async uploadToGCS(buffer: Buffer, filePath: string): Promise<string> {
     // TODO: Implement GCS upload
-    console.warn('Google Cloud Storage not yet implemented, using local storage');
+    logger.warn('Google Cloud Storage not yet implemented, using local storage');
     return this.uploadToLocal(buffer, filePath, 'invoices');
   }
 
@@ -181,7 +176,7 @@ class StorageService {
       } else if (this.config.provider === 'AWS_S3') {
         try {
           const { S3Client, DeleteObjectCommand } = await import('@aws-sdk/client-s3');
-          
+
           const s3Client = new S3Client({
             region: this.config.awsRegion || 'us-east-1',
             credentials: {
@@ -202,14 +197,14 @@ class StorageService {
           await s3Client.send(command);
           return true;
         } catch (error: any) {
-          console.error('Failed to delete file from S3:', error.message || error);
+          logger.error('Failed to delete file from S3:', error.message || error);
           return false;
         }
       }
       // TODO: Implement delete for Azure, GCS
       return false;
     } catch (error) {
-      console.error('Failed to delete file:', error);
+      logger.error('Failed to delete file:', error);
       return false;
     }
   }
@@ -231,7 +226,7 @@ class StorageService {
       } else if (this.config.provider === 'AWS_S3') {
         try {
           const { S3Client, GetObjectCommand } = await import('@aws-sdk/client-s3');
-          
+
           const s3Client = new S3Client({
             region: this.config.awsRegion || 'us-east-1',
             credentials: {
@@ -250,7 +245,7 @@ class StorageService {
           });
 
           const response = await s3Client.send(command);
-          
+
           if (response.Body) {
             // Convert stream to buffer
             const chunks: Uint8Array[] = [];
@@ -259,17 +254,17 @@ class StorageService {
             }
             return Buffer.concat(chunks);
           }
-          
+
           return null;
         } catch (error: any) {
-          console.error('Failed to get file from S3:', error.message || error);
+          logger.error('Failed to get file from S3:', error.message || error);
           return null;
         }
       }
       // TODO: Implement get for Azure, GCS
       return null;
     } catch (error) {
-      console.error('Failed to get file:', error);
+      logger.error('Failed to get file:', error);
       return null;
     }
   }
@@ -277,4 +272,3 @@ class StorageService {
 
 // Export singleton instance
 export const storageService = new StorageService();
-

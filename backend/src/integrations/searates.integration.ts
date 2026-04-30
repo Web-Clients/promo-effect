@@ -9,6 +9,7 @@
  */
 
 import axios, { AxiosInstance } from 'axios';
+import logger from '../utils/logger';
 import {
   SeaRatesMetadata,
   SeaRatesLocation,
@@ -65,11 +66,11 @@ export class SeaRatesIntegration {
     // Add response interceptor for logging
     this.client.interceptors.response.use(
       (response) => {
-        console.log(`[SeaRates] API Response: ${response.status} for ${response.config.url}`);
+        logger.info(`[SeaRates] API Response: ${response.status} for ${response.config.url}`);
         return response;
       },
       (error) => {
-        console.error(`[SeaRates] API Error: ${error.response?.status || error.message}`);
+        logger.error(`[SeaRates] API Error: ${error.response?.status || error.message}`);
         return Promise.reject(error);
       }
     );
@@ -104,7 +105,7 @@ export class SeaRatesIntegration {
     } = {}
   ): Promise<SeaRatesContainer | null> {
     if (!this.isConfigured()) {
-      console.warn('[SeaRates] API key not configured');
+      logger.warn('[SeaRates] API key not configured');
       return null;
     }
 
@@ -116,7 +117,7 @@ export class SeaRatesIntegration {
     } = options;
 
     try {
-      console.log(`[SeaRates] Tracking container: ${containerNumber}`);
+      logger.info(`[SeaRates] Tracking container: ${containerNumber}`);
 
       const response = await this.client.get<SeaRatesApiResponse>('/tracking', {
         params: {
@@ -131,9 +132,9 @@ export class SeaRatesIntegration {
       });
 
       if (response.data.status !== 'success') {
-        console.error(`[SeaRates] API error: ${response.data.message}`);
+        logger.error(`[SeaRates] API error: ${response.data.message}`);
         if (response.data.errors) {
-          console.error('[SeaRates] Errors:', response.data.errors);
+          logger.error('[SeaRates] Errors:', response.data.errors);
         }
         return null;
       }
@@ -141,21 +142,21 @@ export class SeaRatesIntegration {
       return this.parseApiResponse(response.data, containerNumber);
     } catch (error: any) {
       if (error.response?.status === 404 || error.response?.data?.message?.includes('not found')) {
-        console.log(`[SeaRates] Container ${containerNumber} not found`);
+        logger.info(`[SeaRates] Container ${containerNumber} not found`);
         return null;
       }
 
       if (error.response?.status === 429) {
-        console.error('[SeaRates] Rate limit exceeded');
+        logger.error('[SeaRates] Rate limit exceeded');
         throw new Error('SeaRates API rate limit exceeded. Please try again later.');
       }
 
       if (error.response?.status === 401 || error.response?.status === 403) {
-        console.error('[SeaRates] Authentication error - check API key');
+        logger.error('[SeaRates] Authentication error - check API key');
         throw new Error('SeaRates API authentication failed. Please check API key.');
       }
 
-      console.error(`[SeaRates] API error for container ${containerNumber}:`, error.message);
+      logger.error(`[SeaRates] API error for container ${containerNumber}:`, error.message);
       throw error;
     }
   }
@@ -172,14 +173,14 @@ export class SeaRatesIntegration {
     } = {}
   ): Promise<SeaRatesContainer | null> {
     if (!this.isConfigured()) {
-      console.warn('[SeaRates] API key not configured');
+      logger.warn('[SeaRates] API key not configured');
       return null;
     }
 
     const { sealine = 'auto', forceUpdate = false, includeRoute = true } = options;
 
     try {
-      console.log(`[SeaRates] Tracking B/L: ${blNumber}`);
+      logger.info(`[SeaRates] Tracking B/L: ${blNumber}`);
 
       const response = await this.client.get<SeaRatesApiResponse>('/tracking', {
         params: {
@@ -193,18 +194,18 @@ export class SeaRatesIntegration {
       });
 
       if (response.data.status !== 'success') {
-        console.error(`[SeaRates] API error: ${response.data.message}`);
+        logger.error(`[SeaRates] API error: ${response.data.message}`);
         return null;
       }
 
       return this.parseApiResponse(response.data, blNumber, 'BL');
     } catch (error: any) {
       if (error.response?.status === 404) {
-        console.log(`[SeaRates] B/L ${blNumber} not found`);
+        logger.info(`[SeaRates] B/L ${blNumber} not found`);
         return null;
       }
 
-      console.error(`[SeaRates] API error for B/L ${blNumber}:`, error.message);
+      logger.error(`[SeaRates] API error for B/L ${blNumber}:`, error.message);
       throw error;
     }
   }
@@ -226,7 +227,7 @@ export class SeaRatesIntegration {
     const { sealine = 'auto', forceUpdate = false } = options;
 
     try {
-      console.log(`[SeaRates] Tracking Booking: ${bookingNumber}`);
+      logger.info(`[SeaRates] Tracking Booking: ${bookingNumber}`);
 
       const response = await this.client.get<SeaRatesApiResponse>('/tracking', {
         params: {
@@ -245,7 +246,7 @@ export class SeaRatesIntegration {
 
       return this.parseApiResponse(response.data, bookingNumber, 'BK');
     } catch (error: any) {
-      console.error(`[SeaRates] API error for Booking ${bookingNumber}:`, error.message);
+      logger.error(`[SeaRates] API error for Booking ${bookingNumber}:`, error.message);
       return null;
     }
   }
@@ -585,7 +586,7 @@ export class SeaRatesIntegration {
 
       return crypto.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(receivedHash));
     } catch (error) {
-      console.error('[SeaRates] Webhook signature verification error:', error);
+      logger.error('[SeaRates] Webhook signature verification error:', error);
       return false;
     }
   }

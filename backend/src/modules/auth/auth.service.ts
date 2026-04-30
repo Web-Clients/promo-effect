@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import prisma from '../../lib/prisma';
 import { generateAccessToken, generateRefreshToken } from '../../utils/jwt.util';
+import logger from '../../utils/logger';
 import {
   sendVerificationEmail,
   sendPasswordResetEmail,
@@ -134,11 +135,10 @@ export class AuthService {
         name: user.name,
         verificationUrl,
       });
-      console.log(`[AuthService] Verification email sent to ${user.email}`);
+      logger.info('[AuthService] Verification email sent');
     } catch (error: any) {
       // Log error but don't fail registration - email can be resent later
-      console.error('[AuthService] Failed to send verification email:', error.message);
-      console.log('[AuthService] Verification URL (for manual sending):', verificationUrl);
+      logger.error('[AuthService] Failed to send verification email', { message: error.message });
     }
 
     // Generate tokens
@@ -504,11 +504,10 @@ export class AuthService {
     // Send password reset email
     try {
       await sendPasswordResetEmail(user.email, user.name, resetUrl);
-      console.log(`[AuthService] Password reset email sent to ${user.email}`);
+      logger.info('[AuthService] Password reset email sent');
     } catch (error: any) {
       // Log error but don't fail - email can be resent later
-      console.error('[AuthService] Failed to send password reset email:', error.message);
-      console.log('[AuthService] Reset URL (for manual sending):', resetUrl);
+      logger.error('[AuthService] Failed to send password reset email', { message: error.message });
     }
 
     return { message: successMessage };
@@ -606,7 +605,7 @@ export class AuthService {
       },
     });
 
-    console.log(`Password reset completed for user: ${user.email}`);
+    logger.info('[AuthService] Password reset completed', { userId: user.id });
 
     return {
       message: 'Password has been reset successfully. You can now login with your new password.',
@@ -664,9 +663,9 @@ export class AuthService {
         name: user.name,
         verificationUrl,
       });
-      console.log(`[AuthService] Verification email resent to ${user.email}`);
+      logger.info('[AuthService] Verification email resent');
     } catch (error: any) {
-      console.error('[AuthService] Failed to resend verification email:', error.message);
+      logger.error('[AuthService] Failed to resend verification email', { message: error.message });
       throw new Error('Failed to send verification email. Please try again later.');
     }
 

@@ -6,6 +6,7 @@
  */
 
 import { infobipService } from './infobip.service';
+import logger from '../../utils/logger';
 
 export interface VerificationEmailData {
   email: string;
@@ -130,13 +131,13 @@ Echipa Promo-Efect
   });
 
   if (!result.success) {
-    console.error('[EmailVerification] Failed to send verification email:', result.error);
+    logger.error('[EmailVerification] Failed to send verification email:', result.error);
     throw new Error(`Failed to send verification email: ${result.error}`);
   }
 
-  console.log(`[EmailVerification] Verification email sent successfully to ${data.email}`);
+  logger.info(`[EmailVerification] Verification email sent successfully to ${data.email}`);
   if (result.messageId) {
-    console.log(`[EmailVerification] Message ID: ${result.messageId}`);
+    logger.info(`[EmailVerification] Message ID: ${result.messageId}`);
   }
 }
 
@@ -222,14 +223,12 @@ Echipa Promo-Efect
   });
 
   if (!result.success) {
-    console.error('[EmailVerification] Failed to send password reset email:', result.error);
+    logger.error('[EmailVerification] Failed to send password reset email:', result.error);
     throw new Error(`Failed to send password reset email: ${result.error}`);
   }
 
-  console.log(`[EmailVerification] Password reset email sent successfully to ${email}`);
+  logger.info(`[EmailVerification] Password reset email sent successfully to ${email}`);
   if (result.messageId) {
-    console.log(`[EmailVerification] Message ID: ${result.messageId}`);
+    logger.info(`[EmailVerification] Message ID: ${result.messageId}`);
   }
 }
-
-

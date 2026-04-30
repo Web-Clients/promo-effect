@@ -3,6 +3,7 @@ import { searatesIntegration } from '../../integrations/searates.integration';
 import notificationService from '../../services/notification.service';
 import { EventTypeLabels } from './tracking.types';
 import type { TrackingEventInput } from './tracking.types';
+import logger from '../../utils/logger';
 
 // ============================================
 // WEBHOOK / EXTERNAL API REFRESH HANDLER
@@ -78,7 +79,7 @@ export async function sendTrackingEventNotification(
       });
     }
   } catch (error) {
-    console.error(`[TrackingWebhookHandler] Failed to send tracking event notification:`, error);
+    logger.error(`[TrackingWebhookHandler] Failed to send tracking event notification:`, error);
     // Don't fail the event creation if notification fails
   }
 }
@@ -191,7 +192,7 @@ export async function refreshTracking(
           }
         }
       } catch (error) {
-        console.error(
+        logger.error(
           `[TrackingWebhookHandler] SeaRates web integration error for container ${container.containerNumber}:`,
           error
         );
@@ -209,7 +210,7 @@ export async function refreshTracking(
 
     return { success: true, eventsFound };
   } catch (error) {
-    console.error(
+    logger.error(
       `[TrackingWebhookHandler] Error refreshing tracking for container ${containerId}:`,
       error
     );

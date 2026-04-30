@@ -4,6 +4,7 @@ import { CreateBookingDTO, UpdateBookingDTO, BookingFilters } from '../../types/
 import notificationService from '../../services/notification.service';
 import { storageService } from '../../services/storage.service';
 import { encrypt, decrypt } from '../../utils/crypto.util';
+import logger from '../../utils/logger';
 
 export class BookingsService {
   /** Decrypt supplierEmail after reading from DB */
@@ -186,9 +187,7 @@ export class BookingsService {
               message: `Cererea dumneavoastră ${booking.id} a fost înregistrată și este în așteptare pentru confirmare.\n\nDetalii:\n- Port origine: ${booking.portOrigin}\n- Port destinație: ${booking.portDestination}\n- Tip container: ${booking.containerType}\n- Preț estimat: ${booking.totalPrice} USD\n\nVă vom notifica când cererea va fi confirmată.`,
               channels: { email: true, sms: true, push: false, whatsapp: false },
             })
-            .catch((err) =>
-              console.error('[BookingsService] Background notification failed:', err)
-            );
+            .catch((err) => logger.error('[BookingsService] Background notification failed:', err));
         }
       }
 
@@ -205,11 +204,11 @@ export class BookingsService {
               message: `V-a fost atribuită o nouă rezervare.\n\nDetalii:\n- Booking ID: ${booking.id}\n- Port Origine: ${booking.portOrigin}\n- Tip Container: ${booking.containerType}\n\nVă rugăm să verificați detaliile în platformă.`,
               channels: { email: true, sms: true, push: false, whatsapp: false },
             })
-            .catch((err) => console.error('[BookingsService] Agent notification failed:', err));
+            .catch((err) => logger.error('[BookingsService] Agent notification failed:', err));
         }
       }
     } catch (error) {
-      console.error('[BookingsService] Failed to send booking confirmation email:', error);
+      logger.error('[BookingsService] Failed to send booking confirmation email:', error);
       // Don't fail the booking creation if email fails
     }
 
@@ -497,15 +496,15 @@ export class BookingsService {
               channels: { email: true, sms: true, push: false, whatsapp: false },
             });
 
-            console.log(
+            logger.info(
               `[BookingsService] Status change notification sent to ${clientEmail} for booking ${updated.id}`
             );
           } else {
-            console.warn(`[BookingsService] No user found for client email ${clientEmail}`);
+            logger.warn(`[BookingsService] No user found for client email ${clientEmail}`);
           }
         }
       } catch (error) {
-        console.error('[BookingsService] Failed to send status change notification:', error);
+        logger.error('[BookingsService] Failed to send status change notification:', error);
         // Don't fail the update if notification fails
       }
     }

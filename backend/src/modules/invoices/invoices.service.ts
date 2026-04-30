@@ -18,6 +18,7 @@ import {
   findAllInvoices,
   findOneInvoice,
 } from './invoices-calculator';
+import logger from '../../utils/logger';
 import {
   buildInvoicePDFBuffer,
   uploadInvoicePDF,
@@ -236,7 +237,7 @@ class InvoicesService {
     try {
       await sendInvoiceEmail(updatedInvoice, pdfBuffer, pdfUrl);
     } catch (error) {
-      console.error('Failed to send invoice email:', error);
+      logger.error('Failed to send invoice email:', error);
       // Don't fail the whole operation if email fails
     }
 
@@ -448,7 +449,7 @@ class InvoicesService {
         },
       });
     } catch (error) {
-      console.error('Failed to log audit:', error);
+      logger.error('Failed to log audit:', error);
     }
   }
 }

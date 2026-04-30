@@ -1,6 +1,11 @@
 /**
  * HS Codes Service
  * Handles customs code lookup and search functionality
+ *
+ * MIGRATION HINT (A19):
+ * To enable full-text search, run in DB:
+ *   CREATE INDEX IF NOT EXISTS idx_hscodes_search
+ *   ON hs_codes USING gin(to_tsvector('simple', code || ' ' || description));
  */
 
 import prisma from '../../lib/prisma';
@@ -19,53 +24,95 @@ export interface HsCodeSearchResult {
   restrictions: string | null;
 }
 
+// In-memory cache: query → results (30 min TTL)
+const searchCache = new Map<string, { results: HsCodeSearchResult[]; expiresAt: number }>();
+const CACHE_TTL_MS = 30 * 60 * 1000;
+
+function getCached(key: string): HsCodeSearchResult[] | null {
+  const entry = searchCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    searchCache.delete(key);
+    return null;
+  }
+  return entry.results;
+}
+
+function setCache(key: string, results: HsCodeSearchResult[]): void {
+  searchCache.set(key, { results, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
 export class HsCodesService {
   /**
    * Search HS codes by code or description
    * Returns matching codes sorted by relevance
+   * Results cached 30 min in memory
    */
-  async search(query: string, limit: number = 20): Promise<HsCodeSearchResult[]> {
+  async search(query: string, limit: number = 10): Promise<HsCodeSearchResult[]> {
     if (!query || query.length < 2) {
       return [];
     }
 
     const normalizedQuery = query.trim().toLowerCase();
+    const cacheKey = `${normalizedQuery}:${limit}`;
 
-    // Search by code (exact or starts with)
-    const codeResults = await prisma.hsCode.findMany({
-      where: {
-        isActive: true,
-        OR: [
-          { code: { startsWith: query.replace(/\./g, '') } },
-          { code: { startsWith: query } },
-          { code: { contains: query } },
-        ],
-      },
-      take: limit,
-      orderBy: { code: 'asc' },
-    });
+    const cached = getCached(cacheKey);
+    if (cached) return cached;
 
-    // If we found enough by code, return them
-    if (codeResults.length >= limit) {
-      return codeResults.map(this.mapToResult);
+    const isNumericQuery = /^[\d.]+$/.test(query.trim());
+
+    let codeResults: any[] = [];
+    let descriptionResults: any[] = [];
+
+    if (isNumericQuery) {
+      // Numeric query — match by code prefix (with and without dots)
+      const normalizedCode = query.replace(/\./g, '');
+      codeResults = await prisma.hsCode.findMany({
+        where: {
+          isActive: true,
+          OR: [
+            { code: { startsWith: query } },
+            { code: { startsWith: normalizedCode } },
+            { code: { contains: query } },
+          ],
+        },
+        take: limit,
+        orderBy: { code: 'asc' },
+      });
+    } else {
+      // Text query — search description and keywords first
+      descriptionResults = await prisma.hsCode.findMany({
+        where: {
+          isActive: true,
+          OR: [
+            { description: { contains: normalizedQuery, mode: 'insensitive' } },
+            { descriptionEn: { contains: normalizedQuery, mode: 'insensitive' } },
+            { keywords: { contains: normalizedQuery, mode: 'insensitive' } },
+          ],
+        },
+        take: limit,
+        orderBy: { code: 'asc' },
+      });
+
+      // Also try code if text looks like partial code
+      if (descriptionResults.length < limit) {
+        const remainingSlots = limit - descriptionResults.length;
+        const existingIds = descriptionResults.map((r) => r.id);
+        codeResults = await prisma.hsCode.findMany({
+          where: {
+            isActive: true,
+            id: { notIn: existingIds },
+            code: { contains: normalizedQuery },
+          },
+          take: remainingSlots,
+          orderBy: { code: 'asc' },
+        });
+      }
     }
 
-    // Otherwise, also search by description
-    const descriptionResults = await prisma.hsCode.findMany({
-      where: {
-        isActive: true,
-        id: { notIn: codeResults.map((r) => r.id) },
-        OR: [
-          { description: { contains: normalizedQuery, mode: 'insensitive' } },
-          { descriptionEn: { contains: normalizedQuery, mode: 'insensitive' } },
-          { keywords: { contains: normalizedQuery, mode: 'insensitive' } },
-        ],
-      },
-      take: limit - codeResults.length,
-      orderBy: { code: 'asc' },
-    });
-
-    return [...codeResults, ...descriptionResults].map(this.mapToResult);
+    const results = [...codeResults, ...descriptionResults].slice(0, limit).map(this.mapToResult);
+    setCache(cacheKey, results);
+    return results;
   }
 
   /**
@@ -147,7 +194,13 @@ export class HsCodesService {
     code: string,
     cargoValue: number,
     currency: string = 'USD'
-  ): Promise<{ dutyAmount: number; vatAmount: number; totalTaxes: number; dutyRate: number; vatRate: number }> {
+  ): Promise<{
+    dutyAmount: number;
+    vatAmount: number;
+    totalTaxes: number;
+    dutyRate: number;
+    vatRate: number;
+  }> {
     const hsCode = await this.getByCode(code);
 
     const dutyRate = hsCode?.dutyRate || 0;

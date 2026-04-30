@@ -6,6 +6,7 @@
 
 import prisma from '../lib/prisma';
 import { infobipService } from './infobip.service';
+import logger from '../../utils/logger';
 
 export interface NotificationChannel {
   email?: boolean;
@@ -48,7 +49,7 @@ export class NotificationService {
     // Default: SMS enabled for users with phone numbers
     let userPreferences: NotificationChannel = {
       email: true,
-      sms: true,  // SMS enabled by default
+      sms: true, // SMS enabled by default
       whatsapp: false,
       push: true,
     };
@@ -57,12 +58,11 @@ export class NotificationService {
     const notificationPrefs = (user as any).notificationPreferences;
     if (notificationPrefs) {
       try {
-        const prefs = typeof notificationPrefs === 'string' 
-          ? JSON.parse(notificationPrefs) 
-          : notificationPrefs;
+        const prefs =
+          typeof notificationPrefs === 'string' ? JSON.parse(notificationPrefs) : notificationPrefs;
         userPreferences = {
           email: prefs.email !== false,
-          sms: prefs.sms !== false,  // SMS enabled unless explicitly disabled
+          sms: prefs.sms !== false, // SMS enabled unless explicitly disabled
           whatsapp: prefs.whatsapp === true,
           push: prefs.push !== false,
         };
@@ -177,7 +177,7 @@ export class NotificationService {
       throw new Error(result.error || 'Failed to send email');
     }
 
-    console.log(`[NotificationService] ✅ Email notification sent to ${to}`);
+    logger.info(`[NotificationService] ✅ Email notification sent to ${to}`);
   }
 
   /**
@@ -193,7 +193,7 @@ export class NotificationService {
       throw new Error(result.error || 'Failed to send SMS');
     }
 
-    console.log(`[NotificationService] ✅ SMS notification sent to ${to}`);
+    logger.info(`[NotificationService] ✅ SMS notification sent to ${to}`);
   }
 
   /**
@@ -203,11 +203,17 @@ export class NotificationService {
    */
   private async sendWhatsApp(to: string, message: string) {
     // WhatsApp requires paid service - log instead
-    console.log(`[NotificationService] 💬 WhatsApp notification (WhatsApp service not configured - FREE alternative needed):`);
-    console.log(`  To: ${to}`);
-    console.log(`  Message: ${message}`);
-    console.log(`  Note: WhatsApp requires paid service. Consider using email notifications instead.`);
-    throw new Error('WhatsApp notifications require paid service. Please use email notifications instead.');
+    logger.info(
+      `[NotificationService] 💬 WhatsApp notification (WhatsApp service not configured - FREE alternative needed):`
+    );
+    logger.info(`  To: ${to}`);
+    logger.info(`  Message: ${message}`);
+    logger.info(
+      `  Note: WhatsApp requires paid service. Consider using email notifications instead.`
+    );
+    throw new Error(
+      'WhatsApp notifications require paid service. Please use email notifications instead.'
+    );
   }
 
   /**
@@ -345,4 +351,3 @@ export class NotificationService {
 
 export const notificationService = new NotificationService();
 export default notificationService;
-

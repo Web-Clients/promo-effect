@@ -5,6 +5,7 @@
 
 import prisma from '../../lib/prisma';
 import { notificationService } from '../../services/notification.service';
+import logger from '../../utils/logger';
 
 export interface AgentPriceInput {
   freightPrice: number;
@@ -59,10 +60,13 @@ export class AgentPortalService {
   /**
    * Get all prices for an agent
    */
-  async getAgentPrices(agentId: string, filters?: {
-    approvalStatus?: string;
-    shippingLine?: string;
-  }): Promise<AgentPriceWithStatus[]> {
+  async getAgentPrices(
+    agentId: string,
+    filters?: {
+      approvalStatus?: string;
+      shippingLine?: string;
+    }
+  ): Promise<AgentPriceWithStatus[]> {
     const where: any = { agentId };
 
     if (filters?.approvalStatus) {
@@ -81,7 +85,7 @@ export class AgentPortalService {
       ],
     });
 
-    return prices.map(p => ({
+    return prices.map((p) => ({
       id: p.id,
       freightPrice: p.freightPrice,
       shippingLine: p.shippingLine,
@@ -258,7 +262,7 @@ export class AgentPortalService {
       select: { shippingLine: true },
     });
 
-    return prices.map(p => p.shippingLine);
+    return prices.map((p) => p.shippingLine);
   }
 
   /**
@@ -447,7 +451,7 @@ export class AgentPortalService {
         });
       }
     } catch (error) {
-      console.error('[AgentPortal] Failed to notify admins:', error);
+      logger.error('[AgentPortal] Failed to notify admins:', error);
     }
   }
 }

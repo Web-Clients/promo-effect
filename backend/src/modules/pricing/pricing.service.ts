@@ -1,10 +1,11 @@
 /**
  * Pricing Service
- * 
+ *
  * Handles dynamic pricing rules and calculations
  */
 
 import prisma from '../../lib/prisma';
+import logger from '../../utils/logger';
 
 export interface PricingCalculationParams {
   containerType: string; // 20ft, 40ft, 40HQ, Reefer
@@ -58,45 +59,37 @@ export class PricingService {
    * Supports port surcharges: base ports (Ningbo, Shanghai, Shenzhen) + surcharges for other ports
    */
   async calculatePrice(params: PricingCalculationParams): Promise<PricingResult> {
-    const { containerType, portOrigin, portDestination, shippingLine, quantity = 1, date = new Date() } = params;
+    const {
+      containerType,
+      portOrigin,
+      portDestination,
+      shippingLine,
+      quantity = 1,
+      date = new Date(),
+    } = params;
 
     // Base ports (main ports with base pricing)
     const BASE_PORTS = ['NINGBO', 'SHANGHAI', 'SHENZHEN'];
-    const basePort = BASE_PORTS.find(p => portOrigin.toUpperCase().includes(p)) || 'SHANGHAI'; // Default to Shanghai if not found
+    const basePort = BASE_PORTS.find((p) => portOrigin.toUpperCase().includes(p)) || 'SHANGHAI'; // Default to Shanghai if not found
 
     // Find applicable pricing rules
     // Build conditions: rule matches if field is null (any) OR matches the value
     const whereConditions: any = {
       status: 'ACTIVE',
       validFrom: { lte: date },
-      OR: [
-        { validTo: null },
-        { validTo: { gte: date } },
-      ],
+      OR: [{ validTo: null }, { validTo: { gte: date } }],
       AND: [
         {
-          OR: [
-            { containerType: null },
-            { containerType },
-          ],
+          OR: [{ containerType: null }, { containerType }],
         },
         {
-          OR: [
-            { portOrigin: null },
-            { portOrigin },
-          ],
+          OR: [{ portOrigin: null }, { portOrigin }],
         },
         {
-          OR: [
-            { portDestination: null },
-            { portDestination },
-          ],
+          OR: [{ portDestination: null }, { portDestination }],
         },
         {
-          OR: [
-            { shippingLine: null },
-            shippingLine ? { shippingLine } : {},
-          ],
+          OR: [{ shippingLine: null }, shippingLine ? { shippingLine } : {}],
         },
       ],
     };
@@ -116,21 +109,21 @@ export class PricingService {
     // Calculate port surcharge
     let portSurcharge = 0;
     const portUpper = portOrigin.toUpperCase();
-    
+
     // Check if port is a base port (no surcharge)
-    const isBasePort = BASE_PORTS.some(p => portUpper.includes(p));
-    
+    const isBasePort = BASE_PORTS.some((p) => portUpper.includes(p));
+
     if (!isBasePort) {
       // Get port surcharge from settings or calculate based on port type
       const portSurchargeSetting = await this.getPortSurcharge(portOrigin);
-      
+
       if (portSurchargeSetting) {
         portSurcharge = portSurchargeSetting;
       } else {
         // Default surcharges based on port categories
         // Secondary ports: Qingdao, Xiamen, Tianjin (+100-150 USD)
         const secondaryPorts = ['QINGDAO', 'XIAMEN', 'TIANJIN'];
-        if (secondaryPorts.some(p => portUpper.includes(p))) {
+        if (secondaryPorts.some((p) => portUpper.includes(p))) {
           portSurcharge = 125; // Average of 100-150
         } else {
           // River ports (+200-800 USD) - use average or check specific port
@@ -160,7 +153,7 @@ export class PricingService {
           });
         }
       } catch (e) {
-        console.error('Failed to parse additional taxes:', e);
+        logger.error('Failed to parse additional taxes:', e);
       }
     }
 
@@ -185,7 +178,7 @@ export class PricingService {
           }
         }
       } catch (e) {
-        console.error('Failed to parse volume discounts:', e);
+        logger.error('Failed to parse volume discounts:', e);
       }
     }
 
@@ -205,18 +198,18 @@ export class PricingService {
     return {
       basePrice: priceWithSurcharge, // Include surcharge in base price
       currency: rule.currency,
-      taxes: portSurcharge > 0 ? [
-        ...taxes,
-        { name: `Port Surcharge (${portOrigin})`, amount: portSurcharge }
-      ] : taxes,
+      taxes:
+        portSurcharge > 0
+          ? [...taxes, { name: `Port Surcharge (${portOrigin})`, amount: portSurcharge }]
+          : taxes,
       volumeDiscount,
       subtotal,
       total: subtotal,
       ruleId: rule.id,
       ruleName: rule.name,
       breakdown: {
-        freight: freight + (portSurcharge * 0.7), // Port surcharge mostly affects freight
-        portFees: portFees + (portSurcharge * 0.3),
+        freight: freight + portSurcharge * 0.7, // Port surcharge mostly affects freight
+        portFees: portFees + portSurcharge * 0.3,
         customsEstimate,
         margin,
       },
@@ -276,11 +269,7 @@ export class PricingService {
   /**
    * Get all pricing rules
    */
-  async getAllRules(filters?: {
-    status?: string;
-    containerType?: string;
-    shippingLine?: string;
-  }) {
+  async getAllRules(filters?: { status?: string; containerType?: string; shippingLine?: string }) {
     const where: any = {};
 
     if (filters?.status) {
@@ -295,10 +284,7 @@ export class PricingService {
 
     return (prisma as any).pricingRule.findMany({
       where,
-      orderBy: [
-        { priority: 'desc' },
-        { validFrom: 'desc' },
-      ],
+      orderBy: [{ priority: 'desc' }, { validFrom: 'desc' }],
     });
   }
 
@@ -353,11 +339,14 @@ export class PricingService {
     if (data.shippingLine !== undefined) updateData.shippingLine = data.shippingLine;
     if (data.basePrice !== undefined) updateData.basePrice = data.basePrice;
     if (data.currency !== undefined) updateData.currency = data.currency;
-    if (data.additionalTaxes !== undefined) updateData.additionalTaxes = JSON.stringify(data.additionalTaxes);
-    if (data.volumeDiscounts !== undefined) updateData.volumeDiscounts = JSON.stringify(data.volumeDiscounts);
+    if (data.additionalTaxes !== undefined)
+      updateData.additionalTaxes = JSON.stringify(data.additionalTaxes);
+    if (data.volumeDiscounts !== undefined)
+      updateData.volumeDiscounts = JSON.stringify(data.volumeDiscounts);
     if (data.validFrom !== undefined) updateData.validFrom = data.validFrom;
     if (data.validTo !== undefined) updateData.validTo = data.validTo;
-    if (data.specialConditions !== undefined) updateData.specialConditions = JSON.stringify(data.specialConditions);
+    if (data.specialConditions !== undefined)
+      updateData.specialConditions = JSON.stringify(data.specialConditions);
     if (data.notes !== undefined) updateData.notes = data.notes;
 
     return (prisma as any).pricingRule.update({
@@ -423,4 +412,3 @@ export class PricingService {
 }
 
 export const pricingService = new PricingService();
-

@@ -3,6 +3,7 @@ import { authMiddleware, requireRole } from '../../middleware/auth.middleware';
 import trackingService from './tracking.service';
 import { searatesIntegration } from '../../integrations/searates.integration';
 import prisma from '../../lib/prisma';
+import logger from '../../utils/logger';
 
 const router = Router();
 
@@ -31,7 +32,7 @@ router.get('/:containerNumber', authMiddleware, async (req: Request, res: Respon
         new Date().getTime() - new Date(container.lastSyncAt).getTime() > 4 * 60 * 60 * 1000;
 
       if (needsRefresh && searatesIntegration.isConfigured()) {
-        console.log(`[Tracking] Auto-refreshing ${containerNumber} from SeaRates...`);
+        logger.info(`[Tracking] Auto-refreshing ${containerNumber} from SeaRates...`);
         try {
           await trackingService.refreshTracking(container.id);
           // Re-fetch updated container
@@ -42,7 +43,7 @@ router.get('/:containerNumber', authMiddleware, async (req: Request, res: Respon
           );
           return res.json(updated);
         } catch (refreshErr) {
-          console.error('[Tracking] Auto-refresh failed:', refreshErr);
+          logger.error('[Tracking] Auto-refresh failed:', refreshErr);
           // Return stale local data if refresh fails
         }
       }
@@ -51,7 +52,7 @@ router.get('/:containerNumber', authMiddleware, async (req: Request, res: Respon
     } catch (localError: any) {
       // If not found locally, try SeaRates API
       if (localError.message === 'Container not found' && searatesIntegration.isConfigured()) {
-        console.log(
+        logger.info(
           `[Tracking] Container ${containerNumber} not found locally, trying SeaRates API...`
         );
 
@@ -108,7 +109,7 @@ router.get('/:containerNumber', authMiddleware, async (req: Request, res: Respon
       throw localError;
     }
   } catch (error: any) {
-    console.error('Search container error:', error);
+    logger.error('Search container error:', error);
 
     if (error.message === 'Container not found') {
       return res.status(404).json({ error: 'Container not found' });
@@ -183,7 +184,7 @@ router.get('/external/:containerNumber', authMiddleware, async (req: Request, re
       fetchedAt: new Date().toISOString(),
     });
   } catch (error: any) {
-    console.error('External tracking lookup error:', error);
+    logger.error('External tracking lookup error:', error);
     res.status(500).json({
       error: error.message || 'Failed to fetch external tracking data',
     });
@@ -229,7 +230,7 @@ router.get('/bl/:blNumber', authMiddleware, async (req: Request, res: Response) 
       fetchedAt: new Date().toISOString(),
     });
   } catch (error: any) {
-    console.error('B/L lookup error:', error);
+    logger.error('B/L lookup error:', error);
     res.status(500).json({
       error: error.message || 'Failed to fetch B/L tracking data',
     });
@@ -326,7 +327,7 @@ router.get('/public/:containerNumber', async (req: Request, res: Response) => {
       fetchedAt: new Date().toISOString(),
     });
   } catch (error: any) {
-    console.error('Public tracking lookup error:', error);
+    logger.error('Public tracking lookup error:', error);
     res.status(500).json({
       success: false,
       error: 'Tracking lookup failed',
@@ -418,7 +419,7 @@ router.get('/vessel/:vesselName', authMiddleware, async (req: Request, res: Resp
 
     res.json(vesselInfo);
   } catch (error: any) {
-    console.error('Get vessel tracking error:', error);
+    logger.error('Get vessel tracking error:', error);
     res.status(500).json({ error: error.message || 'Failed to get vessel tracking' });
   }
 });

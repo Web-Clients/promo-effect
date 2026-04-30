@@ -9,7 +9,7 @@ import { startContainerSyncJob, stopContainerSyncJob } from './container-sync.jo
 import { startPaymentRemindersJob, stopPaymentRemindersJob } from './payment-reminders.job';
 import { startDailyReportJob, stopDailyReportJob } from './daily-report.job';
 import { startAuthCleanupJob, stopAuthCleanupJob } from './auth-cleanup.job';
-import logger from '../../utils/logger';
+import logger from '../utils/logger';
 
 /**
  * Start all background jobs

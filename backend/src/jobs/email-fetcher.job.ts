@@ -10,7 +10,7 @@
 import cron from 'node-cron';
 import { gmailIntegration } from '../integrations/gmail.integration';
 import { EmailService } from '../modules/emails/email.service';
-import logger from '../../utils/logger';
+import logger from '../utils/logger';
 
 const emailService = new EmailService();
 

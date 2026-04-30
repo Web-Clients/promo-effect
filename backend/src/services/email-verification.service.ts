@@ -6,7 +6,7 @@
  */
 
 import { infobipService } from './infobip.service';
-import logger from '../../utils/logger';
+import logger from '../utils/logger';
 
 export interface VerificationEmailData {
   email: string;

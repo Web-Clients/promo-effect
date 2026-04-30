@@ -35,8 +35,9 @@ async function getRedisClient(): Promise<any> {
   if (!process.env.REDIS_URL) return null;
 
   try {
-    // Dynamically import to avoid crashing when redis package not installed
-    const { createClient } = await import('redis');
+    // Use require() to avoid TS type errors when redis package is not installed
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { createClient } = require('redis');
     redisClient = createClient({ url: process.env.REDIS_URL });
     redisClient.on('error', (err: Error) => {
       logger.warn('[Idempotency] Redis error, falling back to in-memory:', {

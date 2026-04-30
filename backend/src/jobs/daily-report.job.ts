@@ -9,7 +9,7 @@
 import cron from 'node-cron';
 import prisma from '../lib/prisma';
 import notificationService from '../services/notification.service';
-import logger from '../../utils/logger';
+import logger from '../utils/logger';
 
 let isRunning = false;
 

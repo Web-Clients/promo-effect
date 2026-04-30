@@ -8,6 +8,7 @@
 // pdf-parse v1 uses a simple default export function
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const pdfParse = require('pdf-parse');
+import logger from '../utils/logger';
 
 /**
  * Extract text from a base64-encoded PDF

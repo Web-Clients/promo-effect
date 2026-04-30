@@ -16,7 +16,7 @@ import { ImapFlow } from 'imapflow';
 import { simpleParser, ParsedMail } from 'mailparser';
 import prisma from '../lib/prisma';
 import { ParsedEmail, EmailAttachment } from '../modules/emails/email.service';
-import logger from '../../utils/logger';
+import logger from '../utils/logger';
 
 // ===== GMAIL IMAP SERVICE =====
 

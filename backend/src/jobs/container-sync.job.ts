@@ -10,7 +10,7 @@
 import cron from 'node-cron';
 import prisma from '../lib/prisma';
 import { trackingService } from '../modules/tracking/tracking.service';
-import logger from '../../utils/logger';
+import logger from '../utils/logger';
 
 let isRunning = false;
 

@@ -6,7 +6,7 @@
 
 import prisma from '../lib/prisma';
 import { infobipService } from './infobip.service';
-import logger from '../../utils/logger';
+import logger from '../utils/logger';
 
 export interface NotificationChannel {
   email?: boolean;

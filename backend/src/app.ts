@@ -28,6 +28,7 @@ import adminDashboardRoutes from './modules/admin/admin-dashboard.routes';
 import agentPortalRoutes from './modules/agent-portal/agent-portal.routes';
 import portsRoutes from './modules/ports/ports.routes';
 import shippingLinesRoutes from './modules/shipping-lines/shipping-lines.routes';
+import priceRequestsRoutes from './modules/price-requests/price-requests.routes';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './config/swagger';
 import { apiLimiter } from './middleware/rateLimit.middleware';
@@ -171,6 +172,8 @@ app.use('/api/admin/dashboard', adminDashboardRoutes); // Admin dashboard stats
 app.use('/api/agent-portal', agentPortalRoutes); // Agent portal (prices with approval)
 app.use('/api/ports', portsRoutes); // Ports management (public GET, admin CRUD)
 app.use('/api/shipping-lines', shippingLinesRoutes); // Shipping lines & transport rates
+app.use('/api/price-requests', priceRequestsRoutes); // A25: "Contact reprezentant" fallback
+app.use('/api/v1/price-requests', priceRequestsRoutes); // versioned
 
 // Static file serving for storage (invoices, documents, etc.)
 import path from 'path';

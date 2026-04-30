@@ -16,6 +16,7 @@ const buildUser = (overrides: Partial<User> = {}): User => ({
   resetToken: 'reset-token-123',
   resetTokenExpiry: new Date('2026-04-01'),
   verificationToken: 'verify-token-456',
+  verificationTokenHash: null, // B9: new field — store hash, not plain token
   createdAt: new Date('2026-01-01'),
   updatedAt: new Date('2026-01-02'),
   lastLoginAt: null,

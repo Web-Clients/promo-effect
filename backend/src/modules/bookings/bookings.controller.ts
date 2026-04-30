@@ -2,10 +2,57 @@ import { Router, Request, Response } from 'express';
 import { BookingsService } from './bookings.service';
 import { authMiddleware, requireRole } from '../../middleware/auth.middleware';
 import multer from 'multer';
+import path from 'path';
 import { createBookingSchema } from '../../middleware/validate.middleware';
 
-// Configure multer for memory storage
-const upload = multer({ storage: multer.memoryStorage() });
+// Allowed file extensions for document uploads
+const ALLOWED_EXTENSIONS = new Set([
+  '.pdf',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.docx',
+  '.xlsx',
+  '.doc',
+  '.xls',
+]);
+const BLOCKED_EXTENSIONS = new Set([
+  '.exe',
+  '.sh',
+  '.html',
+  '.js',
+  '.bat',
+  '.cmd',
+  '.ps1',
+  '.vbs',
+  '.msi',
+  '.dmg',
+  '.php',
+  '.py',
+  '.rb',
+]);
+
+// Configure multer with file size limits and type whitelist
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (BLOCKED_EXTENSIONS.has(ext)) {
+      return cb(new Error(`File type "${ext}" is not allowed for security reasons.`));
+    }
+    if (!ALLOWED_EXTENSIONS.has(ext)) {
+      return cb(
+        new Error(
+          `File type "${ext}" is not supported. Allowed types: PDF, PNG, JPG, JPEG, DOCX, XLSX, DOC, XLS.`
+        )
+      );
+    }
+    cb(null, true);
+  },
+});
 
 const router = Router();
 const bookingsService = new BookingsService();
@@ -159,7 +206,22 @@ router.delete(
 router.post(
   '/:id/documents',
   authMiddleware,
-  upload.single('file'),
+  (req: Request, res: Response, next: import('express').NextFunction) => {
+    upload.single('file')(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res
+            .status(400)
+            .json({ error: 'File is too large. Maximum allowed size is 10MB.' });
+        }
+        return res.status(400).json({ error: `Upload error: ${err.message}` });
+      }
+      if (err) {
+        return res.status(400).json({ error: err.message });
+      }
+      next();
+    });
+  },
   async (req: Request, res: Response) => {
     try {
       if (!req.file) {

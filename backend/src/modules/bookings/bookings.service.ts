@@ -3,8 +3,18 @@ import { generateBookingId } from '../../utils/booking-id.util';
 import { CreateBookingDTO, UpdateBookingDTO, BookingFilters } from '../../types/booking.types';
 import notificationService from '../../services/notification.service';
 import { storageService } from '../../services/storage.service';
+import { encrypt, decrypt } from '../../utils/crypto.util';
 
 export class BookingsService {
+  /** Decrypt supplierEmail after reading from DB */
+  private decryptBooking(booking: any): any {
+    if (!booking) return booking;
+    return {
+      ...booking,
+      supplierEmail: booking.supplierEmail ? decrypt(booking.supplierEmail) : booking.supplierEmail,
+    };
+  }
+
   /**
    * Get or create a Client record for a User
    * This bridges the User and Client tables for booking creation
@@ -114,10 +124,10 @@ export class BookingsService {
         commission,
         totalPrice,
 
-        // Supplier info (optional)
+        // Supplier info (optional) — supplierEmail encrypted at rest
         supplierName: data.supplierName,
         supplierPhone: data.supplierPhone,
-        supplierEmail: data.supplierEmail,
+        supplierEmail: data.supplierEmail ? encrypt(data.supplierEmail) : data.supplierEmail,
         supplierAddress: data.supplierAddress,
 
         // Status - starts as PENDING, admin confirms later
@@ -197,7 +207,7 @@ export class BookingsService {
       // Don't fail the booking creation if email fails
     }
 
-    return booking;
+    return this.decryptBooking(booking);
   }
 
   /**
@@ -303,7 +313,7 @@ export class BookingsService {
     const total = await prisma.booking.count({ where });
 
     return {
-      bookings,
+      bookings: bookings.map((b) => this.decryptBooking(b)),
       total,
       limit: filters.limit || 50,
       offset: filters.offset || 0,
@@ -370,7 +380,7 @@ export class BookingsService {
       }
     }
 
-    return booking;
+    return this.decryptBooking(booking);
   }
 
   /**

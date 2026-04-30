@@ -18,9 +18,12 @@ const clientsService = new ClientsService();
  */
 router.get('/', authMiddleware, async (req: Request, res: Response) => {
   try {
+    const MAX_LIMIT = 200;
+    const DEFAULT_LIMIT = 50;
+    const requestedLimit = req.query.limit ? parseInt(req.query.limit as string) : DEFAULT_LIMIT;
     const filters = {
       page: req.query.page ? parseInt(req.query.page as string) : 1,
-      limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
+      limit: Math.min(requestedLimit, MAX_LIMIT),
       search: req.query.search as string,
       status: req.query.status as string,
     };

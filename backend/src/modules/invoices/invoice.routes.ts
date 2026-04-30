@@ -257,12 +257,12 @@ router.post(
 /**
  * DELETE /api/invoices/:id
  * Cancel invoice
- * @access ADMIN, SUPER_ADMIN
+ * @access ADMIN, SUPER_ADMIN, MANAGER (aligned with create/update/send/mark-paid)
  */
 router.delete(
   '/:id',
   authMiddleware,
-  requireRole(['ADMIN', 'SUPER_ADMIN']),
+  requireRole(['ADMIN', 'SUPER_ADMIN', 'MANAGER']),
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;

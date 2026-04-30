@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 import prisma from '../../lib/prisma';
 import { generateAccessToken, generateRefreshToken } from '../../utils/jwt.util';
 import {
@@ -86,34 +87,41 @@ export class AuthService {
     // Normalize email (lowercase)
     const normalizedEmail = data.email.toLowerCase().trim();
 
-    // Check if user exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: normalizedEmail },
-    });
-
-    if (existingUser) {
-      throw new Error('User already exists with this email');
-    }
-
     // Hash password with higher salt rounds for better security
     const passwordHash = await bcrypt.hash(data.password, 12);
 
-    // Generate email verification token (store plain token, not hash)
+    // B9: Generate verification token; hash before storage
     const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationTokenHash = crypto
+      .createHash('sha256')
+      .update(verificationToken)
+      .digest('hex');
 
-    // Create user with PENDING_VERIFICATION status
-    const user = await prisma.user.create({
-      data: {
-        email: normalizedEmail,
-        passwordHash,
-        name: data.name,
-        phone: data.phone,
-        company: data.company,
-        role: data.role || 'CLIENT',
-        emailVerified: false,
-        verificationToken, // Store plain token for email link
-      },
-    });
+    // B8: Replace findUnique+create pattern with direct create.
+    // Unique constraint on email is enforced by DB — catch P2002 for race-safe 409.
+    let user: Awaited<ReturnType<typeof prisma.user.create>>;
+    try {
+      user = await prisma.user.create({
+        data: {
+          email: normalizedEmail,
+          passwordHash,
+          name: data.name,
+          phone: data.phone,
+          company: data.company,
+          role: data.role || 'CLIENT',
+          emailVerified: false,
+          // B9: Store hash only; plain token goes in the email URL
+          verificationTokenHash,
+          verificationToken: null, // legacy field kept null
+        },
+      });
+    } catch (err: any) {
+      // P2002 = Prisma unique constraint violation (race-safe duplicate detection)
+      if (err?.code === 'P2002') {
+        throw new Error('User already exists with this email');
+      }
+      throw err;
+    }
 
     // Build verification URL
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -141,6 +149,9 @@ export class AuthService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
+    // B1: Assign a new token family for this login session
+    const tokenFamily = uuidv4();
+
     // Save session
     await prisma.session.create({
       data: {
@@ -148,6 +159,7 @@ export class AuthService {
         token: accessToken,
         refreshToken,
         expiresAt,
+        tokenFamily,
       },
     });
 
@@ -250,6 +262,9 @@ export class AuthService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
+    // B1: New token family for each fresh login
+    const loginTokenFamily = uuidv4();
+
     // Create new session
     await prisma.session.create({
       data: {
@@ -259,6 +274,7 @@ export class AuthService {
         expiresAt,
         ipAddress,
         userAgent,
+        tokenFamily: loginTokenFamily,
       },
     });
 
@@ -283,8 +299,20 @@ export class AuthService {
     };
   }
 
+  /**
+   * B1: Refresh token rotation with replay detection.
+   *
+   * Flow:
+   *  1. Look up session by refreshToken.
+   *  2a. If NOT found → invalid token, reject.
+   *  2b. If found but REVOKED → reuse attack detected.
+   *      Revoke entire token family + log security incident, reject.
+   *  3. If expired → delete session, reject.
+   *  4. Otherwise: mark old session revoked, issue NEW access + refresh tokens
+   *     in a NEW session record (same tokenFamily). All wrapped in a transaction.
+   */
   async refreshToken(refreshToken: string): Promise<AuthResponse> {
-    // Find session
+    // Find session (including revoked ones so we can detect reuse)
     const session = await prisma.session.findUnique({
       where: { refreshToken },
       include: { user: true },
@@ -294,30 +322,67 @@ export class AuthService {
       throw new Error('Invalid refresh token');
     }
 
+    // B1: Reuse detection — token was already rotated (revoked)
+    if (session.revoked) {
+      // Revoke entire family to protect against token theft
+      if (session.tokenFamily) {
+        await prisma.session.updateMany({
+          where: { tokenFamily: session.tokenFamily },
+          data: { revoked: true, revokedAt: new Date() },
+        });
+      }
+
+      // Audit log for security incident
+      await prisma.auditLog.create({
+        data: {
+          userId: session.userId,
+          action: 'REFRESH_TOKEN_REUSE_DETECTED',
+          entityType: 'Session',
+          entityId: session.id,
+          changes: JSON.stringify({
+            tokenFamily: session.tokenFamily,
+            detectedAt: new Date(),
+            note: 'Entire token family revoked due to refresh token reuse (possible token theft)',
+          }),
+        },
+      });
+
+      throw new Error('Refresh token reuse detected. All sessions invalidated for security.');
+    }
+
     // Check if expired
     if (session.expiresAt < new Date()) {
       await prisma.session.delete({ where: { id: session.id } });
       throw new Error('Refresh token expired');
     }
 
-    // Generate new tokens
     const user = session.user;
     const newAccessToken = generateAccessToken(user);
     const newRefreshToken = generateRefreshToken(user);
 
-    // Calculate new expiry
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
-    // Update session
-    await prisma.session.update({
-      where: { id: session.id },
-      data: {
-        token: newAccessToken,
-        refreshToken: newRefreshToken,
-        expiresAt,
-      },
-    });
+    // B1: Atomic rotation — revoke old, create new (same family)
+    await prisma.$transaction([
+      // Mark old session as revoked (keep for reuse detection)
+      prisma.session.update({
+        where: { id: session.id },
+        data: { revoked: true, revokedAt: new Date() },
+      }),
+      // Create new session inheriting the same token family
+      prisma.session.create({
+        data: {
+          userId: user.id,
+          token: newAccessToken,
+          refreshToken: newRefreshToken,
+          expiresAt,
+          ipAddress: session.ipAddress,
+          userAgent: session.userAgent,
+          tokenFamily: session.tokenFamily, // inherit family
+        },
+      }),
+    ]);
 
     return {
       user: {
@@ -404,22 +469,20 @@ export class AuthService {
       return { message: successMessage };
     }
 
-    // Generate secure random token
+    // Generate secure random token (plain token sent in email, hash stored in DB)
     const resetToken = crypto.randomBytes(32).toString('hex');
-
-    // Hash the token for storage (store hash, send plain token)
     const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
 
-    // Set expiry to 1 hour from now
-    const resetTokenExpiry = new Date();
-    resetTokenExpiry.setHours(resetTokenExpiry.getHours() + 1);
+    // B7: Set expiry to 1 hour from now
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 1);
 
-    // Save token to database
-    await prisma.user.update({
-      where: { id: user.id },
+    // B7: Store in dedicated password_reset_tokens table (single-use enforced via usedAt)
+    await prisma.passwordResetToken.create({
       data: {
-        resetToken: hashedToken,
-        resetTokenExpiry,
+        userId: user.id,
+        tokenHash: hashedToken,
+        expiresAt,
       },
     });
 
@@ -477,32 +540,55 @@ export class AuthService {
     // Hash the provided token to compare with stored hash
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
-    // Find user by token and check expiry
-    const user = await prisma.user.findFirst({
-      where: {
-        resetToken: hashedToken,
-        resetTokenExpiry: {
-          gt: new Date(), // Token must not be expired
-        },
-      },
+    // B7: Look up in dedicated table
+    const resetRecord = await prisma.passwordResetToken.findUnique({
+      where: { tokenHash: hashedToken },
+      include: { user: true },
     });
 
-    if (!user) {
+    if (!resetRecord) {
       throw new Error('Invalid or expired password reset token');
     }
+
+    // B7: Replay detection — token already used
+    if (resetRecord.usedAt !== null) {
+      await prisma.auditLog.create({
+        data: {
+          userId: resetRecord.userId,
+          action: 'PASSWORD_RESET_REPLAY_ATTEMPT',
+          entityType: 'PasswordResetToken',
+          entityId: resetRecord.id,
+          changes: JSON.stringify({
+            tokenHash: hashedToken,
+            originalUsedAt: resetRecord.usedAt,
+            attemptAt: new Date(),
+          }),
+        },
+      });
+      throw new Error('Password reset token has already been used');
+    }
+
+    // B7: Expiry check
+    if (resetRecord.expiresAt < new Date()) {
+      throw new Error('Invalid or expired password reset token');
+    }
+
+    const user = resetRecord.user;
 
     // Hash new password
     const passwordHash = await bcrypt.hash(newPassword, 10);
 
-    // Update password and clear reset token
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        passwordHash,
-        resetToken: null,
-        resetTokenExpiry: null,
-      },
-    });
+    // B7: Mark token as used (single-use) + update password atomically
+    await prisma.$transaction([
+      prisma.passwordResetToken.update({
+        where: { id: resetRecord.id },
+        data: { usedAt: new Date() },
+      }),
+      prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash },
+      }),
+    ]);
 
     // Invalidate all existing sessions (security measure)
     await prisma.session.deleteMany({
@@ -551,14 +637,19 @@ export class AuthService {
       return { message: 'Email is already verified' };
     }
 
-    // Generate new verification token
+    // B9: Generate new verification token; store hash only
     const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationTokenHash = crypto
+      .createHash('sha256')
+      .update(verificationToken)
+      .digest('hex');
 
-    // Update user with new token
+    // Update user with new token hash
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        verificationToken,
+        verificationTokenHash,
+        verificationToken: null, // clear legacy plain field
       },
     });
 
@@ -586,10 +677,12 @@ export class AuthService {
   }
 
   async verifyEmail(token: string): Promise<{ message: string }> {
-    // Find user by verification token (stored as plain token)
+    // B9: Hash the incoming token and lookup by hash (never store plain token in DB)
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
     const user = await prisma.user.findFirst({
       where: {
-        verificationToken: token,
+        verificationTokenHash: tokenHash,
       },
     });
 
@@ -602,12 +695,12 @@ export class AuthService {
       return { message: 'Email is already verified' };
     }
 
-    // Mark email as verified and clear token
+    // Mark email as verified and clear token hash
     await prisma.user.update({
       where: { id: user.id },
       data: {
         emailVerified: true,
-        verificationToken: null,
+        verificationTokenHash: null,
       },
     });
 

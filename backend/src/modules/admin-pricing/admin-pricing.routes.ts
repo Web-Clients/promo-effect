@@ -6,7 +6,10 @@
 
 import { Router, Request, Response } from 'express';
 import { adminPricingService } from './admin-pricing.service';
-import { authMiddleware, requireAdmin } from '../../middleware/auth.middleware';
+import { authMiddleware, requireRole } from '../../middleware/auth.middleware';
+
+// Explicit role guard for admin-pricing routes (B14)
+const adminOnly = requireRole(['ADMIN', 'SUPER_ADMIN']);
 
 const router = Router();
 
@@ -18,7 +21,7 @@ const router = Router();
  * GET /api/admin-pricing/base-prices
  * Get all base prices with optional filters
  */
-router.get('/base-prices', authMiddleware, requireAdmin, async (req: Request, res: Response) => {
+router.get('/base-prices', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
     const filters = {
       shippingLine: req.query.shippingLine as string,
@@ -40,7 +43,7 @@ router.get('/base-prices', authMiddleware, requireAdmin, async (req: Request, re
  * GET /api/admin-pricing/base-prices/:id
  * Get base price by ID
  */
-router.get('/base-prices/:id', authMiddleware, requireAdmin, async (req: Request, res: Response) => {
+router.get('/base-prices/:id', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
     const basePrice = await adminPricingService.getBasePriceById(req.params.id);
     if (!basePrice) {
@@ -57,7 +60,7 @@ router.get('/base-prices/:id', authMiddleware, requireAdmin, async (req: Request
  * POST /api/admin-pricing/base-prices
  * Create new base price
  */
-router.post('/base-prices', authMiddleware, requireAdmin, async (req: Request, res: Response) => {
+router.post('/base-prices', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.userId;
     const data = {
@@ -77,7 +80,7 @@ router.post('/base-prices', authMiddleware, requireAdmin, async (req: Request, r
  * PUT /api/admin-pricing/base-prices/:id
  * Update base price
  */
-router.put('/base-prices/:id', authMiddleware, requireAdmin, async (req: Request, res: Response) => {
+router.put('/base-prices/:id', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
     const data = {
       ...req.body,
@@ -96,7 +99,7 @@ router.put('/base-prices/:id', authMiddleware, requireAdmin, async (req: Request
  * DELETE /api/admin-pricing/base-prices/:id
  * Delete base price
  */
-router.delete('/base-prices/:id', authMiddleware, requireAdmin, async (req: Request, res: Response) => {
+router.delete('/base-prices/:id', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
     await adminPricingService.deleteBasePrice(req.params.id);
     res.json({ message: 'Base price deleted successfully' });
@@ -110,7 +113,7 @@ router.delete('/base-prices/:id', authMiddleware, requireAdmin, async (req: Requ
  * POST /api/admin-pricing/base-prices/bulk
  * Bulk create base prices
  */
-router.post('/base-prices/bulk', authMiddleware, requireAdmin, async (req: Request, res: Response) => {
+router.post('/base-prices/bulk', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.userId;
     const prices = req.body.prices.map((p: any) => ({
@@ -134,7 +137,7 @@ router.post('/base-prices/bulk', authMiddleware, requireAdmin, async (req: Reque
  * GET /api/admin-pricing/shipping-lines
  * Get unique shipping lines for filter dropdown
  */
-router.get('/shipping-lines', authMiddleware, requireAdmin, async (req: Request, res: Response) => {
+router.get('/shipping-lines', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
     const shippingLines = await adminPricingService.getShippingLines();
     res.json({ shippingLines });
@@ -148,7 +151,7 @@ router.get('/shipping-lines', authMiddleware, requireAdmin, async (req: Request,
  * GET /api/admin-pricing/origin-ports
  * Get unique origin ports for filter dropdown
  */
-router.get('/origin-ports', authMiddleware, requireAdmin, async (req: Request, res: Response) => {
+router.get('/origin-ports', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
     const originPorts = await adminPricingService.getOriginPorts();
     res.json({ originPorts });
@@ -166,7 +169,7 @@ router.get('/origin-ports', authMiddleware, requireAdmin, async (req: Request, r
  * GET /api/admin-pricing/container-types
  * Get unique container types for filter dropdown
  */
-router.get('/container-types', authMiddleware, requireAdmin, async (req: Request, res: Response) => {
+router.get('/container-types', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
     const containerTypes = await adminPricingService.getContainerTypes();
     res.json({ containerTypes });
@@ -184,7 +187,7 @@ router.get('/container-types', authMiddleware, requireAdmin, async (req: Request
  * GET /api/admin-pricing/port-adjustments
  * Get all port adjustments
  */
-router.get('/port-adjustments', authMiddleware, requireAdmin, async (req: Request, res: Response) => {
+router.get('/port-adjustments', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
     const portAdjustments = await adminPricingService.getAllPortAdjustments();
     res.json({ portAdjustments });
@@ -198,7 +201,7 @@ router.get('/port-adjustments', authMiddleware, requireAdmin, async (req: Reques
  * GET /api/admin-pricing/port-adjustments/:id
  * Get port adjustment by ID
  */
-router.get('/port-adjustments/:id', authMiddleware, requireAdmin, async (req: Request, res: Response) => {
+router.get('/port-adjustments/:id', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
     const portAdjustment = await adminPricingService.getPortAdjustmentById(req.params.id);
     if (!portAdjustment) {
@@ -215,7 +218,7 @@ router.get('/port-adjustments/:id', authMiddleware, requireAdmin, async (req: Re
  * POST /api/admin-pricing/port-adjustments
  * Create port adjustment
  */
-router.post('/port-adjustments', authMiddleware, requireAdmin, async (req: Request, res: Response) => {
+router.post('/port-adjustments', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
     const portAdjustment = await adminPricingService.createPortAdjustment(req.body);
     res.status(201).json(portAdjustment);
@@ -229,7 +232,7 @@ router.post('/port-adjustments', authMiddleware, requireAdmin, async (req: Reque
  * PUT /api/admin-pricing/port-adjustments/:id
  * Update port adjustment
  */
-router.put('/port-adjustments/:id', authMiddleware, requireAdmin, async (req: Request, res: Response) => {
+router.put('/port-adjustments/:id', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
     const portAdjustment = await adminPricingService.updatePortAdjustment(req.params.id, req.body);
     res.json(portAdjustment);
@@ -243,7 +246,7 @@ router.put('/port-adjustments/:id', authMiddleware, requireAdmin, async (req: Re
  * DELETE /api/admin-pricing/port-adjustments/:id
  * Delete port adjustment
  */
-router.delete('/port-adjustments/:id', authMiddleware, requireAdmin, async (req: Request, res: Response) => {
+router.delete('/port-adjustments/:id', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
     await adminPricingService.deletePortAdjustment(req.params.id);
     res.json({ message: 'Port adjustment deleted successfully' });
@@ -261,7 +264,7 @@ router.delete('/port-adjustments/:id', authMiddleware, requireAdmin, async (req:
  * GET /api/admin-pricing/settings
  * Get admin settings
  */
-router.get('/settings', authMiddleware, requireAdmin, async (req: Request, res: Response) => {
+router.get('/settings', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
     const settings = await adminPricingService.getAdminSettings();
     res.json(settings);
@@ -275,7 +278,7 @@ router.get('/settings', authMiddleware, requireAdmin, async (req: Request, res: 
  * PUT /api/admin-pricing/settings
  * Update admin settings
  */
-router.put('/settings', authMiddleware, requireAdmin, async (req: Request, res: Response) => {
+router.put('/settings', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
     const settings = await adminPricingService.updateAdminSettings(req.body);
     res.json(settings);
@@ -293,7 +296,7 @@ router.put('/settings', authMiddleware, requireAdmin, async (req: Request, res: 
  * GET /api/admin-pricing/stats
  * Get pricing statistics for dashboard
  */
-router.get('/stats', authMiddleware, requireAdmin, async (req: Request, res: Response) => {
+router.get('/stats', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
     const stats = await adminPricingService.getPricingStats();
     res.json(stats);

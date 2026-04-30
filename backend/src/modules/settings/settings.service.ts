@@ -4,6 +4,7 @@
  */
 
 import prisma from '../../lib/prisma';
+import { encrypt, decrypt } from '../../utils/crypto.util';
 
 export interface SettingInput {
   category: string;
@@ -71,8 +72,12 @@ export class SettingsService {
           : {},
         gmail: adminSettings
           ? {
-              accessToken: (adminSettings as any).gmailAccessToken,
-              refreshToken: (adminSettings as any).gmailRefreshToken,
+              accessToken: (adminSettings as any).gmailAccessToken
+                ? decrypt((adminSettings as any).gmailAccessToken)
+                : null,
+              refreshToken: (adminSettings as any).gmailRefreshToken
+                ? decrypt((adminSettings as any).gmailRefreshToken)
+                : null,
               tokenExpiry: (adminSettings as any).gmailTokenExpiry,
               email: (adminSettings as any).gmailEmail,
               lastEmailFetchAt: (adminSettings as any).lastEmailFetchAt,
@@ -107,8 +112,12 @@ export class SettingsService {
         };
       case 'gmail':
         return {
-          accessToken: (settings as any).gmailAccessToken,
-          refreshToken: (settings as any).gmailRefreshToken,
+          accessToken: (settings as any).gmailAccessToken
+            ? decrypt((settings as any).gmailAccessToken)
+            : null,
+          refreshToken: (settings as any).gmailRefreshToken
+            ? decrypt((settings as any).gmailRefreshToken)
+            : null,
           tokenExpiry: (settings as any).gmailTokenExpiry,
           email: (settings as any).gmailEmail,
           lastEmailFetchAt: (settings as any).lastEmailFetchAt,
@@ -157,8 +166,10 @@ export class SettingsService {
           break;
 
         case 'GMAIL':
-          if (key === 'accessToken') updateData.gmailAccessToken = value;
-          else if (key === 'refreshToken') updateData.gmailRefreshToken = value;
+          // accessToken and refreshToken are encrypted at rest
+          if (key === 'accessToken') updateData.gmailAccessToken = value ? encrypt(value) : value;
+          else if (key === 'refreshToken')
+            updateData.gmailRefreshToken = value ? encrypt(value) : value;
           else if (key === 'tokenExpiry') updateData.gmailTokenExpiry = new Date(value);
           else if (key === 'email') updateData.gmailEmail = value;
           else if (key === 'lastEmailFetchAt') updateData.lastEmailFetchAt = new Date(value);

@@ -82,7 +82,7 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
  * Role: Any authenticated user
  *
  * Query params:
- * - clientId (optional, admins only)
+ * - clientId (optional, admins only — ignored/overridden for CLIENT role)
  * - status (optional): CONFIRMED, SENT, IN_TRANSIT, ARRIVED, DELIVERED, CANCELLED
  * - dateFrom (optional): ISO date string
  * - dateTo (optional): ISO date string
@@ -92,8 +92,17 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
  */
 router.get('/', authMiddleware, async (req: Request, res: Response) => {
   try {
+    const userRole = req.user!.role;
+
+    // Ownership check: CLIENT users cannot filter by an arbitrary clientId.
+    // Force their own clientId so they only see their own bookings.
+    const clientIdFilter =
+      userRole === 'CLIENT'
+        ? req.user!.clientId // overridden — client can only see own bookings
+        : (req.query.clientId as string);
+
     const filters = {
-      clientId: req.query.clientId as string,
+      clientId: clientIdFilter,
       status: req.query.status as string,
       dateFrom: req.query.dateFrom as string,
       dateTo: req.query.dateTo as string,
@@ -102,7 +111,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
       offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
     };
 
-    const result = await bookingsService.findAll(filters, req.user!.userId, req.user!.role);
+    const result = await bookingsService.findAll(filters, req.user!.userId, userRole);
     res.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to fetch bookings';

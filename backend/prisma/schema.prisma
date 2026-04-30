@@ -23,8 +23,10 @@ model User {
   company      String?
   role         String  @default("CLIENT") // CLIENT, AGENT, ADMIN, SUPER_ADMIN
 
-  emailVerified     Boolean @default(false) @map("email_verified")
-  verificationToken String? @unique @map("verification_token")
+  emailVerified          Boolean @default(false) @map("email_verified")
+  verificationToken      String? @unique @map("verification_token")
+  // B9: SHA256 hash of the verification token stored instead of plain token
+  verificationTokenHash  String? @unique @map("verification_token_hash")
 
   resetToken       String?   @unique @map("reset_token")
   resetTokenExpiry DateTime? @map("reset_token_expiry")
@@ -45,12 +47,13 @@ model User {
   backupCodes      String? @map("backup_codes") // JSON array
 
   // Relations
-  sessions      Session[]
-  notifications Notification[]
-  auditLogs     AuditLog[]
-  createdAgents Agent[]        @relation("CreatedBy")
-  agentProfile  Agent?         @relation("AgentUser")
-  client        Client?
+  sessions            Session[]
+  notifications       Notification[]
+  auditLogs           AuditLog[]
+  createdAgents       Agent[]              @relation("CreatedBy")
+  agentProfile        Agent?               @relation("AgentUser")
+  client              Client?
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
 }
@@ -64,13 +67,37 @@ model Session {
   ipAddress    String?  @map("ip_address")
   userAgent    String?  @map("user_agent")
 
+  // B1: Refresh token rotation — token family tracking
+  // All refresh tokens issued from the same initial login share a tokenFamily UUID.
+  // If a revoked token is reused → entire family is revoked (replay attack detection).
+  tokenFamily String?  @map("token_family")
+  revoked     Boolean  @default(false)
+  revokedAt   DateTime? @map("revoked_at")
+
   createdAt DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([token])
+  @@index([tokenFamily])
   @@map("sessions")
+}
+
+// B7: Track password reset token usage to prevent replay
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash") // SHA256 hash of the plain token
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at") // null = unused; non-null = already used (single-use)
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
 }
 
 // ============================================
@@ -507,6 +534,14 @@ model Booking {
   lastGpsSpeed        Float?    @map("last_gps_speed")        // Last known speed (km/h)
   lastGpsUpdate       DateTime? @map("last_gps_update")       // Last GPS update time
 
+  // Extended fields (Phase A1)
+  blNumber              String?   @unique @map("bl_number")                  // Bill of Lading number (primary BL on booking level)
+  shipperName           String?   @map("shipper_name")                       // Shipper name from BL
+  beneficiaryName       String?   @map("beneficiary_name")                   // Beneficiary/consignee name
+  arrivalDateConstanta  DateTime? @map("arrival_date_constanta")             // Actual/expected arrival at Constanta port
+  telexReleased         Boolean   @default(false) @map("telex_released")     // Telex release confirmed by shipping line
+  documentsUploaded     Boolean   @default(false) @map("documents_uploaded") // Client uploaded required documents
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -524,6 +559,8 @@ model Booking {
   @@index([agentId])
   @@index([status])
   @@index([archived])
+  @@index([blNumber])
+  @@index([arrivalDateConstanta])
   @@map("bookings")
 }
 

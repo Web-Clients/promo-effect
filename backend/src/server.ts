@@ -1,6 +1,7 @@
 import app from './app';
 import prisma from './lib/prisma';
 import * as Sentry from '@sentry/node';
+import { validateEncryptionKey } from './utils/crypto.util';
 
 if (process.env.SENTRY_DSN) {
   Sentry.init({ dsn: process.env.SENTRY_DSN, environment: process.env.NODE_ENV });
@@ -31,6 +32,14 @@ if (!CSRF_SECRET || CSRF_SECRET.length < 32) {
 }
 if (CSRF_SECRET === JWT_SECRET) {
   logger.error('FATAL: CSRF_SECRET must NOT be equal to JWT_SECRET');
+  exit(1);
+}
+
+// B11/B12: Validate ENCRYPTION_KEY (AES-256-GCM key for sensitive data at rest)
+try {
+  validateEncryptionKey();
+} catch (e: any) {
+  logger.error(`FATAL: ${e.message}`);
   exit(1);
 }
 

@@ -5,6 +5,7 @@
 
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
+import { v4 as uuidv4 } from 'uuid';
 import prisma from '../../lib/prisma';
 import { generateAccessToken, generateRefreshToken } from '../../utils/jwt.util';
 import { AuthResponse, Complete2FALoginDTO } from './auth.types';
@@ -246,6 +247,9 @@ export async function complete2FALogin(
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 30);
 
+  // B1: Assign new token family for this 2FA-completed login
+  const tokenFamily = uuidv4();
+
   // Create real session
   await prisma.session.create({
     data: {
@@ -255,6 +259,7 @@ export async function complete2FALogin(
       expiresAt,
       ipAddress,
       userAgent,
+      tokenFamily,
     },
   });
 

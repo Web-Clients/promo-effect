@@ -4,6 +4,7 @@
  */
 
 import prisma from '../../lib/prisma';
+import { encrypt, decrypt } from '../../utils/crypto.util';
 
 // DTOs
 export interface CreateClientDTO {
@@ -51,6 +52,23 @@ export interface ClientListResponse {
 }
 
 export class ClientsService {
+  /** Encrypt bankAccount before persisting */
+  private encryptSensitive(data: { bankAccount?: string }): { bankAccount?: string } {
+    return {
+      ...data,
+      bankAccount: data.bankAccount ? encrypt(data.bankAccount) : data.bankAccount,
+    };
+  }
+
+  /** Decrypt bankAccount after reading from DB */
+  private decryptClient(client: any): any {
+    if (!client) return client;
+    return {
+      ...client,
+      bankAccount: client.bankAccount ? decrypt(client.bankAccount) : client.bankAccount,
+    };
+  }
+
   /**
    * Get all clients with filters and pagination
    */
@@ -94,7 +112,7 @@ export class ClientsService {
     ]);
 
     return {
-      clients,
+      clients: clients.map((c) => this.decryptClient(c)),
       total,
       page,
       limit,
@@ -142,7 +160,7 @@ export class ClientsService {
       throw new Error('Client not found');
     }
 
-    return client;
+    return this.decryptClient(client);
   }
 
   /**
@@ -169,7 +187,7 @@ export class ClientsService {
       }
     }
 
-    // Create client
+    // Create client (encrypt sensitive fields)
     const client = await prisma.client.create({
       data: {
         companyName: data.companyName,
@@ -178,7 +196,7 @@ export class ClientsService {
         phone: data.phone,
         address: data.address,
         taxId: data.taxId,
-        bankAccount: data.bankAccount,
+        bankAccount: data.bankAccount ? encrypt(data.bankAccount) : data.bankAccount,
         paymentTerms: data.paymentTerms || 30,
         creditLimit: data.creditLimit || 0,
         discount: data.discount || 0,
@@ -199,7 +217,7 @@ export class ClientsService {
       },
     });
 
-    return client;
+    return this.decryptClient(client);
   }
 
   /**
@@ -235,7 +253,7 @@ export class ClientsService {
       }
     }
 
-    // Update client
+    // Update client (encrypt sensitive fields)
     const updateData: any = {
       companyName: data.companyName,
       contactPerson: data.contactPerson,
@@ -243,7 +261,7 @@ export class ClientsService {
       phone: data.phone,
       address: data.address,
       taxId: data.taxId,
-      bankAccount: data.bankAccount,
+      bankAccount: data.bankAccount ? encrypt(data.bankAccount) : data.bankAccount,
       status: data.status,
     };
 
@@ -269,7 +287,7 @@ export class ClientsService {
       },
     });
 
-    return client;
+    return this.decryptClient(client);
   }
 
   /**

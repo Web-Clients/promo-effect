@@ -5,6 +5,7 @@
 
 import prisma from '../../lib/prisma';
 import bcrypt from 'bcrypt';
+import { encrypt, decrypt } from '../../utils/crypto.util';
 
 export interface CreateUserInput {
   email: string;
@@ -32,6 +33,15 @@ export interface UserFilters {
 }
 
 export class UsersService {
+  /** Decrypt phone field after reading from DB */
+  private decryptUser(user: any): any {
+    if (!user) return user;
+    return {
+      ...user,
+      phone: user.phone ? decrypt(user.phone) : user.phone,
+    };
+  }
+
   /**
    * Get all users with pagination and filters
    */
@@ -88,7 +98,7 @@ export class UsersService {
     ]);
 
     return {
-      data: users,
+      data: users.map((u) => this.decryptUser(u)),
       meta: {
         page,
         limit,
@@ -135,7 +145,7 @@ export class UsersService {
       throw new Error('User not found');
     }
 
-    return user;
+    return this.decryptUser(user);
   }
 
   /**
@@ -154,13 +164,13 @@ export class UsersService {
     // Хеширование пароля
     const passwordHash = await bcrypt.hash(input.password, 12);
 
-    // Создание пользователя
+    // Создание пользователя (encrypt sensitive fields)
     const user = await prisma.user.create({
       data: {
         email: input.email,
         passwordHash,
         name: input.name,
-        phone: input.phone,
+        phone: input.phone ? encrypt(input.phone) : input.phone,
         company: input.company,
         role: input.role || 'CLIENT',
         emailVerified: false,
@@ -177,7 +187,7 @@ export class UsersService {
       },
     });
 
-    return user;
+    return this.decryptUser(user);
   }
 
   /**
@@ -193,10 +203,13 @@ export class UsersService {
       throw new Error('User not found');
     }
 
-    // Обновление
+    // Обновление (encrypt sensitive fields)
     const user = await prisma.user.update({
       where: { id },
-      data: input,
+      data: {
+        ...input,
+        phone: input.phone ? encrypt(input.phone) : input.phone,
+      },
       select: {
         id: true,
         email: true,
@@ -209,7 +222,7 @@ export class UsersService {
       },
     });
 
-    return user;
+    return this.decryptUser(user);
   }
 
   /**

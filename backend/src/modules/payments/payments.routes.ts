@@ -13,9 +13,9 @@ const paymentsService = new PaymentsService();
 /**
  * GET /api/v1/payments
  * List all payments with pagination and filters
- * Access: Authenticated users
+ * Access: ADMIN, CONTABIL
  */
-router.get('/', authMiddleware, async (req: Request, res: Response) => {
+router.get('/', authMiddleware, requireRole(['ADMIN', 'SUPER_ADMIN', 'CONTABIL']), async (req: Request, res: Response) => {
   try {
     const filters = {
       page: req.query.page ? parseInt(req.query.page as string) : 1,

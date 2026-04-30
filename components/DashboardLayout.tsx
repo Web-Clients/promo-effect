@@ -98,13 +98,7 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
       end: true,
     },
     { name: t('nav.bookings'), path: 'bookings', icon: PackageIcon, visible: true },
-    { name: t('nav.tracking'), path: 'tracking', icon: ShipIcon, visible: true },
-    {
-      name: t('nav.containersTransit'),
-      path: 'containers-transit',
-      icon: MapPinIcon,
-      visible: true,
-    },
+    // tracking (A6) and containers-transit (A7) removed — merged into bookings tabs
     { name: t('nav.calculator'), path: 'calculator', icon: CalculatorIcon, visible: true },
     { name: t('nav.myProfile'), path: 'userProfile', icon: UserIcon, visible: true },
     { name: t('nav.clients'), path: 'clients', icon: UsersIcon, visible: isAdminOrManager },

@@ -12,7 +12,7 @@ import DashboardLayout from './components/DashboardLayout';
 const MainDashboard = lazy(() => import('./components/MainDashboard'));
 const BookingsList = lazy(() => import('./components/BookingsList'));
 const BookingDetail = lazy(() => import('./components/BookingDetail'));
-const TrackingView = lazy(() => import('./components/TrackingView'));
+// TrackingView removed (A6) — route now redirects to /dashboard/bookings
 const PriceCalculator = lazy(() => import('./components/PriceCalculator'));
 const EmailParserAssistant = lazy(() => import('./components/EmailParserAssistant'));
 const AIEmailParser = lazy(() => import('./components/AIEmailParser'));
@@ -27,7 +27,7 @@ const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const AgentPricesDashboard = lazy(() => import('./components/AgentPricesDashboard'));
 const AdminPriceApproval = lazy(() => import('./components/AdminPriceApproval'));
 const AdminPortsManager = lazy(() => import('./components/AdminPortsManager'));
-const ContainersInTransit = lazy(() => import('./components/ContainersInTransit'));
+// ContainersInTransit removed (A7) — route now redirects to /dashboard/bookings?tab=transit
 const ShippingLinesPage = lazy(() => import('./components/ShippingLinesPage'));
 const TransportRatesPage = lazy(() => import('./components/TransportRatesPage'));
 const UserManagement = lazy(() => import('./components/UserManagement'));
@@ -270,8 +270,18 @@ const App = () => {
             <Route index element={<MainDashboard user={user!} />} />
             <Route path="bookings" element={<BookingsList user={user!} />} />
             <Route path="bookings/:bookingId" element={<BookingDetail user={user!} />} />
-            <Route path="tracking" element={<TrackingView />} />
-            <Route path="containers-transit" element={<ContainersInTransit />} />
+            {/* A6: Tracking page removed — redirect to bookings */}
+            <Route path="tracking" element={<Navigate to="/dashboard/bookings" replace />} />
+            <Route path="tracking/*" element={<Navigate to="/dashboard/bookings" replace />} />
+            {/* A7: ContainersInTransit removed — redirect to bookings?tab=transit */}
+            <Route
+              path="containers-transit"
+              element={<Navigate to="/dashboard/bookings?tab=transit" replace />}
+            />
+            <Route
+              path="containers-in-transit"
+              element={<Navigate to="/dashboard/bookings?tab=transit" replace />}
+            />
             <Route path="calculator" element={<PriceCalculator user={user!} />} />
             <Route
               path="emailParser"

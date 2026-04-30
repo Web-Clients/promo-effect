@@ -1,0 +1,18 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Pricing breakdown snapshots EXW + chisinau breakdown snapshot 1`] = `
+{
+  "chinaCost": 1100,
+  "landTransportCost": 2500,
+  "maritimeTotal": 1300,
+  "totalPriceUSD": 5400,
+}
+`;
+
+exports[`Pricing breakdown snapshots FOB + constanta breakdown snapshot 1`] = `
+{
+  "chinaCost": undefined,
+  "landTransportCost": undefined,
+  "totalPriceUSD": 1800,
+}
+`;

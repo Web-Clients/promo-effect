@@ -22,7 +22,8 @@ export default defineConfig({
           'vendor-charts': ['recharts'],
           'vendor-maps': ['leaflet', 'react-leaflet'],
           'vendor-motion': ['framer-motion'],
-          'vendor-i18n': ['i18next', 'react-i18next'],
+          'vendor-ui': ['lucide-react', 'react-i18next', 'i18next'],
+          // 'vendor-pdf': ['html2canvas', 'jspdf'], // uncomment when packages are added
         },
       },
     },

@@ -4,6 +4,10 @@ import { authMiddleware, requireRole } from '../../middleware/auth.middleware';
 import multer from 'multer';
 import path from 'path';
 import { createBookingSchema } from '../../middleware/validate.middleware';
+import prisma from '../../lib/prisma';
+import { generateTransportOrderPDF } from './transport-order-pdf.service';
+import { generatePaymentInvoicePDF } from './payment-invoice-pdf.service';
+import { generateInvoiceNumber } from '../../utils/invoiceNumber';
 
 // Allowed file extensions for document uploads
 const ALLOWED_EXTENSIONS = new Set([
@@ -257,5 +261,215 @@ router.post(
     }
   }
 );
+
+/**
+ * PATCH /api/bookings/:id/pricing - Save manual pricing breakdown (admin only)
+ * Auth: Required
+ * Role: ADMIN, SUPER_ADMIN, MANAGER
+ */
+router.patch(
+  '/:id/pricing',
+  authMiddleware,
+  requireRole(['ADMIN', 'SUPER_ADMIN', 'MANAGER']),
+  async (req: Request, res: Response) => {
+    try {
+      const { pricingData } = req.body as {
+        pricingData: {
+          tarifMaritim?: number;
+          ajustarePort?: number;
+          taxePortuare?: number;
+          transportTerestru?: number;
+          taxeVamale?: number;
+          comision?: number;
+        };
+      };
+
+      if (!pricingData) {
+        return res.status(400).json({ error: 'pricingData is required' });
+      }
+
+      // Map UI fields → Prisma booking fields
+      const totalPrice =
+        (pricingData.tarifMaritim || 0) +
+        (pricingData.ajustarePort || 0) +
+        (pricingData.taxePortuare || 0) +
+        (pricingData.transportTerestru || 0) +
+        (pricingData.taxeVamale || 0) +
+        (pricingData.comision || 0);
+
+      const updated = await prisma.booking.update({
+        where: { id: req.params.id },
+        data: {
+          freightPrice: pricingData.tarifMaritim ?? undefined,
+          portTaxes: pricingData.taxePortuare ?? undefined,
+          customsTaxes: pricingData.taxeVamale ?? undefined,
+          terrestrialTransport: pricingData.transportTerestru ?? undefined,
+          commission: pricingData.comision ?? undefined,
+          totalPrice,
+        },
+      });
+
+      // Audit log
+      await prisma.auditLog.create({
+        data: {
+          userId: req.user!.userId,
+          action: 'BOOKING_PRICING_UPDATED',
+          entityType: 'Booking',
+          entityId: req.params.id,
+          changes: JSON.stringify({ pricingData, totalPrice }),
+        },
+      });
+
+      res.json({ success: true, totalPrice });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update pricing';
+      res.status(500).json({ error: message });
+    }
+  }
+);
+
+/**
+ * GET /api/bookings/:id/transport-order.pdf
+ * Generate and download "Comandă Transport" PDF
+ * Auth: Required
+ * Role: ADMIN, SUPER_ADMIN, MANAGER or CLIENT (own booking)
+ */
+router.get('/:id/transport-order.pdf', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const booking = await bookingsService.findOne(req.params.id, req.user!.userId, req.user!.role);
+
+    const pdfBuffer = await generateTransportOrderPDF({
+      bookingId: booking.id,
+      blNumber: booking.containers?.[0]?.blNumber ?? (booking as any).blNumber,
+      portOrigin: booking.portOrigin,
+      portDestination: booking.portDestination,
+      containerType: booking.containerType,
+      containerNumber: booking.containers?.[0]?.containerNumber,
+      shippingLine: booking.shippingLine,
+      eta: booking.eta,
+      shipperName: (booking as any).shipperName ?? (booking as any).supplierName,
+      beneficiaryName:
+        (booking as any).beneficiaryName ??
+        booking.client?.companyName ??
+        booking.client?.contactPerson,
+      beneficiaryAddress: booking.client?.address,
+      beneficiaryPhone: booking.client?.phone,
+      beneficiaryEmail: booking.client?.email,
+      createdAt: booking.createdAt,
+    });
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="comanda-transport-${booking.id}.pdf"`,
+      'Content-Length': pdfBuffer.length,
+    });
+    res.send(pdfBuffer);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to generate PDF';
+    if (message.includes('Forbidden')) {
+      res.status(403).json({ error: message });
+    } else if (message.includes('not found')) {
+      res.status(404).json({ error: message });
+    } else {
+      res.status(500).json({ error: message });
+    }
+  }
+});
+
+/**
+ * GET /api/bookings/:id/payment-invoice.pdf
+ * Generate and download "Factură de Plată" PDF
+ * Auth: Required
+ * Role: ADMIN, SUPER_ADMIN, MANAGER or CLIENT (own booking)
+ */
+router.get('/:id/payment-invoice.pdf', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const booking = await bookingsService.findOne(req.params.id, req.user!.userId, req.user!.role);
+
+    // Generate sequential invoice number
+    const invoiceNumber = await generateInvoiceNumber();
+
+    // Build line items from booking pricing
+    const lineItems = [];
+    if (booking.freightPrice > 0) {
+      lineItems.push({
+        description: `Transport maritim: ${booking.portOrigin} → ${booking.portDestination}`,
+        quantity: 1,
+        unitPrice: booking.freightPrice,
+        total: booking.freightPrice,
+      });
+    }
+    if (booking.portTaxes > 0) {
+      lineItems.push({
+        description: 'Taxe portuare',
+        quantity: 1,
+        unitPrice: booking.portTaxes,
+        total: booking.portTaxes,
+      });
+    }
+    if (booking.customsTaxes > 0) {
+      lineItems.push({
+        description: 'Taxe vamale',
+        quantity: 1,
+        unitPrice: booking.customsTaxes,
+        total: booking.customsTaxes,
+      });
+    }
+    if (booking.terrestrialTransport > 0) {
+      lineItems.push({
+        description: 'Transport terestru',
+        quantity: 1,
+        unitPrice: booking.terrestrialTransport,
+        total: booking.terrestrialTransport,
+      });
+    }
+    if (booking.commission > 0) {
+      lineItems.push({
+        description: 'Servicii de logistică și coordonare',
+        quantity: 1,
+        unitPrice: booking.commission,
+        total: booking.commission,
+      });
+    }
+    if (lineItems.length === 0) {
+      lineItems.push({
+        description: `Servicii logistice rezervare ${booking.id}`,
+        quantity: 1,
+        unitPrice: booking.totalPrice,
+        total: booking.totalPrice,
+      });
+    }
+
+    const pdfBuffer = await generatePaymentInvoicePDF({
+      bookingId: booking.id,
+      invoiceNumber,
+      issueDate: new Date(),
+      clientName: booking.client?.companyName ?? booking.client?.contactPerson,
+      clientIdno: booking.client?.taxId,
+      clientAddress: booking.client?.address,
+      clientPhone: booking.client?.phone,
+      clientEmail: booking.client?.email,
+      items: lineItems,
+      currency: 'USD',
+      vatRate: 0, // 0% TVA for international transport services
+    });
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="cont-plata-${booking.id}.pdf"`,
+      'Content-Length': pdfBuffer.length,
+    });
+    res.send(pdfBuffer);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to generate invoice PDF';
+    if (message.includes('Forbidden')) {
+      res.status(403).json({ error: message });
+    } else if (message.includes('not found')) {
+      res.status(404).json({ error: message });
+    } else {
+      res.status(500).json({ error: message });
+    }
+  }
+});
 
 export default router;

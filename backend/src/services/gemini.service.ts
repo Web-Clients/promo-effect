@@ -1,27 +1,32 @@
 /**
- * Gemini AI Service
+ * AI Email Parsing Service (via LiteLLM Gateway)
  *
- * Handles AI-powered email parsing using Google's Gemini API
- * This runs on the backend to keep API keys secure
+ * Uses LiteLLM gateway (https://api.megapromoting.com) instead of direct Gemini SDK.
+ * Per company rule: NO direct provider calls — always through LiteLLM gateway.
+ * Compatible with OpenAI SDK (LiteLLM exposes OpenAI-compatible API).
+ *
+ * Filename kept as `gemini.service.ts` for backward compat with imports.
  */
 
-// @ts-ignore - Package types may not be available immediately after install
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 import logger from '../utils/logger';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const LITELLM_URL = process.env.LITELLM_URL || 'https://api.megapromoting.com';
+const LITELLM_API_KEY = process.env.LITELLM_API_KEY || process.env.GEMINI_API_KEY || '';
+const AI_MODEL = process.env.AI_MODEL || 'gpt-5.4-nano';
 
-// Initialize Gemini client (only if API key is configured)
-let genAI: GoogleGenerativeAI | null = null;
+let client: OpenAI | null = null;
 
-if (GEMINI_API_KEY) {
-  genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-  logger.info('✅ Gemini AI service initialized');
+if (LITELLM_API_KEY) {
+  client = new OpenAI({
+    apiKey: LITELLM_API_KEY,
+    baseURL: `${LITELLM_URL}/v1`,
+  });
+  logger.info(`[AI] LiteLLM client initialized (model: ${AI_MODEL})`);
 } else {
-  logger.warn('⚠️ GEMINI_API_KEY not configured - AI parsing disabled');
+  logger.warn('[AI] LITELLM_API_KEY not configured - AI parsing disabled');
 }
 
-// Response schema for email parsing
 export interface ParsedEmailData {
   containerNumber?: string;
   billOfLading?: string;
@@ -53,31 +58,52 @@ export interface ParsedEmailData {
   error?: string;
 }
 
-/**
- * Check if Gemini AI is configured and available
- */
 export function isGeminiConfigured(): boolean {
-  return !!GEMINI_API_KEY && !!genAI;
+  return !!LITELLM_API_KEY && !!client;
 }
 
-/**
- * Parse email content using Gemini AI
- * Extracts logistics/shipping information from email text
- */
+async function callLiteLLM(
+  prompt: string,
+  systemRole = 'You are a logistics data extraction specialist.'
+): Promise<string> {
+  if (!client) throw new Error('LiteLLM client not initialized');
+  const completion = await client.chat.completions.create({
+    model: AI_MODEL,
+    messages: [
+      { role: 'system', content: systemRole },
+      { role: 'user', content: prompt },
+    ],
+    temperature: 0.1,
+    max_tokens: 2000,
+  });
+  return completion.choices[0]?.message?.content || '';
+}
+
+function tryParseJson(text: string): unknown | null {
+  const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        return JSON.parse(match[0]);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+}
+
 export async function parseEmailWithGemini(emailContent: string): Promise<ParsedEmailData> {
-  if (!genAI) {
-    return {
-      error:
-        'Gemini API key is not configured. Please add GEMINI_API_KEY to your backend .env file.',
-      confidence: 0,
-    };
+  if (!client) {
+    return { error: 'AI service not configured. Set LITELLM_API_KEY.', confidence: 0 };
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
     const prompt = `Analizează conținutul următorului email de logistică și extrage informațiile cheie în format JSON.
-    
+
 Extrage următoarele câmpuri dacă sunt disponibile:
 - containerNumber: Numărul containerului (format: 4 litere + 7 cifre, ex: MSCU1234567)
 - billOfLading: Numărul Bill of Lading (B/L)
@@ -99,71 +125,40 @@ Conținut Email:
 ${emailContent}
 ---`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const text = await callLiteLLM(prompt);
+    const parsed = tryParseJson(text) as Partial<ParsedEmailData> | null;
 
-    // Parse JSON response
-    try {
-      // Remove markdown code blocks if present
-      const cleanedText = text.replace(/```json\n?|\n?```/g, '').trim();
-      const parsed = JSON.parse(cleanedText);
-
+    if (!parsed) {
+      logger.error('[AI] Failed to parse JSON from response:', text.slice(0, 200));
       return {
-        ...parsed,
-        confidence: parsed.confidence || 75,
-      };
-    } catch (parseError) {
-      logger.error('Failed to parse Gemini response as JSON:', text);
-      return {
-        error:
-          'Failed to parse AI response. The email may not contain recognizable shipping information.',
-        confidence: 0,
-      };
-    }
-  } catch (error: any) {
-    logger.error('Gemini API error:', error);
-
-    // Handle specific error types
-    if (error.message?.includes('API_KEY_INVALID')) {
-      return {
-        error: 'Invalid Gemini API key. Please check your configuration.',
-        confidence: 0,
-      };
-    }
-
-    if (error.message?.includes('QUOTA_EXCEEDED')) {
-      return {
-        error: 'Gemini API quota exceeded. Please try again later.',
+        error: 'Failed to parse AI response.',
         confidence: 0,
       };
     }
 
     return {
-      error: `AI parsing failed: ${error.message || 'Unknown error'}`,
+      ...parsed,
+      confidence: parsed.confidence || 75,
+    };
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('[AI] parseEmailWithGemini error:', msg);
+    return {
+      error: `AI parsing failed: ${msg}`,
       confidence: 0,
     };
   }
 }
 
-/**
- * Parse shipping document (HBL/SI) text extracted from PDF
- * Uses a specialized prompt for Bill of Lading and Shipping Instruction documents
- */
 export async function parseShippingDocumentWithGemini(
   pdfText: string,
   emailContext?: string
 ): Promise<ParsedEmailData> {
-  if (!genAI) {
-    return {
-      error: 'Gemini API key is not configured.',
-      confidence: 0,
-    };
+  if (!client) {
+    return { error: 'AI service not configured.', confidence: 0 };
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
     const prompt = `You are a logistics data extraction specialist. Analyze the following shipping document text (extracted from a Bill of Lading PDF or Shipping Instruction PDF) and extract ALL available fields.
 
 IMPORTANT: This is a structured shipping document (HBL/MBL/SI), not a regular email. Extract data precisely.
@@ -177,10 +172,10 @@ Extract the following fields into a JSON object:
 - portOfLoading: Port of Loading
 - portOfDischarge: Port of Discharge
 - shippingLine: Shipping line company (MSC, Maersk, CMA CGM, COSCO, Hapag-Lloyd, ONE, Evergreen, Yang Ming, ZIM, ASG, etc.)
-- containerType: Container type and quantity (e.g., "1x40HQ", "2x20DC"). Look for patterns like "1X40HQ", "40HQ", "20GP", etc.
+- containerType: Container type and quantity (e.g., "1x40HQ", "2x20DC")
 - weight: Gross weight with unit (e.g., "7800KGS", "18500KG")
 - volume: Volume/measurement (e.g., "68CBM", "45M3")
-- cargoDescription: Description of goods/commodity (e.g., "PLASTIC TOYS", "FURNITURE")
+- cargoDescription: Description of goods/commodity
 - packageCount: Number and type of packages (e.g., "390 CARTONS", "150 PALLETS")
 - shipperName: Shipper/Exporter company name
 - shipperAddress: Shipper full address
@@ -190,7 +185,7 @@ Extract the following fields into a JSON object:
 - freightTerms: "PREPAID" or "COLLECT"
 - departureDate: Departure/sailing date in YYYY-MM-DD format
 - eta: Estimated arrival date in YYYY-MM-DD (if available)
-- blDate: Date of B/L issue in YYYY-MM-DD format (look for "Date" near bottom or "Laden on Board")
+- blDate: Date of B/L issue in YYYY-MM-DD format
 - placeOfIssue: Place of B/L issue (e.g., "SHENZHEN")
 - supplierName: Chinese supplier/shipper contact name (from email signatures)
 - supplierPhone: Phone number of supplier
@@ -205,29 +200,29 @@ ${emailContext ? `Email context:\n---\n${emailContext.substring(0, 1000)}\n---\n
 ${pdfText.substring(0, 8000)}
 ---`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const text = await callLiteLLM(
+      prompt,
+      'You are a logistics data extraction specialist focused on Bill of Lading parsing.'
+    );
+    const parsed = tryParseJson(text) as Partial<ParsedEmailData> | null;
 
-    try {
-      const cleanedText = text.replace(/```json\n?|\n?```/g, '').trim();
-      const parsed = JSON.parse(cleanedText);
-
-      return {
-        ...parsed,
-        confidence: parsed.confidence || 80,
-      };
-    } catch (parseError) {
-      logger.error('[Gemini] Failed to parse shipping document response:', text);
+    if (!parsed) {
+      logger.error('[AI] Failed to parse shipping document response:', text.slice(0, 200));
       return {
         error: 'Failed to parse AI response for shipping document.',
         confidence: 0,
       };
     }
-  } catch (error: any) {
-    logger.error('[Gemini] Shipping document parsing error:', error);
+
     return {
-      error: `AI parsing failed: ${error.message || 'Unknown error'}`,
+      ...parsed,
+      confidence: parsed.confidence || 80,
+    };
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('[AI] parseShippingDocumentWithGemini error:', msg);
+    return {
+      error: `AI parsing failed: ${msg}`,
       confidence: 0,
     };
   }

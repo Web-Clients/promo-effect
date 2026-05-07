@@ -173,6 +173,20 @@ export interface PlaceOrderRequest {
 }
 
 /**
+ * Get available shipping lines (for CFR dropdown)
+ */
+export const getAvailableShippingLines = async (): Promise<string[]> => {
+  try {
+    const response = await api.get<{ shippingLines: string[] }>('/calculator/shipping-lines');
+    return response.data.shippingLines;
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error, 'Nu s-au putut încărca liniile maritime'), {
+      cause: error,
+    });
+  }
+};
+
+/**
  * Place order with selected offer
  */
 export const placeOrder = async (
@@ -196,6 +210,7 @@ const calculatorService = {
   getAvailableContainerTypes,
   getAvailableWeightRanges,
   getAvailableDestinations,
+  getAvailableShippingLines,
   placeOrder,
 };
 

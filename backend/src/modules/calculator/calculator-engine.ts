@@ -177,13 +177,24 @@ export async function computeFromBasePrices(
 
   if (basePrices.length === 0) return [];
 
+  // Dedup: for same (shippingLine, portOrigin, portDestination, containerType) keep only latest updatedAt
+  const dedupSeen = new Map<string, (typeof basePrices)[0]>();
+  for (const price of basePrices) {
+    const key = `${price.shippingLine}|${price.portOrigin}|${price.portDestination}|${price.containerType}`;
+    const existing = dedupSeen.get(key);
+    if (!existing || price.updatedAt > existing.updatedAt) {
+      dedupSeen.set(key, price);
+    }
+  }
+  const dedupedPrices = Array.from(dedupSeen.values());
+
   // Filter by CFR shipping line if specified
   const filteredPrices =
     input.incoterm === 'CFR' && input.shippingLine
-      ? basePrices.filter(
+      ? dedupedPrices.filter(
           (p) => p.shippingLine.toLowerCase() === (input.shippingLine || '').toLowerCase()
         )
-      : basePrices;
+      : dedupedPrices;
 
   // Preload ShippingLineContainer configs
   const shippingLineContainers = await prisma.shippingLineContainer.findMany({

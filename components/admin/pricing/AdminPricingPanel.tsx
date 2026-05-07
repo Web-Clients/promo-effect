@@ -27,6 +27,7 @@ import { BasePricesTab } from './BasePricesTab';
 import { PortPricingMatrixTab } from './PortPricingMatrixTab';
 import { WeightRangesTab } from './WeightRangesTab';
 import { GeneralSettingsTab } from './GeneralSettingsTab';
+import { LandPricingMatrixTab } from './LandPricingMatrixTab';
 
 export function AdminPricingPanel() {
   const { t } = useTranslation();
@@ -261,6 +262,18 @@ export function AdminPricingPanel() {
           )}
           {!isAgent && (
             <button
+              onClick={() => setActiveTab('land-pricing')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'land-pricing'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Prețuri Terestru
+            </button>
+          )}
+          {!isAgent && (
+            <button
               onClick={() => setActiveTab('settings')}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'settings'
@@ -299,6 +312,8 @@ export function AdminPricingPanel() {
       )}
 
       {activeTab === 'port-matrix' && !isAgent && <PortPricingMatrixTab />}
+
+      {activeTab === 'land-pricing' && !isAgent && <LandPricingMatrixTab />}
 
       {activeTab === 'weight-ranges' && !isAgent && <WeightRangesTab />}
 

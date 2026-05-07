@@ -9,6 +9,7 @@ import { startContainerSyncJob, stopContainerSyncJob } from './container-sync.jo
 import { startPaymentRemindersJob, stopPaymentRemindersJob } from './payment-reminders.job';
 import { startDailyReportJob, stopDailyReportJob } from './daily-report.job';
 import { startAuthCleanupJob, stopAuthCleanupJob } from './auth-cleanup.job';
+import { startEtaReminderJob, stopEtaReminderJob } from './notification-eta-reminder.job';
 import logger from '../utils/logger';
 
 /**
@@ -23,6 +24,7 @@ export function startAllJobs() {
   startPaymentRemindersJob();
   startDailyReportJob();
   startAuthCleanupJob(); // B7: cleanup expired reset tokens + B1: cleanup revoked sessions
+  startEtaReminderJob(); // Daily ETA approach + delay notifications
 
   logger.info('✅ All background jobs started');
 }
@@ -38,6 +40,7 @@ export function stopAllJobs() {
   stopPaymentRemindersJob();
   stopDailyReportJob();
   stopAuthCleanupJob();
+  stopEtaReminderJob();
 
   logger.info('✅ All background jobs stopped');
 }
@@ -81,6 +84,11 @@ export function getJobsStatus(): JobStatus[] {
     {
       name: 'Auth Cleanup',
       schedule: 'Daily at 03:00 AM (0 3 * * *)',
+      enabled: true,
+    },
+    {
+      name: 'ETA Reminder',
+      schedule: 'Daily at 09:00 AM (0 9 * * *)',
       enabled: true,
     },
   ];

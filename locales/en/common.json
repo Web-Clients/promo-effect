@@ -722,5 +722,47 @@
     "gmailFillRequired": "Please fill in the Gmail address and App Password.",
     "gmailSaved": "Gmail configuration saved successfully!",
     "gmailSaveError": "Error saving Gmail configuration."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all read",
+    "viewAll": "View all notifications",
+    "empty": "No notifications",
+    "emptyDesc": "You'll be notified about containers, payments and documents.",
+    "groups": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "thisWeek": "This week",
+      "older": "Older"
+    },
+    "types": {
+      "ETA_TODAY": "Container arriving today",
+      "ETA_1_DAYS": "Container arriving tomorrow",
+      "ETA_3_DAYS": "Container arriving in 3 days",
+      "ETA_5_DAYS": "Container arriving in 5 days",
+      "BOOKING_CREATED": "New booking created",
+      "BOOKING_DELAYED": "Container delayed",
+      "TELEX_RELEASE": "Telex Release received",
+      "DOCUMENTS_UPLOADED": "Documents uploaded",
+      "PAYMENT_RECEIVED": "Payment received",
+      "INVOICE_PAID": "Invoice paid",
+      "INVOICE_OVERDUE": "Invoice overdue",
+      "INVOICE_SENT": "Invoice sent",
+      "PRICE_CHANGED": "Prices updated",
+      "EMAIL_PARSE_FAILED": "Email could not be parsed",
+      "NEW_CONTAINER_REVIEW": "New container for review",
+      "CONTAINER_UPDATE_REVIEW": "Container updated",
+      "DAILY_REPORT": "Daily report"
+    },
+    "templates": {
+      "etaApproaching": "{{containerNumber}} arrives in {{days}} days at {{port}}",
+      "etaToday": "{{containerNumber}} arrives TODAY at {{port}}",
+      "bookingCreated": "New booking from email: {{containerNumber}}",
+      "telexRelease": "Telex Release confirmed for {{containerNumber}}",
+      "documentsUploaded": "{{client}} uploaded documents for {{containerNumber}}",
+      "paymentReceived": "{{client}} paid {{amount}} {{currency}} — invoice {{invoiceNumber}}",
+      "invoiceOverdue": "Invoice {{invoiceNumber}} is {{days}} days overdue",
+      "priceChanged": "Price updated: {{route}} → ${{price}}"
+    }
   }
 }

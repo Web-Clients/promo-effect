@@ -9,6 +9,7 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../../lib/prisma';
 import { authMiddleware, requireRole } from '../../middleware/auth.middleware';
+import notificationService from '../../services/notification.service';
 import logger from '../../utils/logger';
 
 const router = Router();
@@ -100,6 +101,38 @@ router.post(
         ipAddress: req.ip,
       });
 
+      // Notify all admins + operators + linked client about telex release
+      setImmediate(async () => {
+        try {
+          const blLabel = (updated as any).blNumber || id.slice(0, 8).toUpperCase();
+          const containerNr = (updated as any).containers?.[0]?.containerNumber || 'N/A';
+          const adminUsers = await prisma.user.findMany({
+            where: { role: { in: ['ADMIN', 'SUPER_ADMIN', 'OPERATOR'] } },
+          });
+
+          // Also notify client
+          const clientRecord = await (prisma.client as any).findUnique({
+            where: { id: (updated as any).clientId },
+            include: { user: true },
+          });
+          const allUsers = [...adminUsers];
+          if (clientRecord?.user) allUsers.push(clientRecord.user);
+
+          for (const u of allUsers) {
+            await notificationService.sendNotification({
+              userId: u.id,
+              bookingId: id,
+              type: 'TELEX_RELEASE',
+              title: `Telex Release confirmat: ${containerNr}`,
+              message: `Telex Release a fost confirmat pentru containerul ${containerNr} (B/L: ${blLabel}). Containerul poate fi ridicat din port.`,
+              channels: { email: false, push: true, sms: false, whatsapp: false },
+            });
+          }
+        } catch (notifErr) {
+          logger.error('[bookings-metadata] Failed to send TELEX_RELEASE notification:', notifErr);
+        }
+      });
+
       return res.json({ success: true, booking: updated });
     } catch (err: any) {
       logger.error('[bookings-metadata] telex-release error:', err);
@@ -170,6 +203,33 @@ router.post(
           uploadedBy: req.user?.email,
         },
         ipAddress: req.ip,
+      });
+
+      // Notify admins/operators that client uploaded documents (non-blocking)
+      setImmediate(async () => {
+        try {
+          const blLabel = (updated as any).blNumber || id.slice(0, 8).toUpperCase();
+          const containerNr = (updated as any).containers?.[0]?.containerNumber || 'N/A';
+          const clientName = (updated as any).client?.companyName || req.user?.email || 'Client';
+          const adminUsers = await prisma.user.findMany({
+            where: { role: { in: ['ADMIN', 'SUPER_ADMIN', 'OPERATOR'] } },
+          });
+          for (const admin of adminUsers) {
+            await notificationService.sendNotification({
+              userId: admin.id,
+              bookingId: id,
+              type: 'DOCUMENTS_UPLOADED',
+              title: `Documente încărcate: ${containerNr}`,
+              message: `${clientName} a încărcat documentele pentru rezervarea cu containerul ${containerNr} (B/L: ${blLabel}). Verificați și procesați documentele.`,
+              channels: { email: false, push: true, sms: false, whatsapp: false },
+            });
+          }
+        } catch (notifErr) {
+          logger.error(
+            '[bookings-metadata] Failed to send DOCUMENTS_UPLOADED notification:',
+            notifErr
+          );
+        }
       });
 
       return res.json({ success: true, booking: updated });

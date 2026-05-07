@@ -7,6 +7,9 @@
 import { Router, Request, Response } from 'express';
 import { adminPricingService } from './admin-pricing.service';
 import { authMiddleware, requireRole } from '../../middleware/auth.middleware';
+import notificationService from '../../services/notification.service';
+import prisma from '../../lib/prisma';
+import logger from '../../utils/logger';
 
 // Explicit role guard for admin-pricing routes (B14)
 const adminOnly = requireRole(['ADMIN', 'SUPER_ADMIN']);
@@ -90,6 +93,29 @@ router.put('/base-prices/:id', authMiddleware, adminOnly, async (req: Request, r
     };
     const basePrice = await adminPricingService.updateBasePrice(req.params.id, data);
     res.json(basePrice);
+
+    // Fire PRICE_CHANGED notification for all admins/operators (non-blocking)
+    setImmediate(async () => {
+      try {
+        const currentUser = (req as any).user;
+        const admins = await prisma.user.findMany({
+          where: { role: { in: ['ADMIN', 'SUPER_ADMIN', 'OPERATOR'] } },
+        });
+        const label = `${basePrice.shippingLine} ${basePrice.portOrigin}→${basePrice.portDestination} ${basePrice.containerType}`;
+        for (const admin of admins) {
+          if (admin.id === currentUser?.userId) continue; // don't notify yourself
+          await notificationService.sendNotification({
+            userId: admin.id,
+            type: 'PRICE_CHANGED',
+            title: `Preț actualizat: ${label}`,
+            message: `Prețul de bază pentru ruta ${label} a fost actualizat la $${basePrice.basePrice} (valid ${new Date(basePrice.validFrom).toLocaleDateString('ro-RO')}–${new Date(basePrice.validUntil).toLocaleDateString('ro-RO')}).`,
+            channels: { email: false, push: true, sms: false, whatsapp: false },
+          });
+        }
+      } catch (notifErr) {
+        logger.error('[AdminPricing] Failed to send PRICE_CHANGED notification:', notifErr);
+      }
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to update base price';
     res.status(400).json({ error: message });

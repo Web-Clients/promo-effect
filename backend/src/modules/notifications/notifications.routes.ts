@@ -6,6 +6,7 @@
 import { Router, Request, Response } from 'express';
 import { NotificationsService } from './notifications.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
+import { runEtaReminderJob } from '../../jobs/notification-eta-reminder.job';
 import logger from '../../utils/logger';
 
 const router = Router();
@@ -214,6 +215,38 @@ router.patch('/:id/read', authMiddleware, async (req: Request, res: Response) =>
   } catch (error) {
     logger.info('[Notifications] Error marking as read:', error);
     const message = error instanceof Error ? error.message : 'Failed to mark as read';
+    res.status(500).json({
+      success: false,
+      error: message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+/**
+ * POST /api/v1/notifications/trigger/eta-reminder
+ * Manually trigger the ETA reminder job (admin only)
+ */
+router.post('/trigger/eta-reminder', authMiddleware, async (req: Request, res: Response) => {
+  const currentUser = (req as any).user;
+  if (!['ADMIN', 'SUPER_ADMIN'].includes(currentUser.role)) {
+    return res.status(403).json({
+      success: false,
+      error: 'Admin access required',
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  try {
+    logger.info('[Notifications] Manual ETA reminder trigger by:', currentUser.email);
+    const result = await runEtaReminderJob();
+    res.json({
+      success: true,
+      data: result,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to run ETA reminder job';
     res.status(500).json({
       success: false,
       error: message,

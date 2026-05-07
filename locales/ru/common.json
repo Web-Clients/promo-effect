@@ -722,5 +722,47 @@
     "gmailFillRequired": "Заполните адрес Gmail и пароль приложения.",
     "gmailSaved": "Конфигурация Gmail успешно сохранена!",
     "gmailSaveError": "Ошибка при сохранении конфигурации Gmail."
+  },
+  "notifications": {
+    "title": "Уведомления",
+    "markAllRead": "Все прочитаны",
+    "viewAll": "Все уведомления",
+    "empty": "Нет уведомлений",
+    "emptyDesc": "Вы будете уведомлены о контейнерах, платежах и документах.",
+    "groups": {
+      "today": "Сегодня",
+      "yesterday": "Вчера",
+      "thisWeek": "На этой неделе",
+      "older": "Ранее"
+    },
+    "types": {
+      "ETA_TODAY": "Контейнер прибывает сегодня",
+      "ETA_1_DAYS": "Контейнер прибывает завтра",
+      "ETA_3_DAYS": "Контейнер прибывает через 3 дня",
+      "ETA_5_DAYS": "Контейнер прибывает через 5 дней",
+      "BOOKING_CREATED": "Новое бронирование создано",
+      "BOOKING_DELAYED": "Задержка контейнера",
+      "TELEX_RELEASE": "Получен Telex Release",
+      "DOCUMENTS_UPLOADED": "Документы загружены",
+      "PAYMENT_RECEIVED": "Платёж получен",
+      "INVOICE_PAID": "Счёт оплачен",
+      "INVOICE_OVERDUE": "Просроченный счёт",
+      "INVOICE_SENT": "Счёт выставлен",
+      "PRICE_CHANGED": "Цены обновлены",
+      "EMAIL_PARSE_FAILED": "Письмо не удалось обработать",
+      "NEW_CONTAINER_REVIEW": "Новый контейнер для проверки",
+      "CONTAINER_UPDATE_REVIEW": "Контейнер обновлён",
+      "DAILY_REPORT": "Ежедневный отчёт"
+    },
+    "templates": {
+      "etaApproaching": "{{containerNumber}} прибывает через {{days}} дн. в {{port}}",
+      "etaToday": "{{containerNumber}} прибывает СЕГОДНЯ в {{port}}",
+      "bookingCreated": "Новое бронирование из письма: {{containerNumber}}",
+      "telexRelease": "Telex Release подтверждён для {{containerNumber}}",
+      "documentsUploaded": "{{client}} загрузил документы для {{containerNumber}}",
+      "paymentReceived": "{{client}} оплатил {{amount}} {{currency}} — счёт {{invoiceNumber}}",
+      "invoiceOverdue": "Счёт {{invoiceNumber}} просрочен на {{days}} дн.",
+      "priceChanged": "Цена обновлена: {{route}} → ${{price}}"
+    }
   }
 }

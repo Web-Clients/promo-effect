@@ -323,14 +323,43 @@ export class EmailService {
                 where: { role: { in: ['OPERATOR', 'ADMIN', 'SUPER_ADMIN'] } },
               });
               for (const operator of operators) {
+                // BOOKING_CREATED — replaces the generic NEW_CONTAINER_REVIEW
                 await notificationService.sendNotification({
                   userId: operator.id,
                   bookingId: booking.id,
-                  type: 'NEW_CONTAINER_REVIEW',
-                  title: `Container Nou Creat din Email: ${container.containerNumber}`,
-                  message: `Un nou container a fost creat automat din email și necesită revizuire.\n\n- Container: ${container.containerNumber}\n- Client: ${client.companyName}\n- Confidence: ${extractedData.confidence}%`,
-                  channels: { email: true, push: false, sms: false, whatsapp: false },
+                  type: 'BOOKING_CREATED',
+                  title: `Rezervare nouă din email: ${container.containerNumber}`,
+                  message: `Rezervare creată automat din email pentru containerul ${container.containerNumber} (B/L: ${extractedData.blNumber || 'N/A'}). Client: ${client.companyName}. Confidence: ${extractedData.confidence}%. Verificați și completați datele.`,
+                  channels: { email: false, push: true, sms: false, whatsapp: false },
                 });
+              }
+
+              // EMAIL_PARSE_FAILED is handled later; here check for telex signal in subject/body
+              const emailSubjectLower = email.subject?.toLowerCase() || '';
+              const emailBodyLower = email.body?.toLowerCase() || '';
+              const isTelexEmail =
+                emailSubjectLower.includes('telex') ||
+                emailSubjectLower.includes('tlx') ||
+                emailBodyLower.includes('telex release') ||
+                emailBodyLower.includes('tlx release');
+
+              if (isTelexEmail) {
+                // Mark telex on booking
+                await prisma.booking.update({
+                  where: { id: booking.id },
+                  data: { telexReleased: true } as any,
+                });
+
+                for (const operator of operators) {
+                  await notificationService.sendNotification({
+                    userId: operator.id,
+                    bookingId: booking.id,
+                    type: 'TELEX_RELEASE',
+                    title: `Telex Release primit: ${container.containerNumber}`,
+                    message: `A fost primit Telex Release pentru containerul ${container.containerNumber} (B/L: ${extractedData.blNumber || 'N/A'}). Containerul poate fi ridicat.`,
+                    channels: { email: false, push: true, sms: false, whatsapp: false },
+                  });
+                }
               }
             } catch (error) {
               logger.error(`[EmailService] Failed to send notification:`, error);
@@ -369,6 +398,25 @@ export class EmailService {
       return { emailId: email.id, status, extractedData, processingTime: Date.now() - startTime };
     } catch (error: any) {
       logger.error('Email processing failed:', error);
+
+      // Notify admins about failed email parsing
+      try {
+        const admins = await prisma.user.findMany({
+          where: { role: { in: ['ADMIN', 'SUPER_ADMIN'] } },
+        });
+        for (const admin of admins) {
+          await notificationService.sendNotification({
+            userId: admin.id,
+            type: 'EMAIL_PARSE_FAILED',
+            title: `Email neprocesabil: ${email.subject?.substring(0, 60) || 'fără subiect'}`,
+            message: `Emailul de la ${email.from} nu a putut fi procesat automat. Eroare: ${error.message}. Verificați manual în secțiunea Emailuri.`,
+            channels: { email: false, push: true, sms: false, whatsapp: false },
+          });
+        }
+      } catch (notifErr) {
+        logger.error('[EmailService] Failed to send EMAIL_PARSE_FAILED notification:', notifErr);
+      }
+
       return {
         emailId: email.id,
         status: 'FAILED',

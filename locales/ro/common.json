@@ -722,5 +722,47 @@
     "gmailFillRequired": "Completați adresa Gmail și App Password.",
     "gmailSaved": "Configurație Gmail salvată cu succes!",
     "gmailSaveError": "Eroare la salvarea configurației Gmail."
+  },
+  "notifications": {
+    "title": "Notificări",
+    "markAllRead": "Toate citite",
+    "viewAll": "Vezi toate notificările",
+    "empty": "Nicio notificare",
+    "emptyDesc": "Vei fi notificat despre containere, plăți și documente.",
+    "groups": {
+      "today": "Astăzi",
+      "yesterday": "Ieri",
+      "thisWeek": "Săptămâna aceasta",
+      "older": "Mai vechi"
+    },
+    "types": {
+      "ETA_TODAY": "Container sosește azi",
+      "ETA_1_DAYS": "Container sosește mâine",
+      "ETA_3_DAYS": "Container sosește în 3 zile",
+      "ETA_5_DAYS": "Container sosește în 5 zile",
+      "BOOKING_CREATED": "Rezervare nouă creată",
+      "BOOKING_DELAYED": "Container întârziat",
+      "TELEX_RELEASE": "Telex Release primit",
+      "DOCUMENTS_UPLOADED": "Documente încărcate",
+      "PAYMENT_RECEIVED": "Plată primită",
+      "INVOICE_PAID": "Factură plătită",
+      "INVOICE_OVERDUE": "Factură restantă",
+      "INVOICE_SENT": "Factură emisă",
+      "PRICE_CHANGED": "Prețuri actualizate",
+      "EMAIL_PARSE_FAILED": "Email neprocesabil",
+      "NEW_CONTAINER_REVIEW": "Container nou de revizuit",
+      "CONTAINER_UPDATE_REVIEW": "Container actualizat",
+      "DAILY_REPORT": "Raport zilnic"
+    },
+    "templates": {
+      "etaApproaching": "{{containerNumber}} sosește în {{days}} zile la {{port}}",
+      "etaToday": "{{containerNumber}} sosește AZI la {{port}}",
+      "bookingCreated": "Rezervare nouă din email: {{containerNumber}}",
+      "telexRelease": "Telex Release confirmat pentru {{containerNumber}}",
+      "documentsUploaded": "{{client}} a încărcat documentele pentru {{containerNumber}}",
+      "paymentReceived": "{{client}} a plătit {{amount}} {{currency}} — factura {{invoiceNumber}}",
+      "invoiceOverdue": "Factura {{invoiceNumber}} este restantă cu {{days}} zile",
+      "priceChanged": "Preț actualizat: {{route}} → ${{price}}"
+    }
   }
 }

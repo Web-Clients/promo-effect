@@ -152,6 +152,28 @@ export async function notifyPaymentReceived(
         : `Am primit o plată pentru factura ${updatedInvoice.invoiceNumber}.\n\nSuma plătită: ${paymentData.amount.toFixed(2)} ${currency}\nTotal plătit: ${totalPaid.toFixed(2)} ${currency}\nRest de plată: ${(totalAmount - totalPaid).toFixed(2)} ${currency}\nMetodă de plată: ${paymentData.paymentMethod}\nData plății: ${formatDateRO(paymentData.paymentDate)}`,
       channels: { email: true, push: false, sms: false, whatsapp: false },
     });
+
+    // Also send in-app push to all admins/operators
+    const adminUsers = await prisma.user.findMany({
+      where: { role: { in: ['ADMIN', 'SUPER_ADMIN', 'OPERATOR'] } },
+    });
+    for (const admin of adminUsers) {
+      if (admin.id === (clientUser?.id || updatedInvoice.clientId)) continue;
+      try {
+        await notificationService.sendNotification({
+          userId: admin.id,
+          bookingId: updatedInvoice.bookingId || undefined,
+          type: 'PAYMENT_RECEIVED',
+          title: isFullyPaid
+            ? `Plată completă: ${updatedInvoice.invoiceNumber}`
+            : `Plată parțială: ${updatedInvoice.invoiceNumber}`,
+          message: `${updatedInvoice.client?.companyName || 'Client'} a plătit ${paymentData.amount.toFixed(2)} ${currency} pentru factura ${updatedInvoice.invoiceNumber}.${isFullyPaid ? ' Factură închisă.' : ` Rest: ${(totalAmount - totalPaid).toFixed(2)} ${currency}.`}`,
+          channels: { email: false, push: true, sms: false, whatsapp: false },
+        });
+      } catch (_) {
+        /* non-blocking */
+      }
+    }
   } catch (error) {
     logger.error('[InvoicesPdfService] Failed to send payment notification email:', error);
   }

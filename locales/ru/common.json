@@ -629,5 +629,25 @@
     "cookiesTitle": "Политика использования файлов cookie",
     "faqTitle": "Часто задаваемые вопросы",
     "lastUpdated": "Последнее обновление"
+  },
+  "settings": {
+    "gmail": {
+      "title": "Интеграция Gmail IMAP",
+      "email": "Адрес Gmail",
+      "appPassword": "Пароль приложения",
+      "appPasswordHint": "Создайте на https://myaccount.google.com/apppasswords (требуется 2FA)",
+      "save": "Сохранить",
+      "test": "Проверить подключение",
+      "syncNow": "Синхронизировать сейчас",
+      "statusConnected": "Подключено",
+      "statusDisconnected": "Отключено",
+      "statusNotConfigured": "Не настроено",
+      "lastSync": "Последняя синхронизация",
+      "lastResult": "Последний результат",
+      "testSuccess": "Подключение успешно",
+      "testFailed": "Ошибка подключения",
+      "syncStarted": "Синхронизация...",
+      "syncCompleted": "Синхронизация завершена"
+    }
   }
 }

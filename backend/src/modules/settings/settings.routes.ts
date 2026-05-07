@@ -4,11 +4,128 @@
  */
 
 import { Router, Request, Response } from 'express';
+import { z } from 'zod';
 import { SettingsService } from './settings.service';
 import { authMiddleware, requireRole } from '../../middleware/auth.middleware';
 
 const router = Router();
 const settingsService = new SettingsService();
+
+// ── Zod schemas ─────────────────────────────────────────────────────────
+
+const GmailConfigureSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  // App password: 16 chars without spaces, or 19 with spaces (xxxx xxxx xxxx xxxx)
+  appPassword: z
+    .string()
+    .min(16, 'App password must be at least 16 characters')
+    .max(50, 'App password too long'),
+});
+
+// ── Gmail IMAP endpoints ─────────────────────────────────────────────────
+
+/**
+ * GET /api/v1/settings/gmail
+ * Returns current Gmail IMAP config (never returns password, only hasPassword boolean)
+ */
+router.get(
+  '/gmail',
+  authMiddleware,
+  requireRole(['ADMIN', 'SUPER_ADMIN']),
+  async (req: Request, res: Response) => {
+    try {
+      const config = await settingsService.getGmailConfig();
+      res.json({
+        success: true,
+        data: config,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch Gmail config';
+      res.status(500).json({ success: false, error: message, timestamp: new Date().toISOString() });
+    }
+  }
+);
+
+/**
+ * POST /api/v1/settings/gmail/configure
+ * Save Gmail email + App Password (password stored AES-encrypted)
+ */
+router.post(
+  '/gmail/configure',
+  authMiddleware,
+  requireRole(['ADMIN', 'SUPER_ADMIN']),
+  async (req: Request, res: Response) => {
+    try {
+      const parsed = GmailConfigureSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          success: false,
+          error: parsed.error.errors.map((e) => e.message).join('; '),
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const currentUser = (req as any).user;
+      const config = await settingsService.setGmailConfig(parsed.data, currentUser.id);
+
+      res.json({
+        success: true,
+        data: config,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to save Gmail config';
+      res.status(500).json({ success: false, error: message, timestamp: new Date().toISOString() });
+    }
+  }
+);
+
+/**
+ * POST /api/v1/settings/gmail/test
+ * Test IMAP connection with currently configured credentials
+ */
+router.post(
+  '/gmail/test',
+  authMiddleware,
+  requireRole(['ADMIN', 'SUPER_ADMIN']),
+  async (req: Request, res: Response) => {
+    try {
+      const result = await settingsService.testGmailConnection();
+      res.json({
+        ...result,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Gmail test failed';
+      res.status(500).json({ success: false, error: message, timestamp: new Date().toISOString() });
+    }
+  }
+);
+
+/**
+ * POST /api/v1/settings/gmail/sync-now
+ * Trigger immediate email fetch + classifier pipeline (max 20 emails)
+ */
+router.post(
+  '/gmail/sync-now',
+  authMiddleware,
+  requireRole(['ADMIN', 'SUPER_ADMIN']),
+  async (req: Request, res: Response) => {
+    try {
+      const result = await settingsService.triggerGmailSync();
+      res.json({
+        ...result,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Gmail sync failed';
+      res.status(500).json({ success: false, error: message, timestamp: new Date().toISOString() });
+    }
+  }
+);
+
+// ── Existing settings endpoints ──────────────────────────────────────────
 
 /**
  * GET /api/v1/settings
@@ -147,4 +264,3 @@ router.post(
 );
 
 export default router;
-

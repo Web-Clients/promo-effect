@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SystemSettings } from '../types';
 import { Card } from './ui/Card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/Tabs';
@@ -7,15 +7,17 @@ import { Input } from './ui/Input';
 import { Switch } from './ui/Switch';
 import { AlertCircleIcon, CheckIcon, XIcon, CopyIcon } from './icons';
 import { useToast } from './ui/Toast';
+import { getGmailConfig, configureGmail, testGmail, syncGmailNow } from '../services/settings';
+import type { GmailConfig } from '../services/settings';
 
 // Mock initial settings data based on the full SystemSettings interface
 const mockSettings: SystemSettings = {
   emailSettings: {
     provider: 'GMAIL',
-    gmailClientId: 'xxxxx.apps.googleusercontent.com',
-    gmailClientSecret: 'secret-key-123',
+    gmailClientId: '',
+    gmailClientSecret: '',
     gmailRefreshToken: '',
-    gmailUserEmail: 'contact@promoefect.md',
+    gmailUserEmail: '',
     enabled: true,
     lastSyncAt: new Date().toISOString(),
     syncInterval: 5,
@@ -132,6 +134,47 @@ const Select = ({ ...props }) => (
   />
 );
 
+// ── Gmail status badge ────────────────────────────────────────────────
+
+function GmailStatusBadge({ config }: { config: GmailConfig | null }) {
+  if (!config) return null;
+
+  if (!config.email && !config.hasPassword) {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-neutral-100 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-400">
+        Neconfigurat
+      </span>
+    );
+  }
+  if (!config.hasPassword) {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+        Parola lipsă
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+      Configurat
+    </span>
+  );
+}
+
+function formatRelative(dateStr: string | null | undefined): string {
+  if (!dateStr) return 'niciodată';
+  const d = new Date(dateStr);
+  const diffMs = Date.now() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60_000);
+  if (diffMin < 1) return 'acum câteva secunde';
+  if (diffMin < 60) return `acum ${diffMin} min`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `acum ${diffH} ore`;
+  const diffD = Math.floor(diffH / 24);
+  return `acum ${diffD} zile`;
+}
+
+// ── Main component ────────────────────────────────────────────────────
+
 const AdminSettingsPage = () => {
   const [settings, setSettings] = useState<SystemSettings>(mockSettings);
   const [testResults, setTestResults] = useState<Record<string, 'success' | 'error' | 'pending'>>(
@@ -139,10 +182,34 @@ const AdminSettingsPage = () => {
   );
   const { addToast } = useToast();
 
+  // Gmail IMAP state
+  const [gmailConfig, setGmailConfig] = useState<GmailConfig | null>(null);
+  const [gmailEmail, setGmailEmail] = useState('');
+  const [gmailPassword, setGmailPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [gmailSaving, setGmailSaving] = useState(false);
+  const [gmailTesting, setGmailTesting] = useState(false);
+  const [gmailSyncing, setGmailSyncing] = useState(false);
+  const [gmailConnectionStatus, setGmailConnectionStatus] = useState<
+    'connected' | 'disconnected' | null
+  >(null);
+
+  // Load Gmail config on mount
+  useEffect(() => {
+    getGmailConfig()
+      .then((cfg) => {
+        setGmailConfig(cfg);
+        if (cfg.email) setGmailEmail(cfg.email);
+      })
+      .catch(() => {
+        // Non-critical — ignore
+      });
+  }, []);
+
   const updateSettings = (path: string, value: unknown) => {
     setSettings((prev) => {
       const keys = path.split('.');
-      const newState = JSON.parse(JSON.stringify(prev)) as Record<string, unknown>; // Deep copy
+      const newState = JSON.parse(JSON.stringify(prev)) as Record<string, unknown>;
       let current: Record<string, unknown> = newState;
       for (let i = 0; i < keys.length - 1; i++) {
         current = current[keys[i]] as Record<string, unknown>;
@@ -154,8 +221,8 @@ const AdminSettingsPage = () => {
 
   const testConnection = async (service: string) => {
     setTestResults((prev) => ({ ...prev, [service]: 'pending' }));
-    await new Promise((resolve) => setTimeout(resolve, 1500)); // Simulate API call
-    const success = Math.random() > 0.3; // Simulate success/failure
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const success = Math.random() > 0.3;
     if (success) {
       setTestResults((prev) => ({ ...prev, [service]: 'success' }));
       addToast(`Conexiunea ${service} a fost testată cu succes!`, 'success');
@@ -173,6 +240,70 @@ const AdminSettingsPage = () => {
   const saveSettings = () => {
     addToast('Setările au fost salvate!', 'success');
   };
+
+  // ── Gmail handlers ────────────────────────────────────────────────
+
+  const handleGmailSave = async () => {
+    if (!gmailEmail || !gmailPassword) {
+      addToast('Completați adresa Gmail și App Password.', 'error');
+      return;
+    }
+    setGmailSaving(true);
+    try {
+      const updated = await configureGmail({ email: gmailEmail, appPassword: gmailPassword });
+      setGmailConfig(updated);
+      setGmailPassword('');
+      addToast('Configurație Gmail salvată cu succes!', 'success');
+    } catch (err: any) {
+      addToast(err?.message || 'Eroare la salvarea configurației Gmail.', 'error');
+    } finally {
+      setGmailSaving(false);
+    }
+  };
+
+  const handleGmailTest = async () => {
+    setGmailTesting(true);
+    setGmailConnectionStatus(null);
+    try {
+      const result = await testGmail();
+      setGmailConnectionStatus(result.success ? 'connected' : 'disconnected');
+      addToast(
+        result.success ? `Conectat: ${result.message}` : `Conexiune eșuată: ${result.message}`,
+        result.success ? 'success' : 'error'
+      );
+    } catch (err: any) {
+      setGmailConnectionStatus('disconnected');
+      addToast(err?.message || 'Testare conexiune eșuată.', 'error');
+    } finally {
+      setGmailTesting(false);
+    }
+  };
+
+  const handleGmailSync = async () => {
+    setGmailSyncing(true);
+    addToast('Sincronizare în curs...', 'info');
+    try {
+      const result = await syncGmailNow();
+      // Refresh config to get updated lastFetchAt
+      const updated = await getGmailConfig();
+      setGmailConfig(updated);
+
+      if (result.success) {
+        addToast(
+          `Sincronizare completă: ${result.fetched} email-uri preluate, ${result.processed} procesate.`,
+          'success'
+        );
+      } else {
+        addToast(`Sincronizare parțial eșuată: ${result.errors.slice(0, 2).join('; ')}`, 'error');
+      }
+    } catch (err: any) {
+      addToast(err?.message || 'Eroare la sincronizare.', 'error');
+    } finally {
+      setGmailSyncing(false);
+    }
+  };
+
+  // ── Render ────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-5">
@@ -194,58 +325,207 @@ const AdminSettingsPage = () => {
           <TabsTrigger value="system">Sistem</TabsTrigger>
         </TabsList>
 
+        {/* ── Email / Gmail IMAP tab ─────────────────────────────── */}
         <TabsContent value="email">
           <Card>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Integrare Email</h2>
-              <Switch
-                checked={settings.emailSettings.enabled}
-                onCheckedChange={(checked) => updateSettings('emailSettings.enabled', checked)}
-              />
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-semibold">Integrare Gmail IMAP</h2>
+                <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-0.5">
+                  Conectați-vă contul Gmail folosind App Password (IMAP).
+                </p>
+              </div>
+              <GmailStatusBadge config={gmailConfig} />
             </div>
 
-            <div className="space-y-4">
-              <label className="text-sm font-medium">Furnizor</label>
-              <Select
-                value={settings.emailSettings.provider}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                  updateSettings('emailSettings.provider', e.target.value)
-                }
-              >
-                <option value="GMAIL">Gmail API</option>
-                <option value="OUTLOOK">Outlook API</option>
-                <option value="CUSTOM_SMTP">Custom SMTP</option>
-              </Select>
+            <div className="space-y-5">
+              {/* Email field */}
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                  Adresă Gmail
+                </label>
+                <Input
+                  type="email"
+                  placeholder="efect.logistic@gmail.com"
+                  value={gmailEmail}
+                  onChange={(e) => setGmailEmail(e.target.value)}
+                />
+              </div>
 
-              <label className="text-sm font-medium">Email Utilizator Gmail</label>
-              <Input
-                type="email"
-                value={settings.emailSettings.gmailUserEmail}
-                onChange={(e) => updateSettings('emailSettings.gmailUserEmail', e.target.value)}
-              />
+              {/* App Password field with show/hide */}
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                  App Password
+                  {gmailConfig?.hasPassword && (
+                    <span className="ml-2 text-xs text-green-600 dark:text-green-400">
+                      (parolă salvată — lăsați gol pentru a păstra)
+                    </span>
+                  )}
+                </label>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="xxxx xxxx xxxx xxxx"
+                    value={gmailPassword}
+                    onChange={(e) => setGmailPassword(e.target.value)}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute inset-y-0 right-2 flex items-center text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? (
+                      // Eye-off icon
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                        <line x1="1" y1="1" x2="23" y2="23" />
+                      </svg>
+                    ) : (
+                      // Eye icon
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
 
-              <label className="text-sm font-medium">Interval Sincronizare (minute)</label>
-              <Input
-                type="number"
-                min="1"
-                value={settings.emailSettings.syncInterval}
-                onChange={(e) =>
-                  updateSettings('emailSettings.syncInterval', parseInt(e.target.value))
-                }
-              />
+                {/* Hint */}
+                <p className="mt-1.5 text-xs text-neutral-500 dark:text-neutral-400">
+                  Generează parola la{' '}
+                  <a
+                    href="https://myaccount.google.com/apppasswords"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary-600 dark:text-primary-400 underline hover:no-underline"
+                  >
+                    myaccount.google.com/apppasswords
+                  </a>{' '}
+                  (necesită 2FA activat pe contul Google). Format: 16 caractere, cu sau fără spații.
+                </p>
+              </div>
 
-              <div className="flex gap-2">
+              {/* Action buttons */}
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Button onClick={handleGmailSave} disabled={gmailSaving} loading={gmailSaving}>
+                  Salvează
+                </Button>
                 <Button
-                  onClick={() => testConnection('email')}
-                  disabled={testResults.email === 'pending'}
-                  loading={testResults.email === 'pending'}
+                  variant="outline"
+                  onClick={handleGmailTest}
+                  disabled={gmailTesting}
+                  loading={gmailTesting}
                 >
-                  {testResults.email === 'success' && <CheckIcon className="mr-2" />}
-                  {testResults.email === 'error' && <XIcon className="mr-2" />}
+                  {gmailConnectionStatus === 'connected' && (
+                    <CheckIcon className="mr-1.5 h-4 w-4 text-green-600" />
+                  )}
+                  {gmailConnectionStatus === 'disconnected' && (
+                    <XIcon className="mr-1.5 h-4 w-4 text-red-500" />
+                  )}
                   Testează Conexiunea
                 </Button>
-                <Button onClick={saveSettings}>Salvează Setările</Button>
+                <Button
+                  variant="outline"
+                  onClick={handleGmailSync}
+                  disabled={gmailSyncing || !gmailConfig?.hasPassword}
+                  loading={gmailSyncing}
+                >
+                  Sincronizează Acum
+                </Button>
               </div>
+
+              {/* Status section */}
+              {gmailConfig && (
+                <div className="mt-4 p-4 rounded-lg bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700 space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-neutral-500 dark:text-neutral-400">Status:</span>
+                    {gmailConnectionStatus === 'connected' ? (
+                      <span className="text-green-600 dark:text-green-400 font-medium">
+                        Conectat
+                      </span>
+                    ) : gmailConnectionStatus === 'disconnected' ? (
+                      <span className="text-red-500 dark:text-red-400 font-medium">Deconectat</span>
+                    ) : gmailConfig.hasPassword && gmailConfig.email ? (
+                      <span className="text-neutral-600 dark:text-neutral-300 font-medium">
+                        Configurat (netestformat)
+                      </span>
+                    ) : (
+                      <span className="text-neutral-400 dark:text-neutral-500 font-medium">
+                        Neconfigurat
+                      </span>
+                    )}
+                  </div>
+
+                  {gmailConfig.email && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-neutral-500 dark:text-neutral-400">Email:</span>
+                      <span className="font-mono text-neutral-700 dark:text-neutral-300">
+                        {gmailConfig.email}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-neutral-500 dark:text-neutral-400">
+                      Ultima sincronizare:
+                    </span>
+                    <span className="text-neutral-700 dark:text-neutral-300">
+                      {formatRelative(gmailConfig.lastFetchAt)}
+                    </span>
+                  </div>
+
+                  {gmailConfig.lastFetchResult &&
+                    (() => {
+                      try {
+                        const r = JSON.parse(gmailConfig.lastFetchResult);
+                        return (
+                          <div className="flex items-center gap-2">
+                            <span className="text-neutral-500 dark:text-neutral-400">
+                              Ultimul rezultat:
+                            </span>
+                            <span className="text-neutral-700 dark:text-neutral-300">
+                              {r.emailsFetched} email-uri preluate, {r.emailsProcessed} procesate
+                              {r.bookingsCreated !== undefined
+                                ? `, ${r.bookingsCreated} rezervări create`
+                                : ''}
+                            </span>
+                          </div>
+                        );
+                      } catch {
+                        return (
+                          <div className="flex items-center gap-2">
+                            <span className="text-neutral-500 dark:text-neutral-400">
+                              Ultimul rezultat:
+                            </span>
+                            <span className="text-neutral-700 dark:text-neutral-300 truncate max-w-xs">
+                              {gmailConfig.lastFetchResult}
+                            </span>
+                          </div>
+                        );
+                      }
+                    })()}
+                </div>
+              )}
             </div>
           </Card>
         </TabsContent>

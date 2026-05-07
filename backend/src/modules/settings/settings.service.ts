@@ -5,6 +5,9 @@
 
 import prisma from '../../lib/prisma';
 import { encrypt, decrypt } from '../../utils/crypto.util';
+import { gmailIntegration } from '../../integrations/gmail.integration';
+import { EmailService } from '../emails/email.service';
+import logger from '../../utils/logger';
 
 export interface SettingInput {
   category: string;
@@ -14,7 +17,16 @@ export interface SettingInput {
   description?: string;
 }
 
+export interface GmailConfig {
+  email: string | null;
+  hasPassword: boolean;
+  lastFetchAt: Date | null;
+  lastFetchResult: string | null;
+}
+
 export class SettingsService {
+  private emailService = new EmailService();
+
   /**
    * Get all settings grouped by category
    */
@@ -72,15 +84,11 @@ export class SettingsService {
           : {},
         gmail: adminSettings
           ? {
-              accessToken: (adminSettings as any).gmailAccessToken
-                ? decrypt((adminSettings as any).gmailAccessToken)
-                : null,
-              refreshToken: (adminSettings as any).gmailRefreshToken
-                ? decrypt((adminSettings as any).gmailRefreshToken)
-                : null,
-              tokenExpiry: (adminSettings as any).gmailTokenExpiry,
-              email: (adminSettings as any).gmailEmail,
-              lastEmailFetchAt: (adminSettings as any).lastEmailFetchAt,
+              // Never return actual password — only hasPassword boolean
+              email: (adminSettings as any).gmailEmail || null,
+              hasPassword: !!(adminSettings as any).gmailAccessToken,
+              lastFetchAt: (adminSettings as any).lastEmailFetchAt || null,
+              lastFetchResult: (adminSettings as any).lastEmailFetchResult || null,
             }
           : {},
         // Новые настройки из таблицы Settings
@@ -111,19 +119,189 @@ export class SettingsService {
           weightRanges: JSON.parse(settings.weightRanges),
         };
       case 'gmail':
-        return {
-          accessToken: (settings as any).gmailAccessToken
-            ? decrypt((settings as any).gmailAccessToken)
-            : null,
-          refreshToken: (settings as any).gmailRefreshToken
-            ? decrypt((settings as any).gmailRefreshToken)
-            : null,
-          tokenExpiry: (settings as any).gmailTokenExpiry,
-          email: (settings as any).gmailEmail,
-          lastEmailFetchAt: (settings as any).lastEmailFetchAt,
-        };
+        return await this.getGmailConfig();
       default:
         throw new Error(`Category ${category} not found`);
+    }
+  }
+
+  // ── Gmail IMAP methods ──────────────────────────────────────────────────
+
+  /**
+   * Get current Gmail IMAP config (never returns the actual password)
+   */
+  async getGmailConfig(): Promise<GmailConfig> {
+    const settings = await prisma.adminSettings.findUnique({ where: { id: 1 } });
+    return {
+      email: (settings as any)?.gmailEmail || null,
+      hasPassword: !!(settings as any)?.gmailAccessToken,
+      lastFetchAt: (settings as any)?.lastEmailFetchAt || null,
+      lastFetchResult: (settings as any)?.lastEmailFetchResult || null,
+    };
+  }
+
+  /**
+   * Save Gmail IMAP credentials to DB (appPassword is AES-encrypted at rest)
+   */
+  async setGmailConfig(
+    { email, appPassword }: { email: string; appPassword: string },
+    userId: string
+  ): Promise<GmailConfig> {
+    const encryptedPassword = encrypt(appPassword);
+
+    await prisma.adminSettings.upsert({
+      where: { id: 1 },
+      update: {
+        gmailEmail: email,
+        gmailAccessToken: encryptedPassword,
+        updatedBy: userId,
+      },
+      create: {
+        id: 1,
+        gmailEmail: email,
+        gmailAccessToken: encryptedPassword,
+        updatedBy: userId,
+      },
+    });
+
+    // Invalidate credential cache so next call picks up new values
+    gmailIntegration.invalidateCache();
+
+    logger.info(`[Settings] Gmail IMAP config updated by user ${userId}: email=${email}`);
+
+    return this.getGmailConfig();
+  }
+
+  /**
+   * Test Gmail IMAP connection — actually connects via IMAP, returns real result
+   */
+  async testGmailConnection(): Promise<{
+    success: boolean;
+    message: string;
+    email?: string;
+    lastFetchAt?: Date | null;
+  }> {
+    try {
+      const status = await gmailIntegration.getStatus();
+
+      if (!status.configured) {
+        return {
+          success: false,
+          message: 'Gmail IMAP not configured. Please enter email and App Password.',
+        };
+      }
+
+      return {
+        success: status.connected,
+        message: status.connected
+          ? `Connected successfully to ${status.email}`
+          : 'IMAP connection failed — check email address and App Password.',
+        email: status.email,
+        lastFetchAt: status.lastFetch || null,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Connection error: ${error.message}`,
+      };
+    }
+  }
+
+  /**
+   * Trigger an immediate Gmail sync:
+   * fetch up to 20 emails, run email-classifier pipeline on each
+   */
+  async triggerGmailSync(): Promise<{
+    success: boolean;
+    fetched: number;
+    processed: number;
+    errors: string[];
+  }> {
+    const errors: string[] = [];
+
+    try {
+      const configured = await gmailIntegration.isConfiguredAsync();
+      if (!configured) {
+        return {
+          success: false,
+          fetched: 0,
+          processed: 0,
+          errors: ['Gmail not configured'],
+        };
+      }
+
+      // Fetch emails
+      const emails = await gmailIntegration.fetchUnreadEmails(20);
+      const fetched = emails.length;
+
+      if (fetched === 0) {
+        return { success: true, fetched: 0, processed: 0, errors: [] };
+      }
+
+      // Queue all fetched emails for processing
+      let queued = 0;
+      for (const email of emails) {
+        try {
+          await this.emailService.queueEmailForProcessing(email);
+          queued++;
+        } catch (err: any) {
+          errors.push(`Queue error for ${email.id}: ${err.message}`);
+        }
+      }
+
+      // Process pending queue
+      const pending = await this.emailService.getPendingEmails();
+      let processed = 0;
+
+      for (const email of pending) {
+        try {
+          const result = await this.emailService.processEmail(email, true, 80);
+          await this.emailService.markEmailProcessed(
+            email.id,
+            result.status === 'FAILED' ? 'FAILED' : 'PROCESSED',
+            result.error
+          );
+          processed++;
+        } catch (err: any) {
+          errors.push(`Process error for ${email.id}: ${err.message}`);
+          try {
+            await this.emailService.markEmailProcessed(email.id, 'FAILED', err.message);
+          } catch (_) {
+            // ignore secondary error
+          }
+        }
+      }
+
+      // Persist result
+      const fetchResult = {
+        emailsFetched: fetched,
+        emailsProcessed: processed,
+        processingFailed: errors.length,
+        timestamp: new Date().toISOString(),
+        trigger: 'manual',
+      };
+      await prisma.adminSettings.upsert({
+        where: { id: 1 },
+        update: {
+          lastEmailFetchAt: new Date(),
+          lastEmailFetchResult: JSON.stringify(fetchResult),
+        },
+        create: {
+          id: 1,
+          lastEmailFetchAt: new Date(),
+          lastEmailFetchResult: JSON.stringify(fetchResult),
+        },
+      });
+
+      return { success: true, fetched, processed, errors };
+    } catch (error: any) {
+      logger.error('[Settings] triggerGmailSync failed:', error.message);
+      return {
+        success: false,
+        fetched: 0,
+        processed: 0,
+        errors: [error.message],
+      };
     }
   }
 
@@ -166,7 +344,7 @@ export class SettingsService {
           break;
 
         case 'GMAIL':
-          // accessToken and refreshToken are encrypted at rest
+          // accessToken = encrypted appPassword, refreshToken not used for IMAP
           if (key === 'accessToken') updateData.gmailAccessToken = value ? encrypt(value) : value;
           else if (key === 'refreshToken')
             updateData.gmailRefreshToken = value ? encrypt(value) : value;
@@ -255,19 +433,6 @@ export class SettingsService {
         return this.testSearatesConnection();
       default:
         throw new Error(`Integration type ${integrationType} not supported`);
-    }
-  }
-
-  async testGmailConnection(): Promise<{ success: boolean; message: string }> {
-    try {
-      const gmailClientId = process.env.GMAIL_CLIENT_ID;
-      const gmailClientSecret = process.env.GMAIL_CLIENT_SECRET;
-      if (!gmailClientId || !gmailClientSecret) {
-        return { success: false, message: 'Gmail OAuth credentials not configured' };
-      }
-      return { success: true, message: 'Gmail OAuth credentials are configured' };
-    } catch (error) {
-      return { success: false, message: 'Gmail connection test failed' };
     }
   }
 

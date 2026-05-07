@@ -7,41 +7,108 @@
  * Setup:
  * 1. Enable 2FA on the Gmail account
  * 2. Create App Password: Google Account → Security → App Passwords
- * 3. Set environment variables:
+ * 3. Set environment variables OR configure via Admin Settings UI:
  *    - GMAIL_EMAIL=efect.logistic@gmail.com
  *    - GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
+ *
+ * Priority: DB (AdminSettings) > env vars
  */
 
 import { ImapFlow } from 'imapflow';
 import { simpleParser, ParsedMail } from 'mailparser';
 import prisma from '../lib/prisma';
 import { ParsedEmail, EmailAttachment } from '../modules/emails/email.service';
+import { decrypt } from '../utils/crypto.util';
 import logger from '../utils/logger';
 
 // ===== GMAIL IMAP SERVICE =====
 
-export class GmailIntegration {
-  private email: string;
-  private appPassword: string;
+/** Cached credentials loaded from DB or env */
+interface GmailCredentials {
+  email: string;
+  appPassword: string;
+  loadedAt: number; // ms timestamp
+}
 
-  constructor() {
-    this.email = process.env.GMAIL_EMAIL || '';
-    this.appPassword = process.env.GMAIL_APP_PASSWORD || '';
+export class GmailIntegration {
+  /** In-memory cache of credentials, refreshed every 60 seconds */
+  private credCache: GmailCredentials | null = null;
+  private readonly CACHE_TTL_MS = 60_000;
+
+  // ── Credential loading ──────────────────────────────────────────────────
+
+  /**
+   * Load credentials: DB first, then env vars.
+   * Result is cached for CACHE_TTL_MS to avoid a DB hit on every call.
+   */
+  private async loadCredentials(): Promise<{ email: string; appPassword: string }> {
+    const now = Date.now();
+
+    if (this.credCache && now - this.credCache.loadedAt < this.CACHE_TTL_MS) {
+      return { email: this.credCache.email, appPassword: this.credCache.appPassword };
+    }
+
+    // Try DB first
+    try {
+      const settings = await prisma.adminSettings.findUnique({ where: { id: 1 } });
+      if (settings?.gmailEmail && (settings as any).gmailAccessToken) {
+        const appPassword = decrypt((settings as any).gmailAccessToken);
+        if (appPassword) {
+          this.credCache = { email: settings.gmailEmail, appPassword, loadedAt: now };
+          return { email: settings.gmailEmail, appPassword };
+        }
+      }
+    } catch (err: any) {
+      logger.warn(
+        '[Gmail IMAP] Could not load credentials from DB, falling back to env:',
+        err.message
+      );
+    }
+
+    // Fall back to env vars
+    const email = process.env.GMAIL_EMAIL || '';
+    const appPassword = process.env.GMAIL_APP_PASSWORD || '';
+    this.credCache = { email, appPassword, loadedAt: now };
+    return { email, appPassword };
+  }
+
+  /** Invalidate credential cache (call after saving new config to DB) */
+  invalidateCache(): void {
+    this.credCache = null;
+  }
+
+  // ── Public API ──────────────────────────────────────────────────────────
+
+  /**
+   * Check if Gmail IMAP is configured (uses cached/loaded creds).
+   */
+  async isConfiguredAsync(): Promise<boolean> {
+    const { email, appPassword } = await this.loadCredentials();
+    return !!(email && appPassword);
   }
 
   /**
-   * Check if Gmail IMAP is configured
+   * Synchronous check — only works if credentials are already cached.
+   * Falls back to env vars for backward compat with the cron job.
    */
   isConfigured(): boolean {
-    return !!(this.email && this.appPassword);
+    if (this.credCache) {
+      return !!(this.credCache.email && this.credCache.appPassword);
+    }
+    // Fallback: env vars
+    return !!(process.env.GMAIL_EMAIL && process.env.GMAIL_APP_PASSWORD);
   }
 
   /**
    * Get IMAP client connected to Gmail
    */
   private async getClient(): Promise<ImapFlow> {
-    if (!this.isConfigured()) {
-      throw new Error('Gmail not configured. Set GMAIL_EMAIL and GMAIL_APP_PASSWORD.');
+    const { email, appPassword } = await this.loadCredentials();
+
+    if (!email || !appPassword) {
+      throw new Error(
+        'Gmail not configured. Set GMAIL_EMAIL and GMAIL_APP_PASSWORD (via UI or env).'
+      );
     }
 
     const client = new ImapFlow({
@@ -49,11 +116,11 @@ export class GmailIntegration {
       port: 993,
       secure: true,
       auth: {
-        user: this.email,
-        pass: this.appPassword,
+        user: email,
+        pass: appPassword,
       },
       logger: false,
-      greetingTimeout: 30000, // 30s (default 16s is too short on some VPS)
+      greetingTimeout: 30000,
       connectionTimeout: 30000,
       socketTimeout: 60000,
     });
@@ -71,7 +138,9 @@ export class GmailIntegration {
     email?: string;
     lastFetch?: Date;
   }> {
-    if (!this.isConfigured()) {
+    const { email, appPassword } = await this.loadCredentials();
+
+    if (!email || !appPassword) {
       return { configured: false, connected: false };
     }
 
@@ -81,7 +150,7 @@ export class GmailIntegration {
       const client = await this.getClient();
       connected = true;
       await client.logout();
-    } catch (error) {
+    } catch (_error) {
       connected = false;
     }
 
@@ -93,7 +162,7 @@ export class GmailIntegration {
     return {
       configured: true,
       connected,
-      email: this.email,
+      email,
       lastFetch: settings?.lastEmailFetchAt || undefined,
     };
   }
@@ -243,6 +312,7 @@ export class GmailIntegration {
         gmailEmail: null,
       },
     });
+    this.invalidateCache();
   }
 }
 

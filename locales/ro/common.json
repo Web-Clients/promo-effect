@@ -629,5 +629,25 @@
     "cookiesTitle": "Politica de Cookie-uri",
     "faqTitle": "Întrebări Frecvente",
     "lastUpdated": "Ultima actualizare"
+  },
+  "settings": {
+    "gmail": {
+      "title": "Integrare Gmail IMAP",
+      "email": "Adresă Gmail",
+      "appPassword": "App Password",
+      "appPasswordHint": "Generează la https://myaccount.google.com/apppasswords (necesită 2FA activat)",
+      "save": "Salvează",
+      "test": "Testează Conexiunea",
+      "syncNow": "Sincronizează Acum",
+      "statusConnected": "Conectat",
+      "statusDisconnected": "Deconectat",
+      "statusNotConfigured": "Neconfigurat",
+      "lastSync": "Ultima sincronizare",
+      "lastResult": "Ultimul rezultat",
+      "testSuccess": "Conexiune reușită",
+      "testFailed": "Conexiune eșuată",
+      "syncStarted": "Sincronizare în curs...",
+      "syncCompleted": "Sincronizare completă"
+    }
   }
 }

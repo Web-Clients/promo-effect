@@ -14,7 +14,7 @@ import {
   LineChart,
   Line,
 } from 'recharts';
-import { ShipIcon, PackageIcon, DollarSignIcon, AlertCircleIcon } from './icons';
+import { ShipIcon, PackageIcon, TrendingUpIcon, AlertCircleIcon } from './icons';
 import bookingsService, { BookingStatsResponse } from '../services/bookings';
 
 interface MainDashboardProps {
@@ -87,9 +87,9 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
             sparklineData: generateSparkline(),
           },
           {
-            title: t('dashboard.totalRevenue'),
+            title: t('dashboard.turnover'),
             value: '...',
-            icon: DollarSignIcon,
+            icon: TrendingUpIcon,
             change: '...',
             trend: 'up',
             sparklineData: generateSparkline(),
@@ -121,9 +121,9 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
             sparklineData: generateSparkline(),
           },
           {
-            title: t('dashboard.totalRevenue'),
-            value: `$${(stats.totalRevenue / 1000).toFixed(0)}k`,
-            icon: DollarSignIcon,
+            title: t('dashboard.turnover'),
+            value: `$${(stats.totalTurnover / 1000).toFixed(0)}k`,
+            icon: TrendingUpIcon,
             change: '+8%',
             trend: 'up',
             sparklineData: generateSparkline(),

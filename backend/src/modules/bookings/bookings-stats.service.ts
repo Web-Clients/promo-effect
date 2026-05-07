@@ -32,6 +32,8 @@ interface AllTabStats {
   port: TabStats;
   delivered: TabStats;
   archive: TabStats;
+  /** Rulaj = total value of all non-CANCELLED bookings */
+  turnover: TabStats;
 }
 
 const CACHE_TTL_MS = 30_000; // 30 seconds
@@ -68,6 +70,7 @@ async function computeStats(): Promise<AllTabStats> {
     port: empty(),
     delivered: empty(),
     archive: empty(),
+    turnover: empty(),
   };
 
   for (const b of bookings) {
@@ -81,6 +84,11 @@ async function computeStats(): Promise<AllTabStats> {
     };
 
     addTo(stats.all);
+
+    // Rulaj = all non-CANCELLED bookings
+    if (b.status !== 'CANCELLED') {
+      addTo(stats.turnover);
+    }
 
     switch (b.status) {
       case 'DRAFT':
@@ -182,6 +190,8 @@ router.get('/stats', authMiddleware, async (req: Request, res: Response) => {
         delivered: allStats.delivered.count,
         archive: allStats.archive.count,
       },
+      // Rulaj = total value of all non-CANCELLED bookings
+      turnover: allStats.turnover.totalValueUSD,
     });
   } catch (err: any) {
     logger.error('[bookings-stats] error:', err);

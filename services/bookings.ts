@@ -135,6 +135,8 @@ export interface BookingStatsResponse {
     [key: string]: number;
   };
   totalRevenue: number;
+  /** Rulaj = sum of all non-CANCELLED bookings totalPrice */
+  totalTurnover: number;
 }
 
 /**
@@ -228,6 +230,8 @@ interface PhaseA8StatsResponse {
     delivered: number;
     archive: number;
   };
+  /** Rulaj = total value of all non-CANCELLED bookings */
+  turnover?: number;
 }
 
 export const getBookingStats = async (): Promise<BookingStatsResponse> => {
@@ -248,6 +252,7 @@ export const getBookingStats = async (): Promise<BookingStatsResponse> => {
           ARCHIVED: t.archive ?? 0,
         },
         totalRevenue: data.stats?.totalValueUSD ?? 0,
+        totalTurnover: data.turnover ?? data.stats?.totalValueUSD ?? 0,
       };
     }
     return data as BookingStatsResponse;

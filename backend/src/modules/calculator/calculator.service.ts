@@ -332,33 +332,36 @@ export class CalculatorService {
     // 2. Else fall back to finding/creating by supplierEmail (legacy)
     let clientId: string;
 
+    // BENEFICIAR (Moldovan client receiving cargo) — STRICT: never confuse with FURNIZOR (Chinese supplier).
     if (supplierData.clientId) {
-      // Verify the client exists
+      // Path 1: User selected existing beneficiary from dropdown (preferred)
       const existingClient = await prisma.client.findUnique({
         where: { id: supplierData.clientId },
       });
       if (!existingClient) {
-        throw new Error('Clientul selectat nu a fost găsit');
+        throw new Error('Beneficiarul selectat nu a fost găsit');
       }
       clientId = existingClient.id;
-    } else if (supplierData.supplierEmail) {
+    } else if (supplierData.beneficiaryName) {
+      // Path 2: User entered new beneficiary inline — create with BENEFICIARY data (NOT supplier data)
+      const beneficiaryEmail = supplierData.beneficiaryEmail || user.email;
       let client = await prisma.client.findFirst({
-        where: { email: supplierData.supplierEmail },
+        where: { companyName: supplierData.beneficiaryName },
       });
       if (!client) {
         client = await prisma.client.create({
           data: {
-            companyName: supplierData.supplierName,
-            email: supplierData.supplierEmail,
-            phone: supplierData.supplierPhone || '',
-            address: supplierData.supplierAddress,
-            contactPerson: supplierData.supplierContact,
+            companyName: supplierData.beneficiaryName,
+            email: beneficiaryEmail,
+            phone: supplierData.beneficiaryPhone || '',
+            contactPerson: supplierData.beneficiaryContact || user.name,
+            address: supplierData.beneficiaryAddress,
           },
         });
       }
       clientId = client.id;
     } else {
-      // Auto-create client from ordering user
+      // Path 3: Fallback — use the ordering user as the client (their own company orders)
       const userClient = await prisma.client.findFirst({
         where: { email: user.email },
       });
@@ -367,11 +370,10 @@ export class CalculatorService {
       } else {
         const newClient = await prisma.client.create({
           data: {
-            companyName: supplierData.beneficiaryName || user.company || user.name,
+            companyName: user.company || user.name,
             email: user.email,
             phone: '',
-            contactPerson: supplierData.beneficiaryContact || user.name,
-            address: supplierData.beneficiaryAddress,
+            contactPerson: user.name,
           },
         });
         clientId = newClient.id;

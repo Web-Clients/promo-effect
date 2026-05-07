@@ -83,6 +83,8 @@ export interface SupplierData {
   beneficiaryName?: string;
   beneficiaryContact?: string;
   beneficiaryAddress?: string;
+  beneficiaryEmail?: string;
+  beneficiaryPhone?: string;
   // Agent selected from DB
   agentId?: string;
 }

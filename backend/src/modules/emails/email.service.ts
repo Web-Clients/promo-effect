@@ -251,9 +251,18 @@ export class EmailService {
         (hasContainerKey || extractedData.confidence >= minConfidenceForAutoCreate);
 
       if (shouldAutoCreate) {
+        // BENEFICIAR lookup (Moldovan client receiving the cargo).
+        // CRITICAL: never use supplierEmail (Chinese supplier) as fallback — that creates wrong client.
+        // 1. Match by email.from if it's a known Moldovan client (sender = the client themselves forwarding)
+        // 2. Match by consigneeName extracted from BL (most accurate)
+        // 3. Fallback to first ACTIVE client (operator must reassign manually)
         let client = await prisma.client.findFirst({ where: { email: email.from } });
-        if (!client && extractedData.supplierEmail)
-          client = await prisma.client.findFirst({ where: { email: extractedData.supplierEmail } });
+        const consigneeName = (extractedData as { consigneeName?: string }).consigneeName;
+        if (!client && consigneeName) {
+          client = await prisma.client.findFirst({
+            where: { companyName: { contains: consigneeName, mode: 'insensitive' } },
+          });
+        }
         if (!client) client = await prisma.client.findFirst({ where: { status: 'ACTIVE' } });
 
         if (client) {

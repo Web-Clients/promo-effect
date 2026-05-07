@@ -215,10 +215,41 @@ export const cancelBooking = async (id: string): Promise<{ message: string }> =>
 /**
  * Get booking statistics
  */
+interface PhaseA8StatsResponse {
+  success?: boolean;
+  tab?: string;
+  stats?: { count: number; totalValueUSD: number; totalValueMDL: number };
+  tabs?: {
+    all: number;
+    loading: number;
+    transit: number;
+    port: number;
+    delivered: number;
+    archive: number;
+  };
+}
+
 export const getBookingStats = async (): Promise<BookingStatsResponse> => {
   try {
-    const response = await api.get<BookingStatsResponse>('/bookings/stats');
-    return response.data;
+    const response = await api.get<PhaseA8StatsResponse | BookingStatsResponse>('/bookings/stats');
+    const data = response.data as PhaseA8StatsResponse & Partial<BookingStatsResponse>;
+    // Phase A8 backend returns { tabs: {...} } — map to legacy { byStatus: {...} }
+    if (data.tabs) {
+      const t = data.tabs;
+      return {
+        total: data.stats?.count ?? t.all ?? 0,
+        byStatus: {
+          DRAFT: t.loading ?? 0,
+          CONFIRMED: t.loading ?? 0,
+          IN_TRANSIT: (t.transit ?? 0) + (t.port ?? 0),
+          AT_PORT: t.port ?? 0,
+          DELIVERED: t.delivered ?? 0,
+          ARCHIVED: t.archive ?? 0,
+        },
+        totalRevenue: data.stats?.totalValueUSD ?? 0,
+      };
+    }
+    return data as BookingStatsResponse;
   } catch (error: unknown) {
     throw new Error(getErrorMessage(error, 'Nu s-au putut încărca statisticile'), { cause: error });
   }

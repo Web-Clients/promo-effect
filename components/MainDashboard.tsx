@@ -114,7 +114,7 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
           },
           {
             title: t('dashboard.inTransit'),
-            value: stats.byStatus['IN_TRANSIT'] || 0,
+            value: stats.byStatus?.['IN_TRANSIT'] || 0,
             icon: ShipIcon,
             change: '+5%',
             trend: 'up',
@@ -130,7 +130,7 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
           },
           {
             title: t('dashboard.delivered'),
-            value: stats.byStatus['DELIVERED'] || 0,
+            value: stats.byStatus?.['DELIVERED'] || 0,
             icon: AlertCircleIcon,
             change: '+15%',
             trend: 'up',

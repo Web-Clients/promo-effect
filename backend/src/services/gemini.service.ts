@@ -43,11 +43,28 @@ export interface ParsedEmailData {
   containerType?: string;
   packageCount?: string;
   sealNumber?: string;
+  // Shipper (Chinese exporter)
   shipperName?: string;
   shipperAddress?: string;
+  shipperContact?: string;
+  shipperPhone?: string;
+  shipperEmail?: string;
+  shipperWebsite?: string;
+
+  // Consignee (Moldovan/Romanian receiver)
   consigneeName?: string;
   consigneeAddress?: string;
+  consigneeContact?: string;
+  consigneePhone?: string;
+  consigneeEmail?: string;
+  consigneeIDNO?: string; // e.g. "IDNO 1234567890123" or IDNO/CUI after label
+
+  // Notify party
   notifyPartyName?: string;
+  notifyPartyAddress?: string;
+  notifyPartyEmail?: string;
+
+  // Legacy supplier fields (from email context)
   supplierName?: string;
   supplierPhone?: string;
   supplierEmail?: string;
@@ -222,18 +239,35 @@ export async function parseShippingDocumentWithGemini(
 - volume: CBM measurement (e.g., "68CBM")
 - cargoDescription: Description of goods
 - packageCount: Number and type of packages (e.g., "1441 CARTONS")
+SHIPPER (Furnizor — Chinese exporter):
 - shipperName: Shipper/Exporter company name (Chinese exporter)
-- shipperAddress: Shipper full address
-- consigneeName: Consignee company name (Moldova/Romania receiver)
+- shipperAddress: Shipper full address (street, city, province, China)
+- shipperContact: Contact person name at shipper (if present)
+- shipperPhone: Phone/fax number of shipper (Chinese format: +86...)
+- shipperEmail: Email address of shipper (rare in BL but check signature blocks)
+- shipperWebsite: Website of shipper (if in letterhead or document)
+
+CONSIGNEE (Beneficiar — Moldovan/Romanian receiver):
+- consigneeName: Consignee company name (Moldova or Romania)
 - consigneeAddress: Consignee full address
-- notifyPartyName: Notify Party name
+- consigneeContact: Contact person at consignee (if present)
+- consigneePhone: Phone number of consignee
+- consigneeEmail: Email address of consignee
+- consigneeIDNO: Moldovan IDNO or Romanian CUI/CIF tax identifier (digits after "IDNO", "CUI", "CIF" label, or standalone 13-digit number for Moldova / 6-10 digit for Romania)
+
+NOTIFY PARTY:
+- notifyPartyName: Notify Party company name
+- notifyPartyAddress: Notify Party full address
+- notifyPartyEmail: Notify Party email (often the actual recipient contact)
+
+OTHER:
 - freightTerms: "PREPAID" or "COLLECT"
 - departureDate: Departure/sailing date in YYYY-MM-DD format
 - blDate: Date of B/L issue in YYYY-MM-DD format
 - placeOfIssue: Place where B/L was issued
-- supplierName: Supplier/shipper contact name (if from email context)
-- supplierPhone: Phone number of supplier
-- supplierEmail: Email address of supplier
+- supplierName: Supplier/shipper contact name (if from email context, fallback to shipperName)
+- supplierPhone: Phone number of supplier (fallback to shipperPhone)
+- supplierEmail: Email address of supplier (fallback to shipperEmail)
 
 Respond ONLY with a valid JSON object. No extra text outside the JSON.
 If a field cannot be found with certainty, OMIT it entirely.

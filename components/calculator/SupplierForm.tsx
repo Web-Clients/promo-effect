@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '../ui/Button';
 import { FormField, CalcInput, CalcSelect, CalcTextArea } from './FormElements';
 import { PackageIcon } from './Icons';
 import { RouteDisplay } from './RouteDisplay';
 import { UseCalculatorReturn } from './types';
+import { getSuppliers, createSupplier, type Supplier } from '../../services/suppliers';
 
 type Props = Pick<
   UseCalculatorReturn,
@@ -34,6 +35,85 @@ export const SupplierForm = ({
   agents,
 }: Props) => {
   const [showNewClientForm, setShowNewClientForm] = useState(false);
+
+  // Supplier autocomplete state
+  const [supplierQuery, setSupplierQuery] = useState(supplierData.supplierName || '');
+  const [supplierOptions, setSupplierOptions] = useState<Supplier[]>([]);
+  const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
+  const [supplierLoading, setSupplierLoading] = useState(false);
+  const supplierDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Load supplier options when typing
+  useEffect(() => {
+    if (!supplierQuery || supplierQuery.length < 2) {
+      setSupplierOptions([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setSupplierLoading(true);
+      try {
+        const result = await getSuppliers({ search: supplierQuery, limit: 10 });
+        setSupplierOptions(result.suppliers);
+        setShowSupplierDropdown(true);
+      } catch {
+        // silently ignore
+      } finally {
+        setSupplierLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [supplierQuery]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (supplierDropdownRef.current && !supplierDropdownRef.current.contains(e.target as Node)) {
+        setShowSupplierDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleSupplierSelect = (s: Supplier) => {
+    setSupplierQuery(s.name);
+    setSupplierData({
+      ...supplierData,
+      supplierId: s.id,
+      supplierName: s.name,
+      supplierContact: s.contact || supplierData.supplierContact,
+      supplierAddress: s.address || supplierData.supplierAddress,
+      supplierPhone: s.phone || supplierData.supplierPhone,
+      supplierEmail: s.email || supplierData.supplierEmail,
+    });
+    setShowSupplierDropdown(false);
+  };
+
+  const handleSupplierNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setSupplierQuery(val);
+    setSupplierData({ ...supplierData, supplierName: val, supplierId: undefined });
+    if (val.length >= 2) setShowSupplierDropdown(true);
+    else setShowSupplierDropdown(false);
+  };
+
+  const handleCreateSupplierInline = async () => {
+    if (!supplierQuery.trim()) return;
+    try {
+      const s = await createSupplier({
+        name: supplierQuery.trim(),
+        address: supplierData.supplierAddress,
+        contact: supplierData.supplierContact,
+        phone: supplierData.supplierPhone,
+        email: supplierData.supplierEmail,
+        country: 'China',
+      });
+      setSupplierData({ ...supplierData, supplierId: s.id, supplierName: s.name });
+      setShowSupplierDropdown(false);
+    } catch {
+      // ignore — supplier name stays as-is inline
+    }
+  };
 
   if (!selectedOfferData) return null;
 
@@ -144,15 +224,63 @@ export const SupplierForm = ({
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField label="Nume Furnizor" required>
-              <CalcInput
-                type="text"
-                placeholder="Ex: Shanghai XYZ Trading Co."
-                value={supplierData.supplierName}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setSupplierData({ ...supplierData, supplierName: e.target.value })
-                }
-                required
-              />
+              <div className="relative" ref={supplierDropdownRef}>
+                <CalcInput
+                  type="text"
+                  placeholder="Ex: Shanghai XYZ Trading Co."
+                  value={supplierQuery}
+                  onChange={handleSupplierNameChange}
+                  onFocus={() => supplierQuery.length >= 2 && setShowSupplierDropdown(true)}
+                  required
+                  autoComplete="off"
+                />
+                {supplierData.supplierId && (
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-green-600 dark:text-green-400 font-medium pointer-events-none">
+                    ✓ salvat
+                  </span>
+                )}
+                {showSupplierDropdown &&
+                  (supplierOptions.length > 0 || supplierQuery.length >= 2) && (
+                    <div className="absolute z-50 left-0 right-0 mt-1 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                      {supplierLoading && (
+                        <div className="px-3 py-2 text-xs text-neutral-400">Se caută...</div>
+                      )}
+                      {supplierOptions.map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          className="w-full text-left px-3 py-2 hover:bg-neutral-50 dark:hover:bg-neutral-700 text-sm"
+                          onClick={() => handleSupplierSelect(s)}
+                        >
+                          <span className="font-medium text-neutral-900 dark:text-white">
+                            {s.name}
+                          </span>
+                          {s.address && (
+                            <span className="text-xs text-neutral-400 ml-2 truncate">
+                              {s.address}
+                            </span>
+                          )}
+                          {(s._count?.bookings ?? 0) > 0 && (
+                            <span className="text-xs text-accent-500 ml-2">
+                              {s._count!.bookings} comenzi
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                      {!supplierLoading &&
+                        supplierOptions.length === 0 &&
+                        supplierQuery.length >= 2 && (
+                          <button
+                            type="button"
+                            className="w-full text-left px-3 py-2 hover:bg-neutral-50 dark:hover:bg-neutral-700 text-sm text-accent-600 dark:text-accent-400"
+                            onClick={handleCreateSupplierInline}
+                          >
+                            + Salvează „{supplierQuery}" ca furnizor nou
+                          </button>
+                        )}
+                    </div>
+                  )}
+              </div>
             </FormField>
 
             <FormField label="Persoană de Contact">

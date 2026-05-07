@@ -522,11 +522,14 @@ model Booking {
   demurrageFees      Float?  @default(0) @map("demurrage_fees")      // Demurrage fees
   demurrageDays      Int?    @default(0) @map("demurrage_days")      // Demurrage days
 
-  // Supplier info
+  // Supplier info (inline, backward compat)
   supplierName    String? @map("supplier_name")
   supplierPhone   String? @map("supplier_phone")
   supplierEmail   String? @map("supplier_email")
   supplierAddress String? @map("supplier_address")
+
+  // Supplier reference (reusable Supplier record)
+  supplierId String? @map("supplier_id")
 
   // Status tracking
   status        String    @default("CONFIRMED") // CONFIRMED, SENT, IN_TRANSIT, ARRIVED, DELIVERED, CANCELLED
@@ -570,6 +573,7 @@ model Booking {
   documents     Document[]
   invoices      Invoice[]
   notifications Notification[]
+  supplier      Supplier?      @relation(fields: [supplierId], references: [id])
 
   @@index([clientId])
   @@index([agentId])
@@ -577,6 +581,7 @@ model Booking {
   @@index([archived])
   @@index([blNumber])
   @@index([arrivalDateConstanta])
+  @@index([supplierId])
   @@map("bookings")
 }
 
@@ -970,4 +975,24 @@ model BackgroundJob {
   @@index([jobType])
   @@index([scheduledFor])
   @@map("background_jobs")
+}
+
+// ===== SUPPLIER (Furnizori chinezi — refolosibili) =====
+model Supplier {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  address   String?
+  contact   String?
+  phone     String?
+  email     String?
+  website   String?
+  country   String?  @default("China")
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  bookings Booking[]
+
+  @@index([name])
+  @@map("suppliers")
 }

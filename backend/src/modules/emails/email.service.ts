@@ -209,14 +209,29 @@ export class EmailService {
           await prisma.container.update({ where: { id: existingContainer.id }, data: updateData });
 
           const bookingRecord = (existingContainer as any).booking;
-          if (extractedData.blNumber && bookingRecord && !(bookingRecord as any).blNumber) {
-            await prisma.booking.update({
-              where: { id: bookingRecord.id },
-              data: {
-                blNumber: extractedData.blNumber.toUpperCase(),
-                shipperName: extractedData.supplierName || undefined,
-              } as any,
-            });
+          if (extractedData.blNumber && bookingRecord) {
+            const blUpdateData: Record<string, unknown> = {};
+            if (!(bookingRecord as any).blNumber)
+              blUpdateData.blNumber = extractedData.blNumber.toUpperCase();
+            if (extractedData.supplierName && !(bookingRecord as any).shipperName)
+              blUpdateData.shipperName = extractedData.supplierName;
+            if (extractedData.supplierName && !(bookingRecord as any).supplierName)
+              blUpdateData.supplierName = extractedData.supplierName;
+            if (extractedData.supplierPhone && !(bookingRecord as any).supplierPhone)
+              blUpdateData.supplierPhone = extractedData.supplierPhone;
+            if (extractedData.supplierEmail && !(bookingRecord as any).supplierEmail)
+              blUpdateData.supplierEmail = extractedData.supplierEmail;
+            if (extractedData.supplierAddress && !(bookingRecord as any).supplierAddress)
+              blUpdateData.supplierAddress = extractedData.supplierAddress;
+            if (extractedData.consigneeName && !(bookingRecord as any).beneficiaryName)
+              blUpdateData.beneficiaryName = extractedData.consigneeName;
+
+            if (Object.keys(blUpdateData).length > 0) {
+              await prisma.booking.update({
+                where: { id: bookingRecord.id },
+                data: blUpdateData as any,
+              });
+            }
           }
 
           await prisma.trackingEvent.create({
@@ -251,19 +266,83 @@ export class EmailService {
         (hasContainerKey || extractedData.confidence >= minConfidenceForAutoCreate);
 
       if (shouldAutoCreate) {
-        // BENEFICIAR lookup (Moldovan client receiving the cargo).
-        // CRITICAL: never use supplierEmail (Chinese supplier) as fallback — that creates wrong client.
-        // 1. Match by email.from if it's a known Moldovan client (sender = the client themselves forwarding)
-        // 2. Match by consigneeName extracted from BL (most accurate)
-        // 3. Fallback to first ACTIVE client (operator must reassign manually)
-        let client = await prisma.client.findFirst({ where: { email: email.from } });
-        const consigneeName = (extractedData as { consigneeName?: string }).consigneeName;
+        // ── SUPPLIER (Chinese shipper) — find or create reusable Supplier record ──
+        let supplier: { id: string } | null = null;
+        if (extractedData.supplierName) {
+          supplier = await prisma.supplier.findFirst({
+            where: { name: { equals: extractedData.supplierName, mode: 'insensitive' } },
+          });
+          if (!supplier) {
+            try {
+              supplier = await (prisma.supplier as any).create({
+                data: {
+                  name: extractedData.supplierName,
+                  address: extractedData.supplierAddress || null,
+                  contact: extractedData.supplierContact || null,
+                  phone: extractedData.supplierPhone || null,
+                  email: extractedData.supplierEmail || null,
+                  website: extractedData.supplierWebsite || null,
+                  country: 'China',
+                },
+              });
+              logger.info(`[EmailService] Created new Supplier: ${extractedData.supplierName}`);
+            } catch (err) {
+              logger.warn('[EmailService] Could not create supplier record:', err);
+            }
+          }
+        }
+
+        // ── BENEFICIAR (Moldovan/Romanian consignee) — find or create Client record ──
+        // Priority: 1) IDNO match  2) consigneeName match  3) email.from match  4) first ACTIVE
+        // CRITICAL: never use supplierEmail as fallback — that would create wrong client.
+        let client: { id: string; companyName: string } | null = null;
+
+        const consigneeName = extractedData.consigneeName;
+        const consigneeIDNO = extractedData.consigneeIDNO;
+
+        if (consigneeIDNO) {
+          client = await prisma.client.findFirst({
+            where: { taxId: consigneeIDNO },
+          });
+        }
         if (!client && consigneeName) {
           client = await prisma.client.findFirst({
             where: { companyName: { contains: consigneeName, mode: 'insensitive' } },
           });
         }
-        if (!client) client = await prisma.client.findFirst({ where: { status: 'ACTIVE' } });
+        if (!client) {
+          client = await prisma.client.findFirst({ where: { email: email.from } });
+        }
+
+        // Auto-create client from BL consignee data if we have enough info
+        if (!client && consigneeName) {
+          const consigneeEmail =
+            extractedData.consigneeEmail ||
+            extractedData.notifyPartyEmail ||
+            `auto-${Date.now()}@unknown.md`;
+          try {
+            client = await prisma.client.create({
+              data: {
+                companyName: consigneeName,
+                contactPerson: extractedData.consigneeContact || 'Necunoscut',
+                email: consigneeEmail,
+                phone: extractedData.consigneePhone || '',
+                address: extractedData.consigneeAddress || '',
+                taxId: consigneeIDNO || null,
+                status: 'ACTIVE',
+              },
+            });
+            logger.info(`[EmailService] Auto-created Client from BL consignee: ${consigneeName}`);
+          } catch (err) {
+            logger.warn('[EmailService] Could not auto-create client from consignee:', err);
+            // Fall back to first ACTIVE client — operator must reassign
+            client = await prisma.client.findFirst({ where: { status: 'ACTIVE' } });
+          }
+        }
+
+        if (!client) {
+          client = await prisma.client.findFirst({ where: { status: 'ACTIVE' } });
+        }
 
         if (client) {
           const booking = await prisma.booking.create({
@@ -285,9 +364,12 @@ export class EmailService {
               totalPrice: 0,
               supplierName: extractedData.supplierName,
               supplierPhone: extractedData.supplierPhone,
-              supplierEmail: extractedData.supplierEmail || email.from,
+              supplierEmail: extractedData.supplierEmail || null,
+              supplierAddress: extractedData.supplierAddress || null,
+              supplierId: supplier?.id || null,
               blNumber: extractedData.blNumber?.toUpperCase() || null,
               shipperName: extractedData.supplierName || null,
+              beneficiaryName: consigneeName || null,
               clientNotes: `Auto-created from email: ${email.subject}\n\nContainer: ${extractedData.containerNumber || 'N/A'}\nB/L: ${extractedData.blNumber || 'N/A'}`,
               status: 'DRAFT',
             } as any,

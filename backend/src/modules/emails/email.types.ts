@@ -40,10 +40,26 @@ export interface ExtractedBookingData {
   cargoWeight?: string; // e.g., "10-20t"
   cargoDescription?: string;
 
-  // Supplier info
+  // Supplier info (Chinese shipper)
   supplierName?: string;
   supplierPhone?: string;
   supplierEmail?: string;
+  supplierAddress?: string;
+  supplierContact?: string;
+  supplierWebsite?: string;
+
+  // Consignee info (Moldovan/Romanian beneficiary — distinct from supplier!)
+  consigneeName?: string;
+  consigneeAddress?: string;
+  consigneeContact?: string;
+  consigneePhone?: string;
+  consigneeEmail?: string;
+  consigneeIDNO?: string; // Moldovan/Romanian tax ID
+
+  // Notify party
+  notifyPartyName?: string;
+  notifyPartyAddress?: string;
+  notifyPartyEmail?: string;
 
   // Parsing metadata
   confidence: number; // 0-100, confidence score

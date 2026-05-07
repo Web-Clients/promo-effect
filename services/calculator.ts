@@ -153,6 +153,7 @@ export const getAvailableDestinations = async (): Promise<string[]> => {
 
 // Supplier data interface for order placement
 export interface SupplierData {
+  supplierId?: string; // Reference to reusable Supplier record (from autocomplete)
   supplierName: string;
   supplierAddress: string;
   supplierContact: string;

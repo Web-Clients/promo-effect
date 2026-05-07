@@ -29,6 +29,7 @@ import agentPortalRoutes from './modules/agent-portal/agent-portal.routes';
 import portsRoutes from './modules/ports/ports.routes';
 import shippingLinesRoutes from './modules/shipping-lines/shipping-lines.routes';
 import priceRequestsRoutes from './modules/price-requests/price-requests.routes';
+import supplierRoutes from './modules/suppliers/supplier.routes';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './config/swagger';
 import { apiLimiter } from './middleware/rateLimit.middleware';
@@ -183,6 +184,8 @@ app.use('/api/ports', portsRoutes); // Ports management (public GET, admin CRUD)
 app.use('/api/shipping-lines', shippingLinesRoutes); // Shipping lines & transport rates
 app.use('/api/price-requests', priceRequestsRoutes); // A25: "Contact reprezentant" fallback
 app.use('/api/v1/price-requests', priceRequestsRoutes); // versioned
+app.use('/api/v1/suppliers', supplierRoutes); // Suppliers (furnizori chinezi refolosibili)
+app.use('/api/suppliers', supplierRoutes); // legacy path
 
 // Static file serving for storage (invoices, documents, etc.)
 import path from 'path';

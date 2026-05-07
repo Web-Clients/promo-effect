@@ -142,6 +142,17 @@ export class EmailService {
         }
       }
 
+      // Sanitize cargoWeight — reject if currency/non-weight value slipped through AI
+      if (extractedData.cargoWeight) {
+        const cw = extractedData.cargoWeight.toString().toLowerCase();
+        if (/usd|eur|mdl|\$|€|price|cost/.test(cw)) {
+          logger.warn(
+            `[EmailService] Rejecting suspicious cargoWeight: ${extractedData.cargoWeight}`
+          );
+          extractedData.cargoWeight = undefined;
+        }
+      }
+
       // Step 3: Check if container already exists
       let existingContainer = null;
       let existingBookingByBl: any = null;

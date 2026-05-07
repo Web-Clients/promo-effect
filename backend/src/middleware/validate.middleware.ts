@@ -26,7 +26,13 @@ export const createBookingSchema = z.object({
   portDestination: z.string().optional(),
   containerType: z.string().min(1, 'Container type is required'),
   cargoCategory: z.string().min(1, 'Cargo category is required'),
-  cargoWeight: z.string().min(1, 'Cargo weight is required'),
+  cargoWeight: z
+    .string()
+    .regex(
+      /^(\d+(\.\d+)?(\s*-\s*\d+(\.\d+)?)?\s*(tone|t|kg|ton|tons))$|^TBD$/i,
+      'cargoWeight must be like "10-15 tone", "24.5 ton", "24350kg" or "TBD"'
+    )
+    .min(1, 'Cargo weight is required'),
   cargoReadyDate: z.string().min(1, 'Cargo ready date is required'),
   shippingLine: z.string().optional(),
   freightPrice: z.number().optional(),
@@ -34,6 +40,7 @@ export const createBookingSchema = z.object({
   customsTaxes: z.number().optional(),
   terrestrialTransport: z.number().optional(),
   commission: z.number().optional(),
+  additionalCharges: z.number().optional(),
   totalPrice: z.number().optional(),
   supplierName: z.string().optional(),
   supplierPhone: z.string().optional(),

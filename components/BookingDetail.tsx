@@ -635,10 +635,12 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
             </label>
             <Input
               type="text"
+              pattern="^(\d+(\.\d+)?(\s*-\s*\d+(\.\d+)?)?\s*(tone|t|kg|ton|tons))$"
+              placeholder="Ex: 10-15 tone"
+              title="Format acceptat: '10-15 tone', '24.5 ton', '24350 kg'. Fără valută."
               value={bookingData.cargoWeight || ''}
               onChange={(e) => setBookingData({ ...bookingData, cargoWeight: e.target.value })}
               disabled={isReadOnly}
-              placeholder="Ex: 1-10 tone"
             />
           </div>
           <div>

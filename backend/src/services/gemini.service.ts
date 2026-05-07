@@ -139,7 +139,9 @@ Extract these fields if available:
 - portOfDischarge: Destination port (Europe/Black Sea)
 - shippingLine: Carrier company (MSC, Maersk, CMA CGM, ONE, ASG, PIL, etc.)
 - cargoDescription: Description of goods
-- weight: Gross weight with unit (e.g., "24350KGS", "7.5 tons")
+- weight: Gross weight in TONS or KG only (e.g., "24.35 tons", "10-15 tone", "24350kg").
+    NEVER include USD, EUR, MDL or any currency. NEVER include monetary values.
+    If you can't find a weight, omit this field entirely (don't guess).
 - containerType: Container size/type (e.g., "40HQ", "20DV", "40HC")
 - freightTerms: "PREPAID" or "COLLECT"
 

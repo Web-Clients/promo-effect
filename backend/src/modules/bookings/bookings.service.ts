@@ -6,6 +6,68 @@ import { storageService } from '../../services/storage.service';
 import { encrypt, decrypt } from '../../utils/crypto.util';
 import logger from '../../utils/logger';
 
+// ─── Port whitelists (Bugs 4-5) ─────────────────────────────────────────────
+const KNOWN_ORIGIN_PORTS = [
+  'Shanghai',
+  'Ningbo',
+  'Qingdao',
+  'Shenzhen',
+  'Guangzhou',
+  'Tianjin',
+  'Xiamen',
+  'Dalian',
+  'Lianyungang',
+  'Yantai',
+  'Fuzhou',
+  'Haikou',
+  'Zhanjiang',
+  'Tangshan',
+  'Yingkou',
+  'Quanzhou',
+  'Zhuhai',
+  'Suzhou',
+  'Nansha',
+  'Shekou',
+  'Chiwan',
+  'Huangpu',
+  'Yantian',
+];
+const KNOWN_DESTINATION_PORTS = [
+  'Constanța',
+  'Constanta',
+  'Odessa',
+  'Odesa',
+  'Tekirdag',
+  'Istanbul',
+  'Mersin',
+  'Ambarli',
+  'Izmit',
+  'Gemlik',
+  'Burgas',
+  'Varna',
+  'Piraeus',
+  'Limassol',
+];
+
+/**
+ * Auto-correct accidentally reversed portOrigin / portDestination.
+ * Mutates the object in-place and logs a warning if a swap is made.
+ */
+function normalizePortDirection(data: { portOrigin?: string; portDestination?: string }): void {
+  const { portOrigin, portDestination } = data;
+  if (
+    portOrigin &&
+    portDestination &&
+    KNOWN_DESTINATION_PORTS.includes(portOrigin) &&
+    KNOWN_ORIGIN_PORTS.includes(portDestination)
+  ) {
+    [data.portOrigin, data.portDestination] = [portDestination, portOrigin];
+    logger.warn(
+      `[Bookings] Swapped reversed ports: now ${data.portOrigin} -> ${data.portDestination}`
+    );
+  }
+}
+
 export class BookingsService {
   /** Decrypt supplierEmail after reading from DB */
   private decryptBooking(booking: any): any {
@@ -55,6 +117,9 @@ export class BookingsService {
    * Create new booking with automatic price calculation
    */
   async create(data: CreateBookingDTO, userId: string) {
+    // Bug 4-5: Auto-correct swapped ports
+    normalizePortDirection(data);
+
     // 1. Generate unique booking ID (MDPE202605001)
     const id = await generateBookingId();
 
@@ -96,7 +161,13 @@ export class BookingsService {
     const customsTaxes = settings.customsTaxes;
     const terrestrialTransport = settings.terrestrialTransport;
     const commission = settings.commission;
-    const totalPrice = freightPrice + portTaxes + customsTaxes + terrestrialTransport + commission;
+    const totalPrice =
+      freightPrice +
+      portTaxes +
+      customsTaxes +
+      terrestrialTransport +
+      commission +
+      (data.additionalCharges || 0);
 
     // 6. Create booking
     const booking = await prisma.booking.create({
@@ -123,6 +194,7 @@ export class BookingsService {
         customsTaxes,
         terrestrialTransport,
         commission,
+        additionalCharges: data.additionalCharges || 0,
         totalPrice,
 
         // Supplier info (optional) — supplierEmail encrypted at rest

@@ -20,6 +20,7 @@ export interface CreateBookingDTO {
   customsTaxes?: number;
   terrestrialTransport?: number;
   commission?: number;
+  additionalCharges?: number;
   totalPrice?: number;
 
   // Supplier info (optional)
@@ -55,7 +56,7 @@ export interface BookingFilters {
   status?: string;
   shippingLine?: string;
   dateFrom?: string; // Renamed from fromDate for consistency
-  dateTo?: string;   // Renamed from toDate for consistency
+  dateTo?: string; // Renamed from toDate for consistency
   search?: string;
   limit?: number;
   offset?: number;

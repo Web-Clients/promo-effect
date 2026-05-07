@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-catch */
 /**
  * Authentication Service
  * Handles login, register, logout, and user session management
@@ -93,10 +94,8 @@ export const login = async (
 
     throw new Error('Invalid response from server');
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { error?: string } }; message?: string };
-    throw new Error(err.response?.data?.error || err.message || 'Autentificare eșuată', {
-      cause: error,
-    });
+    // Re-throw as-is so getErrorMessage() in components can extract structured error
+    throw error;
   }
 };
 
@@ -125,10 +124,7 @@ export const complete2FALogin = async (tempToken: string, twoFactorCode: string)
 
     throw new Error('Invalid response from server');
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { error?: string } }; message?: string };
-    throw new Error(err.response?.data?.error || err.message || 'Autentificare 2FA eșuată', {
-      cause: error,
-    });
+    throw error;
   }
 };
 
@@ -279,10 +275,7 @@ export const verifyEmail = async (token: string): Promise<void> => {
   try {
     await api.get('/auth/verify-email', { params: { token } });
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { error?: string } }; message?: string };
-    throw new Error(err.response?.data?.error || err.message || 'Verificare email eșuată', {
-      cause: error,
-    });
+    throw error;
   }
 };
 
@@ -309,10 +302,7 @@ export const enable2FA = async (): Promise<{
       backupCodes: response.data.backupCodes,
     };
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { error?: string } }; message?: string };
-    throw new Error(err.response?.data?.error || err.message || 'Activare 2FA eșuată', {
-      cause: error,
-    });
+    throw error;
   }
 };
 
@@ -323,10 +313,7 @@ export const verify2FA = async (code: string): Promise<void> => {
   try {
     await api.post('/auth/verify-2fa', { code });
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { error?: string } }; message?: string };
-    throw new Error(err.response?.data?.error || err.message || 'Verificare 2FA eșuată', {
-      cause: error,
-    });
+    throw error;
   }
 };
 
@@ -337,10 +324,7 @@ export const disable2FA = async (password: string): Promise<void> => {
   try {
     await api.post('/auth/disable-2fa', { password });
   } catch (error: unknown) {
-    const err = error as { response?: { data?: { error?: string } }; message?: string };
-    throw new Error(err.response?.data?.error || err.message || 'Dezactivare 2FA eșuată', {
-      cause: error,
-    });
+    throw error;
   }
 };
 

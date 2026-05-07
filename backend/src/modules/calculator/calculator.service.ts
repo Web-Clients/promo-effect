@@ -176,10 +176,32 @@ export class CalculatorService {
   }
 
   /**
-   * Get all available origin ports
+   * Get all available origin ports.
+   * Single source of truth: PortPricingMatrix (managed in Admin → Matrice Ajustări Porturi).
+   * Falls back to Port model, then BasePrice, then AgentPrice for backward compatibility.
    */
   async getAvailablePorts(): Promise<string[]> {
-    // First try Port model (managed by admin)
+    // Primary source: PortPricingMatrix (admin-managed, covers all China ports)
+    const matrixPorts = await prisma.portPricingMatrix.findMany({
+      select: { portName: true },
+      distinct: ['portName'],
+      orderBy: { portName: 'asc' },
+    });
+
+    if (matrixPorts.length > 0) {
+      // Merge with Port model ports to keep any manually added ORIGIN ports too
+      const portModelPorts = await prisma.port.findMany({
+        where: { type: 'ORIGIN', isActive: true },
+        select: { name: true },
+      });
+      const combined = new Set([
+        ...matrixPorts.map((p) => p.portName),
+        ...portModelPorts.map((p) => p.name),
+      ]);
+      return Array.from(combined).sort((a, b) => a.localeCompare(b));
+    }
+
+    // Fallback to Port model (managed by admin)
     const portModelPorts = await prisma.port.findMany({
       where: { type: 'ORIGIN', isActive: true },
       select: { name: true },

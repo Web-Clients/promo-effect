@@ -13,6 +13,7 @@ import bookingsService, {
   UpdateBookingData,
   BookingResponse,
 } from '../services/bookings';
+import calculatorService from '../services/calculator';
 import { getErrorMessage } from '../utils/formatters';
 
 // Sub-components
@@ -148,6 +149,20 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
   const [isLoading, setIsLoading] = useState(!isNew);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Dynamic port list from PortPricingMatrix (single source of truth)
+  const [dynamicOriginPorts, setDynamicOriginPorts] = useState<string[]>(ORIGIN_PORTS);
+
+  useEffect(() => {
+    calculatorService
+      .getAvailablePorts()
+      .then((ports) => {
+        if (ports.length > 0) setDynamicOriginPorts(ports);
+      })
+      .catch(() => {
+        // Keep static fallback on error
+      });
+  }, []);
 
   const isReadOnly = !isNew && isClient;
   const isAdmin = [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.MANAGER].includes(user.role);
@@ -391,7 +406,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
               value={bookingData.origin_port || ''}
               onChange={(e) => setBookingData({ ...bookingData, origin_port: e.target.value })}
             >
-              {ORIGIN_PORTS.map((p) => (
+              {dynamicOriginPorts.map((p) => (
                 <option key={p} value={p}>
                   {p}
                 </option>

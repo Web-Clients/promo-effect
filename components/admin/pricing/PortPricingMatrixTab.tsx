@@ -1,7 +1,7 @@
 /**
  * PortPricingMatrixTab — spreadsheet-like matrix of port × container type adjustments.
  * Each cell is inline-editable; saves on blur/Enter via PATCH API.
- * "+ Adaugă port" appends a new editable row.
+ * "+ Adaugă port" opens a modal with autocomplete from 18 common Chinese ports.
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -12,6 +12,28 @@ import {
   PortMatrixRow,
 } from '../../../services/adminPricing';
 import { CONTAINER_TYPES } from './constants';
+
+/** 18 most common Chinese export ports */
+const CHINA_PORTS_SUGGESTIONS = [
+  'Shanghai',
+  'Ningbo',
+  'Shenzhen',
+  'Qingdao',
+  'Guangzhou',
+  'Xiamen',
+  'Tianjin',
+  'Dalian',
+  'Lianyungang',
+  'Yantai',
+  'Fuzhou',
+  'Haikou',
+  'Zhanjiang',
+  'Tangshan',
+  'Yingkou',
+  'Quanzhou',
+  'Zhuhai',
+  'Suzhou',
+];
 
 type CellState = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -42,6 +64,142 @@ function getAllPorts(matrix: MatrixData): string[] {
   return Object.keys(matrix).sort((a, b) => a.localeCompare(b));
 }
 
+// ─── Add Port Modal ───────────────────────────────────────────────────────────
+
+interface AddPortModalProps {
+  existingPorts: string[];
+  onAdd: (portName: string) => void;
+  onClose: () => void;
+}
+
+function AddPortModal({ existingPorts, onAdd, onClose }: AddPortModalProps) {
+  const [query, setQuery] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [validationError, setValidationError] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const filtered = CHINA_PORTS_SUGGESTIONS.filter(
+    (p) => p.toLowerCase().includes(query.toLowerCase()) && !existingPorts.includes(p)
+  );
+
+  // Also include custom value if it doesn't match any suggestion
+  const queryTrimmed = query.trim();
+  const showCustom =
+    queryTrimmed.length > 0 &&
+    !CHINA_PORTS_SUGGESTIONS.some((p) => p.toLowerCase() === queryTrimmed.toLowerCase()) &&
+    !existingPorts.includes(queryTrimmed);
+
+  const handleSelect = async (portName: string) => {
+    if (existingPorts.includes(portName)) {
+      setValidationError(`Portul "${portName}" există deja în matrice.`);
+      return;
+    }
+    setSaving(true);
+    setValidationError('');
+    try {
+      await onAdd(portName);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') onClose();
+    if (e.key === 'Enter' && queryTrimmed) {
+      e.preventDefault();
+      if (filtered.length === 1) {
+        handleSelect(filtered[0]);
+      } else if (showCustom) {
+        handleSelect(queryTrimmed);
+      }
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-semibold text-gray-900">Adaugă port China</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+            aria-label="Închide"
+          >
+            ×
+          </button>
+        </div>
+
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setValidationError('');
+          }}
+          onKeyDown={handleKeyDown}
+          placeholder="Caută sau scrie un port…"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
+        />
+
+        {validationError && <p className="text-xs text-red-600 mb-2">{validationError}</p>}
+
+        <div className="max-h-60 overflow-y-auto space-y-0.5">
+          {filtered.map((port) => (
+            <button
+              key={port}
+              disabled={saving}
+              onClick={() => handleSelect(port)}
+              className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-blue-50 hover:text-blue-700 transition-colors disabled:opacity-50"
+            >
+              {port}
+            </button>
+          ))}
+
+          {showCustom && (
+            <button
+              disabled={saving}
+              onClick={() => handleSelect(queryTrimmed)}
+              className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-green-50 hover:text-green-700 transition-colors disabled:opacity-50 border border-dashed border-green-300 mt-1"
+            >
+              + Adaugă „{queryTrimmed}"
+            </button>
+          )}
+
+          {filtered.length === 0 && !showCustom && queryTrimmed.length === 0 && (
+            <p className="text-xs text-gray-400 px-3 py-2">
+              Toate porturile din lista predefinită există deja. Scrie un nume personalizat.
+            </p>
+          )}
+
+          {filtered.length === 0 && !showCustom && queryTrimmed.length > 0 && (
+            <p className="text-xs text-gray-400 px-3 py-2">
+              Portul „{queryTrimmed}" există deja în matrice.
+            </p>
+          )}
+        </div>
+
+        {saving && <p className="text-xs text-blue-600 mt-3 text-center">Se salvează…</p>}
+
+        <div className="mt-4 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50"
+          >
+            Anulează
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Tab ─────────────────────────────────────────────────────────────────
+
 export function PortPricingMatrixTab() {
   const [rows, setRows] = useState<PortMatrixRow[]>([]);
   const [matrix, setMatrix] = useState<MatrixData>({});
@@ -50,9 +208,8 @@ export function PortPricingMatrixTab() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  // New port row state
-  const [newPortName, setNewPortName] = useState('');
-  const [addingPort, setAddingPort] = useState(false);
+  // Modal state (replaces inline add-port form)
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // Edit buffer: portName::containerType => string value while editing
   const [editBuffer, setEditBuffer] = useState<Record<string, string>>({});
@@ -202,12 +359,9 @@ export function PortPricingMatrixTab() {
     }
   };
 
-  const handleAddPort = async () => {
-    const name = newPortName.trim();
-    if (!name) return;
+  const handleAddPort = async (name: string) => {
     if (ports.includes(name)) {
-      alert(`Portul "${name}" există deja.`);
-      return;
+      return; // Modal handles validation
     }
     // Add locally first with all zeros
     setMatrix((prev) => ({
@@ -215,8 +369,7 @@ export function PortPricingMatrixTab() {
       [name]: Object.fromEntries(CONTAINER_TYPES.map((ct) => [ct, 0])),
     }));
     setPorts((prev) => [...prev, name].sort((a, b) => a.localeCompare(b)));
-    setNewPortName('');
-    setAddingPort(false);
+    setShowAddModal(false);
     // Save all zero cells to backend
     for (const ct of CONTAINER_TYPES) {
       try {
@@ -285,65 +438,38 @@ export function PortPricingMatrixTab() {
 
   return (
     <div>
+      {/* Add Port Modal */}
+      {showAddModal && (
+        <AddPortModal
+          existingPorts={ports}
+          onAdd={handleAddPort}
+          onClose={() => setShowAddModal(false)}
+        />
+      )}
+
       {/* Header */}
       <div className="flex justify-between items-start mb-4">
         <div>
           <h3 className="text-lg font-medium text-gray-900">Matricea Ajustărilor de Port</h3>
           <p className="text-sm text-gray-500 mt-1">
             Click pe orice celulă pentru a edita. Salvarea este automată la fiecare modificare.
-            Valori în USD (+/−).
+            Valori în USD (+/−). Porturile adăugate apar automat în Calculator și Rezervări.
           </p>
         </div>
         <button
-          onClick={() => setAddingPort(true)}
+          onClick={() => setShowAddModal(true)}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium flex items-center gap-1"
         >
           + Adaugă port
         </button>
       </div>
 
-      {/* Add port row */}
-      {addingPort && (
-        <div className="mb-4 flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <input
-            type="text"
-            autoFocus
-            value={newPortName}
-            onChange={(e) => setNewPortName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleAddPort();
-              if (e.key === 'Escape') {
-                setAddingPort(false);
-                setNewPortName('');
-              }
-            }}
-            placeholder="Nume port (ex: Fuzhou)"
-            className="border border-gray-300 rounded px-3 py-1.5 text-sm focus:ring-blue-500 focus:border-blue-500"
-          />
-          <button
-            onClick={handleAddPort}
-            className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-          >
-            Adaugă
-          </button>
-          <button
-            onClick={() => {
-              setAddingPort(false);
-              setNewPortName('');
-            }}
-            className="px-3 py-1.5 border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-50"
-          >
-            Anulează
-          </button>
-        </div>
-      )}
-
       {/* Matrix table */}
       {ports.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
           <p>Nu există porturi în matrice.</p>
           <button
-            onClick={() => setAddingPort(true)}
+            onClick={() => setShowAddModal(true)}
             className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
           >
             + Adaugă primul port

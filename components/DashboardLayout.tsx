@@ -12,7 +12,6 @@ import {
   BarChartIcon,
   SettingsIcon,
   CalculatorIcon,
-  SparklesIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   SearchIcon,
@@ -23,7 +22,6 @@ import {
   UserIcon,
   DollarSignIcon,
   GlobeIcon,
-  UserCheckIcon,
   AnchorIcon,
   MapPinIcon,
   TruckIcon,
@@ -103,7 +101,7 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
     { name: t('nav.myProfile'), path: 'userProfile', icon: UserIcon, visible: true },
     { name: t('nav.clients'), path: 'clients', icon: UsersIcon, visible: isAdminOrManager },
     { name: t('nav.invoices'), path: 'invoices', icon: FileTextIcon, visible: isAdminOrManager },
-    { name: t('nav.aiParser'), path: 'ai-parser', icon: SparklesIcon, visible: isAdminOrManager },
+    // AI Email Parser moved to Settings → tab "emailParser"
     { name: t('nav.reports'), path: 'reports', icon: BarChartIcon, visible: isAdminOrManager },
     {
       name: t('nav.adminPricingMaritime'),
@@ -114,7 +112,7 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
     { name: t('nav.shippingLines'), path: 'shipping-lines', icon: ShipIcon, visible: isAdmin },
     { name: t('nav.chineseAgents'), path: 'agents', icon: GlobeIcon, visible: isAdmin },
     { name: t('nav.portsManager'), path: 'ports-manager', icon: AnchorIcon, visible: isAdmin },
-    { name: t('nav.adminPanel'), path: 'admin-panel', icon: UserCheckIcon, visible: isAdmin },
+    // Panou Admin moved to Settings → tab "admin"
     { name: t('nav.userManagement'), path: 'user-management', icon: UsersIcon, visible: isAdmin },
     { name: t('nav.adminSettings'), path: 'adminSettings', icon: SettingsIcon, visible: isAdmin },
     {

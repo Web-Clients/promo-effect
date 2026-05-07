@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import { SystemSettings } from '../types';
+import AdminDashboard from './AdminDashboard';
+import AIEmailParser from './AIEmailParser';
 import { Card } from './ui/Card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/Tabs';
 import { Button } from './ui/Button';
@@ -176,8 +179,24 @@ function formatRelative(dateStr: string | null | undefined): string {
 
 // ── Main component ────────────────────────────────────────────────────
 
+const VALID_TABS = [
+  'email',
+  'tracking',
+  'notifications',
+  'integrations',
+  'system',
+  'admin',
+  'emailParser',
+] as const;
+type TabValue = (typeof VALID_TABS)[number];
+
 const AdminSettingsPage = () => {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
+  const initialTab = ((): TabValue => {
+    const p = searchParams.get('tab');
+    return (VALID_TABS as readonly string[]).includes(p ?? '') ? (p as TabValue) : 'email';
+  })();
   const [settings, setSettings] = useState<SystemSettings>(mockSettings);
   const [testResults, setTestResults] = useState<Record<string, 'success' | 'error' | 'pending'>>(
     {}
@@ -318,13 +337,15 @@ const AdminSettingsPage = () => {
         </p>
       </div>
 
-      <Tabs defaultValue="email">
+      <Tabs key={initialTab} defaultValue={initialTab}>
         <TabsList>
           <TabsTrigger value="email">Email</TabsTrigger>
           <TabsTrigger value="tracking">Urmărire</TabsTrigger>
           <TabsTrigger value="notifications">Notificări</TabsTrigger>
           <TabsTrigger value="integrations">Integrări</TabsTrigger>
           <TabsTrigger value="system">Sistem</TabsTrigger>
+          <TabsTrigger value="admin">{t('nav.adminPanel')}</TabsTrigger>
+          <TabsTrigger value="emailParser">{t('nav.aiParser')}</TabsTrigger>
         </TabsList>
 
         {/* ── Email / Gmail IMAP tab ─────────────────────────────── */}
@@ -693,6 +714,14 @@ const AdminSettingsPage = () => {
               <Button onClick={saveSettings}>Salvează Setările</Button>
             </div>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="admin">
+          <AdminDashboard />
+        </TabsContent>
+
+        <TabsContent value="emailParser">
+          <AIEmailParser />
         </TabsContent>
       </Tabs>
     </div>

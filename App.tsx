@@ -15,7 +15,7 @@ const BookingDetail = lazy(() => import('./components/BookingDetail'));
 // TrackingView removed (A6) — route now redirects to /dashboard/bookings
 const PriceCalculator = lazy(() => import('./components/PriceCalculator'));
 const EmailParserAssistant = lazy(() => import('./components/EmailParserAssistant'));
-const AIEmailParser = lazy(() => import('./components/AIEmailParser'));
+// AIEmailParser is now embedded in AdminSettingsPage (Settings → tab emailParser)
 const ClientsList = lazy(() => import('./components/ClientsList'));
 const InvoicesList = lazy(() => import('./components/InvoicesList'));
 const ReportsPage = lazy(() => import('./components/ReportsPage'));
@@ -24,7 +24,7 @@ const AdminPricingPanel = lazy(() => import('./components/AdminPricingPanel'));
 // AdminPricingLandPanel removed — consolidated into AdminPricingPanel → tab "Prețuri Terestru"
 const AgentsPanel = lazy(() => import('./components/AgentsPanel'));
 const UserProfile = lazy(() => import('./components/UserProfile'));
-const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+// AdminDashboard is now embedded in AdminSettingsPage (Settings → tab admin)
 const AgentPricesDashboard = lazy(() => import('./components/AgentPricesDashboard'));
 const AdminPriceApproval = lazy(() => import('./components/AdminPriceApproval'));
 const AdminPortsManager = lazy(() => import('./components/AdminPortsManager'));
@@ -286,7 +286,11 @@ const App = () => {
               path="emailParser"
               element={<EmailParserAssistant onBookingCreate={handleNewBooking} />}
             />
-            <Route path="ai-parser" element={<AIEmailParser />} />
+            {/* ai-parser moved to Settings → tab emailParser */}
+            <Route
+              path="ai-parser"
+              element={<Navigate to="/dashboard/adminSettings?tab=emailParser" replace />}
+            />
             <Route path="clients" element={<ClientsList />} />
             <Route path="invoices" element={<InvoicesList />} />
             <Route path="reports" element={<ReportsPage />} />
@@ -304,7 +308,11 @@ const App = () => {
               element={<Navigate to="/dashboard/admin-pricing" replace />}
             />
             <Route path="agents" element={<AgentsPanel />} />
-            <Route path="admin-panel" element={<AdminDashboard />} />
+            {/* admin-panel moved to Settings → tab admin */}
+            <Route
+              path="admin-panel"
+              element={<Navigate to="/dashboard/adminSettings?tab=admin" replace />}
+            />
             <Route path="my-prices" element={<AgentPricesDashboard />} />
             <Route path="price-approval" element={<AdminPriceApproval />} />
             <Route path="ports-manager" element={<AdminPortsManager />} />

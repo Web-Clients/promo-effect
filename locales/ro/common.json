@@ -240,7 +240,11 @@
     "calculatedAt": "Calculat la",
     "containersLabel": "Containere:",
     "pricesDisclaimer": "* Prețurile sunt orientative și pot varia în funcție de disponibilitate și condiții speciale.",
-    "orderEmailSent": "Am trimis email-uri către furnizor, agent și dvs. cu detaliile comenzii."
+    "orderEmailSent": "Am trimis email-uri către furnizor, agent și dvs. cu detaliile comenzii.",
+    "offer": {
+      "localCharges": "Cheltuieli Locale",
+      "commission": "Comision"
+    }
   },
   "bookings": {
     "title": "Rezervări",

@@ -45,9 +45,12 @@ export const CalcInput = ({
   />
 );
 
-export const CalcTextArea = ({ ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
+export const CalcTextArea = ({
+  className = '',
+  ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
   <textarea
     {...props}
-    className="w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all resize-none"
+    className={`w-full px-4 py-3 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all resize-y ${className}`}
   />
 );

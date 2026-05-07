@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '../ui/Button';
 import { cn } from '../../lib/utils';
 import { ClockIcon, CheckCircleIcon } from './Icons';
@@ -25,18 +25,26 @@ interface OfferCardProps {
 const getEXWTotal = () =>
   CHINA_INLAND_EXW.transport + CHINA_INLAND_EXW.customs + CHINA_INLAND_EXW.warehousing;
 
-const getLandTransportTotal = () =>
-  LAND_TRANSPORT_CHISINAU.transport +
-  LAND_TRANSPORT_CHISINAU.customs +
-  LAND_TRANSPORT_CHISINAU.commission;
+// Rata 3 (Constanța→Chișinău): transport + customs + commission only
+// portTaxes are shown here as "Cheltuieli Locale"
+const getLandTransportTotal = (commissionOverride?: number) => {
+  const commission =
+    commissionOverride !== undefined ? commissionOverride : LAND_TRANSPORT_CHISINAU.commission;
+  return LAND_TRANSPORT_CHISINAU.transport + LAND_TRANSPORT_CHISINAU.customs + commission;
+};
 
-const getMaritimeTotal = (offer: PriceOffer) =>
-  offer.freightPrice + offer.portAdjustment + offer.portTaxes;
+// Rata 1 maritime: freight + portAdjustment only (portTaxes moved to Rata 3)
+const getMaritimeTotal = (offer: PriceOffer) => offer.freightPrice + offer.portAdjustment;
+
+// Rata 2 land leg (portIntermediate→portFinal): terrestrial + customs + insurance only (no commission)
+const getLandLegSubtotal = (offer: PriceOffer) =>
+  offer.terrestrialTransport + offer.customsTaxes + (offer.insurance || 0);
 
 const computeTotalPrice = (
   offer: PriceOffer,
   incoterm: Incoterm,
-  finalDestination: FinalDestination
+  finalDestination: FinalDestination,
+  commissionOverride?: number
 ) => {
   let total = 0;
 
@@ -45,26 +53,31 @@ const computeTotalPrice = (
     total += getEXWTotal();
   }
 
-  // Rata 1: Maritime (not shown for CFR — included in supplier price)
+  // Rata 1: Maritime without portTaxes (portTaxes moved to Rata 3)
   if (incoterm !== 'CFR') {
     total += getMaritimeTotal(offer);
   }
 
-  // Rata 1 land portion (existing offer fields — Constanta->portFinal)
+  // Rata 2: Land leg (portIntermediate→portFinal) — portTaxes included here in total but shown in Rata 3
+  // terrestrialTransport + customsTaxes + portTaxes + insurance (no commission — moved to Rata 3)
   if (incoterm !== 'CFR') {
     total +=
-      offer.terrestrialTransport + offer.customsTaxes + offer.commission + (offer.insurance || 0);
+      offer.terrestrialTransport + offer.customsTaxes + offer.portTaxes + (offer.insurance || 0);
   }
-
-  // For CFR, only land transport portion applies
   if (incoterm === 'CFR') {
     total +=
-      offer.terrestrialTransport + offer.customsTaxes + offer.commission + (offer.insurance || 0);
+      offer.terrestrialTransport + offer.customsTaxes + offer.portTaxes + (offer.insurance || 0);
   }
 
-  // Rata 2: Land transport Constanta -> Chisinau
+  // Rata 3: Land transport Constanta -> Chisinau (includes commission + portTaxes as cheltuieliLocale)
   if (finalDestination === 'chisinau') {
-    total += getLandTransportTotal();
+    const commission =
+      commissionOverride !== undefined ? commissionOverride : LAND_TRANSPORT_CHISINAU.commission;
+    total += LAND_TRANSPORT_CHISINAU.transport + LAND_TRANSPORT_CHISINAU.customs + commission;
+  } else {
+    // When no Rata 3: add commission to total from Rata 2 leg
+    const commission = commissionOverride !== undefined ? commissionOverride : offer.commission;
+    total += commission;
   }
 
   return total;
@@ -80,10 +93,18 @@ export const OfferCard = ({
   onToggle,
   onSelectOffer,
 }: OfferCardProps) => {
-  const adjustedTotal = computeTotalPrice(offer, incoterm, finalDestination);
+  const defaultCommission =
+    finalDestination === 'chisinau' ? LAND_TRANSPORT_CHISINAU.commission : offer.commission;
+  const [commissionValue, setCommissionValue] = useState<string>(String(defaultCommission));
+  const commissionOverride = parseFloat(commissionValue) || 0;
+
+  const adjustedTotal = computeTotalPrice(offer, incoterm, finalDestination, commissionOverride);
   // Approximate MDL using ratio from original offer
   const mdlRate = offer.totalPriceMDL / offer.totalPriceUSD;
   const adjustedTotalMDL = adjustedTotal * mdlRate;
+
+  // cheltuieliLocale = portTaxes (moved from Rata 1)
+  const cheltuieliLocale = offer.portTaxes;
 
   return (
     <button
@@ -194,7 +215,7 @@ export const OfferCard = ({
                 </div>
               )}
 
-              {/* Admin: Rata 1 - Maritime (hidden for CFR) */}
+              {/* Admin: Rata 1 - Maritime (hidden for CFR) — no portTaxes here */}
               {incoterm !== 'CFR' && (
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
@@ -205,7 +226,7 @@ export const OfferCard = ({
                       ${getMaritimeTotal(offer).toFixed(2)}
                     </span>
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
                       <p className="text-xs text-neutral-400 mb-1">Tarif Maritim</p>
                       <p className="font-semibold text-primary-800 dark:text-white">
@@ -216,12 +237,6 @@ export const OfferCard = ({
                       <p className="text-xs text-neutral-400 mb-1">Ajustare Port</p>
                       <p className="font-semibold text-primary-800 dark:text-white">
                         ${offer.portAdjustment.toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                      <p className="text-xs text-neutral-400 mb-1">Taxe Portuare</p>
-                      <p className="font-semibold text-primary-800 dark:text-white">
-                        ${offer.portTaxes.toFixed(2)}
                       </p>
                     </div>
                   </div>
@@ -238,7 +253,7 @@ export const OfferCard = ({
                 </div>
               )}
 
-              {/* Admin: existing land leg (Constanta -> portFinal) */}
+              {/* Admin: Rata 2 land leg (portIntermediate→portFinal) — no comision here */}
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-2">
                   <h5 className="text-sm font-semibold text-primary-800 dark:text-white">
@@ -246,16 +261,10 @@ export const OfferCard = ({
                     {offer.portFinal}
                   </h5>
                   <span className="text-sm font-bold text-accent-500">
-                    $
-                    {(
-                      offer.terrestrialTransport +
-                      offer.customsTaxes +
-                      offer.commission +
-                      (offer.insurance || 0)
-                    ).toFixed(2)}
+                    ${getLandLegSubtotal(offer).toFixed(2)}
                   </span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
                     <p className="text-xs text-neutral-400 mb-1">Transport Terestru</p>
                     <p className="font-semibold text-primary-800 dark:text-white">
@@ -266,12 +275,6 @@ export const OfferCard = ({
                     <p className="text-xs text-neutral-400 mb-1">Taxe Vamale</p>
                     <p className="font-semibold text-primary-800 dark:text-white">
                       ${offer.customsTaxes.toFixed(2)}
-                    </p>
-                  </div>
-                  <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                    <p className="text-xs text-neutral-400 mb-1">Comision</p>
-                    <p className="font-semibold text-primary-800 dark:text-white">
-                      ${offer.commission.toFixed(2)}
                     </p>
                   </div>
                   {(offer.insurance || 0) > 0 && (
@@ -285,7 +288,7 @@ export const OfferCard = ({
                 </div>
               </div>
 
-              {/* Admin: Rata land Constanta -> Chisinau */}
+              {/* Admin: Rata 3 — Constanța → Chișinău (with Cheltuieli Locale + editable Comision) */}
               {finalDestination === 'chisinau' && (
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
@@ -293,10 +296,10 @@ export const OfferCard = ({
                       {incoterm === 'CFR' ? 'Rata 2' : 'Rata 3'}: Constanța → Chișinău
                     </h5>
                     <span className="text-sm font-bold text-accent-500">
-                      ${getLandTransportTotal().toFixed(2)}
+                      ${getLandTransportTotal(commissionOverride).toFixed(2)}
                     </span>
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
                       <p className="text-xs text-neutral-400 mb-1">Transport Terestru</p>
                       <p className="font-semibold text-primary-800 dark:text-white">
@@ -310,10 +313,28 @@ export const OfferCard = ({
                       </p>
                     </div>
                     <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                      <p className="text-xs text-neutral-400 mb-1">Comision</p>
+                      <p className="text-xs text-neutral-400 mb-1">Cheltuieli Locale</p>
                       <p className="font-semibold text-primary-800 dark:text-white">
-                        ${LAND_TRANSPORT_CHISINAU.commission.toFixed(2)}
+                        ${cheltuieliLocale.toFixed(2)}
                       </p>
+                    </div>
+                    <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
+                      <p className="text-xs text-neutral-400 mb-1">Comision</p>
+                      {isAdmin ? (
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          className="w-full text-sm font-semibold text-primary-800 dark:text-white bg-transparent border-b border-accent-400 focus:outline-none focus:border-accent-600"
+                          value={commissionValue}
+                          onChange={(e) => setCommissionValue(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <p className="font-semibold text-primary-800 dark:text-white">
+                          ${commissionOverride.toFixed(2)}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -342,7 +363,7 @@ export const OfferCard = ({
                 </div>
               )}
 
-              {/* Client: Rata 1 - Maritime (hidden for CFR) */}
+              {/* Client: Rata 1 - Maritime (no portTaxes) */}
               {incoterm !== 'CFR' ? (
                 <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-100 dark:border-blue-800/30">
                   <div className="flex items-center gap-2 mb-3">
@@ -356,7 +377,7 @@ export const OfferCard = ({
                   <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">
                     ${getMaritimeTotal(offer).toFixed(0)}
                   </p>
-                  <p className="text-xs text-blue-500 mt-1">Transport maritim</p>
+                  <p className="text-xs text-blue-500 mt-1">Tarif maritim + ajustare port</p>
                 </div>
               ) : (
                 <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-100 dark:border-blue-800/30">
@@ -374,7 +395,7 @@ export const OfferCard = ({
                 </div>
               )}
 
-              {/* Client: existing land leg */}
+              {/* Client: Rata 2 land leg (no comision) */}
               <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4 border border-green-100 dark:border-green-800/30">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-7 h-7 rounded-full bg-green-500 text-white flex items-center justify-center text-xs font-bold">
@@ -385,18 +406,12 @@ export const OfferCard = ({
                   </h5>
                 </div>
                 <p className="text-2xl font-bold text-green-700 dark:text-green-400">
-                  $
-                  {(
-                    offer.terrestrialTransport +
-                    offer.customsTaxes +
-                    offer.commission +
-                    (offer.insurance || 0)
-                  ).toFixed(0)}
+                  ${getLandLegSubtotal(offer).toFixed(0)}
                 </p>
-                <p className="text-xs text-green-500 mt-1">Transport terestru + vămuire</p>
+                <p className="text-xs text-green-500 mt-1">Transport terestru + taxe vamale</p>
               </div>
 
-              {/* Client: Constanta -> Chisinau */}
+              {/* Client: Rata 3 — Constanța → Chișinău (with cheltuieliLocale + comision) */}
               {finalDestination === 'chisinau' && (
                 <div className="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-4 border border-orange-100 dark:border-orange-800/30">
                   <div className="flex items-center gap-2 mb-3">
@@ -408,11 +423,29 @@ export const OfferCard = ({
                     </h5>
                   </div>
                   <p className="text-2xl font-bold text-orange-700 dark:text-orange-400">
-                    ${getLandTransportTotal().toFixed(0)}
+                    ${getLandTransportTotal(commissionOverride).toFixed(0)}
                   </p>
                   <p className="text-xs text-orange-500 mt-1">
-                    Transport terestru + vămuire + comision
+                    Transport terestru + taxe vamale + cheltuieli locale + comision
                   </p>
+                  {/* Editable commission for admin/non-client view */}
+                  {isAdmin && (
+                    <div className="mt-3 flex items-center gap-2">
+                      <span className="text-xs text-orange-600 dark:text-orange-400 whitespace-nowrap">
+                        Comision:
+                      </span>
+                      <span className="text-xs text-orange-400">$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        className="w-20 text-sm font-semibold text-orange-700 dark:text-orange-300 bg-transparent border-b border-orange-400 focus:outline-none focus:border-orange-600"
+                        value={commissionValue}
+                        onChange={(e) => setCommissionValue(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -422,7 +455,8 @@ export const OfferCard = ({
             className="w-full mt-4"
             onClick={(e) => {
               e.stopPropagation();
-              onSelectOffer(offer, index);
+              // Pass offer with overridden commission
+              onSelectOffer({ ...offer, commission: commissionOverride }, index);
             }}
           >
             Selectează Această Ofertă

@@ -240,7 +240,11 @@
     "calculatedAt": "Calculated at",
     "containersLabel": "Containers:",
     "pricesDisclaimer": "* Prices are indicative and may vary depending on availability and special conditions.",
-    "orderEmailSent": "We have sent emails to the supplier, agent and you with the order details."
+    "orderEmailSent": "We have sent emails to the supplier, agent and you with the order details.",
+    "offer": {
+      "localCharges": "Local Charges",
+      "commission": "Commission"
+    }
   },
   "bookings": {
     "title": "Bookings",

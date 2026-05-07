@@ -86,14 +86,15 @@ export const SupplierForm = ({
       <form onSubmit={handlePlaceOrder} className="space-y-5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField label="Nume Furnizor" required>
-            <CalcInput
-              type="text"
-              placeholder="Ex: China Trading Co."
+            <CalcTextArea
+              rows={4}
+              placeholder="Nume furnizor + detalii (adresa, contact, observații)"
               value={supplierData.supplierName}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
                 setSupplierData({ ...supplierData, supplierName: e.target.value })
               }
               required
+              style={{ resize: 'vertical', minHeight: '96px' }}
             />
           </FormField>
 

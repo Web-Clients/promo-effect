@@ -4,6 +4,8 @@ import calculatorService, {
   PriceOffer,
   SupplierData,
   ContainerEntry,
+  ClientSummary,
+  AgentSummary,
 } from '../../services/calculator';
 import { User, UserRole } from '../../types';
 import { CalcParams, UseCalculatorReturn } from './types';
@@ -42,34 +44,41 @@ export function useCalculator(user?: User): UseCalculatorReturn {
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
 
+  const [clients, setClients] = useState<ClientSummary[]>([]);
+  const [agents, setAgents] = useState<AgentSummary[]>([]);
+
   const [supplierData, setSupplierData] = useState<SupplierData>({
     supplierName: '',
     supplierAddress: '',
     supplierContact: '',
-    supplierEmail: '',
-    supplierPhone: '',
     cargoDescription: '',
-    invoiceValue: 0,
-    invoiceCurrency: 'USD',
     specialInstructions: '',
+    clientId: '',
+    beneficiaryName: '',
+    agentId: '',
   });
 
   useEffect(() => {
     const loadOptions = async () => {
       try {
-        const [ports, destinations, types, weights, lines] = await Promise.all([
-          calculatorService.getAvailablePorts(),
-          calculatorService.getAvailableDestinations(),
-          calculatorService.getAvailableContainerTypes(),
-          calculatorService.getAvailableWeightRanges(),
-          calculatorService.getAvailableShippingLines(),
-        ]);
+        const [ports, destinations, types, weights, lines, clientsList, agentsList] =
+          await Promise.all([
+            calculatorService.getAvailablePorts(),
+            calculatorService.getAvailableDestinations(),
+            calculatorService.getAvailableContainerTypes(),
+            calculatorService.getAvailableWeightRanges(),
+            calculatorService.getAvailableShippingLines(),
+            calculatorService.getClients(),
+            calculatorService.getAgents(),
+          ]);
 
         setAvailablePorts(ports);
         setAvailableDestinations(destinations);
         setAvailableContainerTypes(types);
         setAvailableWeightRanges(weights);
         setAvailableShippingLines(lines);
+        setClients(clientsList);
+        setAgents(agentsList);
 
         if (ports.length > 0) setParams((prev) => ({ ...prev, portOrigin: ports[0] }));
         if (destinations.length > 0)
@@ -197,6 +206,8 @@ export function useCalculator(user?: User): UseCalculatorReturn {
     availableContainerTypes,
     availableWeightRanges,
     availableShippingLines,
+    clients,
+    agents,
     result,
     isLoading,
     error,

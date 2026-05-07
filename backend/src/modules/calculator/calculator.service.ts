@@ -10,6 +10,7 @@
  */
 
 import prisma from '../../lib/prisma';
+import { generateBookingId } from '../../utils/booking-id.util';
 import {
   ContainerEntry,
   CalculatorInput,
@@ -304,23 +305,55 @@ export class CalculatorService {
       throw new Error('Utilizator negăsit');
     }
 
-    // Get or create client for this order
-    let client = await prisma.client.findFirst({
-      where: {
-        email: supplierData.supplierEmail,
-      },
-    });
+    // Resolve client:
+    // 1. If clientId is provided (selected from dropdown), use it directly
+    // 2. Else fall back to finding/creating by supplierEmail (legacy)
+    let clientId: string;
 
-    if (!client) {
-      client = await prisma.client.create({
-        data: {
-          companyName: supplierData.supplierName,
-          email: supplierData.supplierEmail,
-          phone: supplierData.supplierPhone,
-          address: supplierData.supplierAddress,
-          contactPerson: supplierData.supplierContact,
-        },
+    if (supplierData.clientId) {
+      // Verify the client exists
+      const existingClient = await prisma.client.findUnique({
+        where: { id: supplierData.clientId },
       });
+      if (!existingClient) {
+        throw new Error('Clientul selectat nu a fost găsit');
+      }
+      clientId = existingClient.id;
+    } else if (supplierData.supplierEmail) {
+      let client = await prisma.client.findFirst({
+        where: { email: supplierData.supplierEmail },
+      });
+      if (!client) {
+        client = await prisma.client.create({
+          data: {
+            companyName: supplierData.supplierName,
+            email: supplierData.supplierEmail,
+            phone: supplierData.supplierPhone || '',
+            address: supplierData.supplierAddress,
+            contactPerson: supplierData.supplierContact,
+          },
+        });
+      }
+      clientId = client.id;
+    } else {
+      // Auto-create client from ordering user
+      const userClient = await prisma.client.findFirst({
+        where: { email: user.email },
+      });
+      if (userClient) {
+        clientId = userClient.id;
+      } else {
+        const newClient = await prisma.client.create({
+          data: {
+            companyName: supplierData.beneficiaryName || user.company || user.name,
+            email: user.email,
+            phone: '',
+            contactPerson: supplierData.beneficiaryContact || user.name,
+            address: supplierData.beneficiaryAddress,
+          },
+        });
+        clientId = newClient.id;
+      }
     }
 
     // Normalize containers
@@ -331,8 +364,8 @@ export class CalculatorService {
 
     const totalContainers = containers.reduce((sum, c) => sum + c.quantity, 0);
 
-    // Generate booking reference (used as id)
-    const bookingRef = `PE-${Date.now().toString(36).toUpperCase()}`;
+    // Generate booking reference using MDPE nomenclator
+    const bookingRef = await generateBookingId();
 
     // Build containers summary for storage
     const containersSummary = containers.map((c) => `${c.quantity}× ${c.type}`).join(', ');
@@ -341,7 +374,8 @@ export class CalculatorService {
     const booking = await prisma.booking.create({
       data: {
         id: bookingRef,
-        clientId: client.id,
+        clientId,
+        agentId: supplierData.agentId || undefined,
         status: 'CONFIRMED',
         shippingLine: offer.shippingLine,
         portOrigin: calculatorInput.portOrigin,
@@ -360,6 +394,7 @@ export class CalculatorService {
         supplierPhone: supplierData.supplierPhone,
         supplierEmail: supplierData.supplierEmail,
         supplierAddress: supplierData.supplierAddress,
+        beneficiaryName: supplierData.beneficiaryName,
         internalNotes: [
           supplierData.specialInstructions || '',
           `\n\n--- Containere ---\n${containersSummary}\nTotal: ${totalContainers} containere`,

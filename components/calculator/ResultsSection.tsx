@@ -26,6 +26,8 @@ type Props = Pick<
   | 'isAdmin'
   | 'incoterm'
   | 'finalDestination'
+  | 'clients'
+  | 'agents'
 >;
 
 export const ResultsSection = ({
@@ -47,6 +49,8 @@ export const ResultsSection = ({
   isAdmin,
   incoterm,
   finalDestination,
+  clients,
+  agents,
 }: Props) => {
   const { t } = useTranslation();
   const [showContactModal, setShowContactModal] = useState(false);
@@ -108,6 +112,8 @@ export const ResultsSection = ({
           error={error}
           showSupplierForm={showSupplierForm}
           handlePlaceOrder={handlePlaceOrder}
+          clients={clients}
+          agents={agents}
         />
       )}
 

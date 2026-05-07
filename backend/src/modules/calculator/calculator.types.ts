@@ -72,12 +72,19 @@ export interface SupplierData {
   supplierName: string;
   supplierAddress: string;
   supplierContact: string;
-  supplierEmail: string;
-  supplierPhone: string;
+  supplierEmail?: string; // optional — not required in Calculator form
+  supplierPhone?: string; // optional
   cargoDescription: string;
-  invoiceValue: number;
-  invoiceCurrency: string;
+  invoiceValue?: number; // optional
+  invoiceCurrency?: string; // optional
   specialInstructions?: string;
+  // Beneficiary (client) selected from DB
+  clientId?: string;
+  beneficiaryName?: string;
+  beneficiaryContact?: string;
+  beneficiaryAddress?: string;
+  // Agent selected from DB
+  agentId?: string;
 }
 
 export interface PlaceOrderRequest {

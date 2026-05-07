@@ -81,16 +81,17 @@ export async function sendOrderEmails(data: SendOrderEmailsData): Promise<void> 
     </html>
   `;
 
-  try {
-    await infobipService.sendEmail({
-      to: supplierData.supplierEmail,
-      subject: `New Export Order - ${booking.id}`,
-      html: supplierEmailHtml,
-    });
-    logger.info(`[Calculator] ✅ Supplier email sent to ${supplierData.supplierEmail}`);
-  } catch (error) {
-    logger.error(`[Calculator] ❌ Failed to send supplier email:`, error);
-  }
+  if (supplierData.supplierEmail)
+    try {
+      await infobipService.sendEmail({
+        to: supplierData.supplierEmail,
+        subject: `New Export Order - ${booking.id}`,
+        html: supplierEmailHtml,
+      });
+      logger.info(`[Calculator] ✅ Supplier email sent to ${supplierData.supplierEmail}`);
+    } catch (error) {
+      logger.error(`[Calculator] ❌ Failed to send supplier email:`, error);
+    }
 
   // 2. Email to agent (find an active agent)
   const agent = await prisma.agent.findFirst({

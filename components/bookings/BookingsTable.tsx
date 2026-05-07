@@ -94,7 +94,7 @@ export const BookingsTable: React.FC<BookingsTableProps> = ({
           <table className="w-full" aria-label={t('bookings.loadingBookings')} aria-busy="true">
             <tbody>
               {Array.from({ length: 5 }).map((_, i) => (
-                <SkeletonTableRow key={i} cols={13} />
+                <SkeletonTableRow key={i} cols={14} />
               ))}
             </tbody>
           </table>
@@ -144,6 +144,7 @@ export const BookingsTable: React.FC<BookingsTableProps> = ({
                 />
               </th>
               <Th>{t('bookings.date')}</Th>
+              <Th>Nr. Comandă</Th>
               <Th>{t('bookings.blNumber')}</Th>
               {user.role !== UserRole.CLIENT && <Th>{t('bookings.beneficiary')}</Th>}
               <Th>{t('bookings.shippingLineShort')}</Th>
@@ -196,6 +197,16 @@ export const BookingsTable: React.FC<BookingsTableProps> = ({
                         month: '2-digit',
                         year: '2-digit',
                       })}
+                    </span>
+                  </td>
+                  {/* Nr. Comandă (MDPE...) */}
+                  <td className="p-4">
+                    <span className="font-mono text-xs font-semibold text-primary-700 dark:text-primary-300 whitespace-nowrap">
+                      {b.id.startsWith('MDPE') || b.id.startsWith('PE') ? (
+                        b.id
+                      ) : (
+                        <span className="text-neutral-400 font-normal italic">—</span>
+                      )}
                     </span>
                   </td>
                   {/* BL Nr */}

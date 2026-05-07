@@ -55,7 +55,7 @@ export class BookingsService {
    * Create new booking with automatic price calculation
    */
   async create(data: CreateBookingDTO, userId: string) {
-    // 1. Generate unique booking ID (PE2512001)
+    // 1. Generate unique booking ID (MDPE202605001)
     const id = await generateBookingId();
 
     // 2. Get admin settings for fixed costs

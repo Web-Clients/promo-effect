@@ -58,6 +58,8 @@ export const PriceCalculatorContainer = ({ user }: PriceCalculatorProps) => {
           isAdmin={calc.isAdmin}
           incoterm={calc.incoterm}
           finalDestination={calc.finalDestination}
+          clients={calc.clients}
+          agents={calc.agents}
         />
       </div>
     </div>

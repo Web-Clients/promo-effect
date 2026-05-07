@@ -156,12 +156,19 @@ export interface SupplierData {
   supplierName: string;
   supplierAddress: string;
   supplierContact: string;
-  supplierEmail: string;
-  supplierPhone: string;
+  supplierEmail?: string; // optional
+  supplierPhone?: string; // optional
   cargoDescription: string;
-  invoiceValue: number;
-  invoiceCurrency: string;
+  invoiceValue?: number; // optional
+  invoiceCurrency?: string; // optional
   specialInstructions?: string;
+  // Beneficiary (client from DB)
+  clientId?: string;
+  beneficiaryName?: string;
+  beneficiaryContact?: string;
+  beneficiaryAddress?: string;
+  // Agent from DB
+  agentId?: string;
 }
 
 // Order placement request
@@ -203,6 +210,52 @@ export const placeOrder = async (
   }
 };
 
+// Client summary for beneficiary dropdown
+export interface ClientSummary {
+  id: string;
+  companyName: string;
+  contactPerson: string;
+  email: string;
+  phone: string;
+  address?: string;
+}
+
+// Agent summary for agent dropdown
+export interface AgentSummary {
+  id: string;
+  agentCode: string;
+  company: string;
+  contactName: string;
+  user: { name: string; email: string };
+}
+
+/**
+ * Get list of clients for beneficiary dropdown
+ */
+export const getClients = async (): Promise<ClientSummary[]> => {
+  try {
+    const response = await api.get<{ clients: ClientSummary[]; data?: ClientSummary[] }>(
+      '/clients?limit=200&status=ACTIVE'
+    );
+    return response.data.clients || response.data.data || [];
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error, 'Nu s-au putut încărca clienții'), { cause: error });
+  }
+};
+
+/**
+ * Get list of agents for agent dropdown
+ */
+export const getAgents = async (): Promise<AgentSummary[]> => {
+  try {
+    const response = await api.get<{ agents: AgentSummary[] }>('/agents?status=ACTIVE');
+    return response.data.agents || [];
+  } catch (error: unknown) {
+    // Agents endpoint may require admin — return empty list gracefully
+    return [];
+  }
+};
+
 // Export calculator service
 const calculatorService = {
   calculatePrices,
@@ -212,6 +265,8 @@ const calculatorService = {
   getAvailableDestinations,
   getAvailableShippingLines,
   placeOrder,
+  getClients,
+  getAgents,
 };
 
 export default calculatorService;

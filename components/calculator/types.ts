@@ -3,10 +3,19 @@ import {
   PriceOffer,
   SupplierData,
   ContainerEntry,
+  ClientSummary,
+  AgentSummary,
 } from '../../services/calculator';
 import { User } from '../../types';
 
-export type { CalculatorResult, PriceOffer, SupplierData, ContainerEntry };
+export type {
+  CalculatorResult,
+  PriceOffer,
+  SupplierData,
+  ContainerEntry,
+  ClientSummary,
+  AgentSummary,
+};
 
 export type Incoterm = 'FOB' | 'EXW' | 'CFR';
 export type FinalDestination =
@@ -74,6 +83,9 @@ export interface UseCalculatorReturn {
   availableContainerTypes: string[];
   availableWeightRanges: string[];
   availableShippingLines: string[];
+  // Clients & Agents (for dropdowns)
+  clients: ClientSummary[];
+  agents: AgentSummary[];
   // Results
   result: CalculatorResult | null;
   isLoading: boolean;

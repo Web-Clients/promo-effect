@@ -149,7 +149,13 @@ export class GmailIntegration {
     try {
       const client = await this.getClient();
       connected = true;
-      await client.logout();
+      await Promise.race([
+        client.logout(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('logout timeout')), 5000)),
+      ]).catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : 'unknown';
+        logger.warn(`[Gmail IMAP] Logout timeout/error: ${msg}`);
+      });
     } catch (_error) {
       connected = false;
     }
@@ -197,9 +203,18 @@ export class GmailIntegration {
         const messageIds = messages.slice(-maxResults);
 
         // Fetch each message with full content using UIDs
+        const MAX_EMAIL_SIZE = 50 * 1024 * 1024; // 50 MB
+
         for (const uid of messageIds) {
           try {
             const rawMessage = await client.download(uid.toString(), undefined, { uid: true });
+
+            if (rawMessage.meta?.expectedSize && rawMessage.meta.expectedSize > MAX_EMAIL_SIZE) {
+              logger.warn(
+                `[Gmail IMAP] Email ${uid} too large (${rawMessage.meta.expectedSize} bytes), skipping`
+              );
+              continue;
+            }
 
             if (rawMessage && rawMessage.content) {
               const parsed = await simpleParser(rawMessage.content);
@@ -224,7 +239,13 @@ export class GmailIntegration {
       logger.error('[Gmail IMAP] Fetch error:', error.message);
       throw error;
     } finally {
-      await client.logout();
+      await Promise.race([
+        client.logout(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('logout timeout')), 5000)),
+      ]).catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : 'unknown';
+        logger.warn(`[Gmail IMAP] Logout timeout/error: ${msg}`);
+      });
     }
 
     logger.info(`[Gmail IMAP] Fetched ${emails.length} unread emails`);
@@ -295,7 +316,13 @@ export class GmailIntegration {
     } catch (error: any) {
       logger.error(`[Gmail IMAP] Failed to mark message ${uid} as read:`, error.message);
     } finally {
-      await client.logout();
+      await Promise.race([
+        client.logout(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('logout timeout')), 5000)),
+      ]).catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : 'unknown';
+        logger.warn(`[Gmail IMAP] Logout timeout/error: ${msg}`);
+      });
     }
   }
 

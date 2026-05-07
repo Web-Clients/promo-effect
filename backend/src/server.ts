@@ -8,7 +8,7 @@ if (process.env.SENTRY_DSN) {
 }
 // FIX: Import exit from process to avoid type conflicts with DOM Process type.
 import { exit } from 'process';
-import { startAllJobs } from './jobs';
+import { startAllJobs, stopAllJobs } from './jobs';
 import logger from './utils/logger';
 
 const PORT = process.env.PORT || 4000;
@@ -60,7 +60,7 @@ async function startServer() {
     await prisma.$connect();
     logger.info('Database connection established.');
 
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       logger.info(`Server running on http://localhost:${PORT}`);
       logger.info(`Health check available at http://localhost:${PORT}/health`);
 
@@ -71,6 +71,39 @@ async function startServer() {
         logger.info('Background jobs disabled (ENABLE_BACKGROUND_JOBS=false)');
       }
     });
+
+    // Graceful shutdown — prevents Gmail mailbox locks, orphaned DB transactions, lost data
+    let shutdownInProgress = false;
+
+    const gracefulShutdown = async (signal: string) => {
+      if (shutdownInProgress) return;
+      shutdownInProgress = true;
+
+      logger.info(`${signal} received, initiating graceful shutdown...`);
+
+      try {
+        // Stop accepting new HTTP requests
+        server.close(() => logger.info('HTTP server closed'));
+
+        // Stop cron jobs
+        stopAllJobs();
+
+        // Wait max 25s for in-flight jobs (k8s SIGKILL at 30s)
+        await new Promise((resolve) => setTimeout(resolve, 25000));
+
+        // Disconnect Prisma
+        await prisma.$disconnect();
+
+        logger.info('Shutdown complete');
+        process.exit(0);
+      } catch (err: unknown) {
+        logger.error('Error during shutdown:', err);
+        process.exit(1);
+      }
+    };
+
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
   } catch (error) {
     logger.error('Failed to start server', { error });
     await prisma.$disconnect();

@@ -40,8 +40,26 @@ export function startEmailFetcherJob() {
         return;
       }
 
-      // Fetch unread emails (max 50 at a time)
-      const emails = await gmailIntegration.fetchUnreadEmails(50);
+      // Fetch unread emails (max 50 at a time) with exponential backoff retry
+      let emails: Awaited<ReturnType<typeof gmailIntegration.fetchUnreadEmails>> = [];
+      const maxRetries = 3;
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          emails = await gmailIntegration.fetchUnreadEmails(50);
+          break; // Success
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : 'unknown';
+          if (attempt === maxRetries) {
+            logger.error(`[Email Fetcher] All ${maxRetries} attempts failed: ${msg}`);
+            throw err;
+          }
+          const backoff = Math.min(2000 * Math.pow(2, attempt - 1), 30000);
+          logger.warn(
+            `[Email Fetcher] Attempt ${attempt}/${maxRetries} failed (${msg}), retry in ${backoff}ms`
+          );
+          await new Promise((r) => setTimeout(r, backoff));
+        }
+      }
       logger.info(`[Email Fetcher] Fetched ${emails.length} unread emails`);
 
       if (emails.length === 0) {

@@ -21,9 +21,7 @@ const InvoicesList = lazy(() => import('./components/InvoicesList'));
 const ReportsPage = lazy(() => import('./components/ReportsPage'));
 const AdminSettingsPage = lazy(() => import('./components/AdminSettingsPage'));
 const AdminPricingPanel = lazy(() => import('./components/AdminPricingPanel'));
-const AdminPricingLandPanel = lazy(
-  () => import('./components/admin/pricing/AdminPricingLandPanel')
-);
+// AdminPricingLandPanel removed — consolidated into AdminPricingPanel → tab "Prețuri Terestru"
 const AgentsPanel = lazy(() => import('./components/AgentsPanel'));
 const UserProfile = lazy(() => import('./components/UserProfile'));
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
@@ -32,7 +30,7 @@ const AdminPriceApproval = lazy(() => import('./components/AdminPriceApproval'))
 const AdminPortsManager = lazy(() => import('./components/AdminPortsManager'));
 // ContainersInTransit removed (A7) — route now redirects to /dashboard/bookings?tab=transit
 const ShippingLinesPage = lazy(() => import('./components/ShippingLinesPage'));
-const TransportRatesPage = lazy(() => import('./components/TransportRatesPage'));
+// TransportRatesPage removed — consolidated into AdminPricingPanel → tab "Prețuri Terestru"
 const UserManagement = lazy(() => import('./components/UserManagement'));
 
 const DashboardFallback = () => (
@@ -83,11 +81,8 @@ const RouteObserver = () => {
     else if (path.includes('/dashboard/reports')) title = 'Rapoarte | Promo-Efect';
     else if (path.includes('/dashboard/adminSettings')) title = 'Setări Admin | Promo-Efect';
     else if (path.includes('/dashboard/shipping-lines')) title = 'Linii Maritime | Promo-Efect';
-    else if (path.includes('/dashboard/transport-rates'))
-      title = 'Transport Terestru | Promo-Efect';
-    else if (path.includes('/dashboard/admin-pricing-land'))
-      title = 'Prețuri Terestru | Promo-Efect';
-    else if (path.includes('/dashboard/admin-pricing')) title = 'Prețuri Maritim | Promo-Efect';
+    else if (path.includes('/dashboard/admin-pricing'))
+      title = 'Administrare Prețuri | Promo-Efect';
     else if (path.includes('/dashboard/agents')) title = 'Agenți Chinezi | Promo-Efect';
     else if (path.includes('/dashboard/admin-panel')) title = 'Panou Admin | Promo-Efect';
     else if (path.includes('/dashboard/user-management'))
@@ -297,9 +292,17 @@ const App = () => {
             <Route path="reports" element={<ReportsPage />} />
             <Route path="adminSettings" element={<AdminSettingsPage />} />
             <Route path="admin-pricing" element={<AdminPricingPanel />} />
-            <Route path="admin-pricing-land" element={<AdminPricingLandPanel />} />
+            {/* admin-pricing-land removed — redirect to AdminPricingPanel tab "Prețuri Terestru" */}
+            <Route
+              path="admin-pricing-land"
+              element={<Navigate to="/dashboard/admin-pricing" replace />}
+            />
             <Route path="shipping-lines" element={<ShippingLinesPage />} />
-            <Route path="transport-rates" element={<TransportRatesPage />} />
+            {/* transport-rates removed — redirect to AdminPricingPanel tab "Prețuri Terestru" */}
+            <Route
+              path="transport-rates"
+              element={<Navigate to="/dashboard/admin-pricing" replace />}
+            />
             <Route path="agents" element={<AgentsPanel />} />
             <Route path="admin-panel" element={<AdminDashboard />} />
             <Route path="my-prices" element={<AgentPricesDashboard />} />

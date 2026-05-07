@@ -11,6 +11,8 @@
     "aiParser": "AI Email Parser",
     "reports": "Отчёты",
     "adminPricing": "Управление ценами",
+    "adminPricingMaritime": "Цены Морские",
+    "adminPricingLand": "Цены Наземные",
     "shippingLines": "Судоходные линии",
     "transportRates": "Наземный транспорт",
     "chineseAgents": "Китайские агенты",

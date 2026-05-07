@@ -307,6 +307,75 @@ router.delete(
 );
 
 // ============================================
+// PORT PRICING MATRIX ENDPOINTS
+// ============================================
+
+/**
+ * GET /api/admin-pricing/port-matrix
+ * Returns all rows from port_pricing_matrix
+ */
+router.get('/port-matrix', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const rows = await prisma.portPricingMatrix.findMany({
+      orderBy: [{ portName: 'asc' }, { containerType: 'asc' }],
+    });
+    res.json({ rows });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to get port matrix';
+    res.status(500).json({ error: message });
+  }
+});
+
+/**
+ * PATCH /api/admin-pricing/port-matrix/:portName/:containerType
+ * Upsert a single cell in the matrix
+ */
+router.patch(
+  '/port-matrix/:portName/:containerType',
+  authMiddleware,
+  adminOnly,
+  async (req: Request, res: Response) => {
+    try {
+      const portName = decodeURIComponent(req.params.portName);
+      const containerType = decodeURIComponent(req.params.containerType);
+      const adjustment = parseFloat(req.body.adjustment);
+      if (isNaN(adjustment)) {
+        return res.status(400).json({ error: 'adjustment must be a number' });
+      }
+      const row = await prisma.portPricingMatrix.upsert({
+        where: { portName_containerType: { portName, containerType } },
+        update: { adjustment },
+        create: { portName, containerType, adjustment },
+      });
+      res.json(row);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update cell';
+      res.status(400).json({ error: message });
+    }
+  }
+);
+
+/**
+ * DELETE /api/admin-pricing/port-matrix/:portName
+ * Delete all rows for a given port
+ */
+router.delete(
+  '/port-matrix/:portName',
+  authMiddleware,
+  adminOnly,
+  async (req: Request, res: Response) => {
+    try {
+      const portName = decodeURIComponent(req.params.portName);
+      await prisma.portPricingMatrix.deleteMany({ where: { portName } });
+      res.json({ message: `Port "${portName}" deleted from matrix` });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete port';
+      res.status(400).json({ error: message });
+    }
+  }
+);
+
+// ============================================
 // ADMIN SETTINGS ENDPOINTS
 // ============================================
 
@@ -353,6 +422,125 @@ router.get('/stats', authMiddleware, adminOnly, async (req: Request, res: Respon
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to get pricing stats';
     res.status(500).json({ error: message });
+  }
+});
+
+// ============================================
+// LAND TRANSPORT RATES ENDPOINTS
+// ============================================
+
+/**
+ * GET /api/admin-pricing/land-rates
+ * Returns all land transport rates, optionally filtered by direction (IMPORT|EXPORT).
+ * Response groups rows by city for matrix rendering.
+ */
+router.get('/land-rates', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { direction } = req.query;
+    const where: Record<string, unknown> = { active: true };
+    if (direction === 'IMPORT' || direction === 'EXPORT') {
+      where.direction = direction;
+    }
+    const rows = await prisma.landTransportRate.findMany({
+      where,
+      orderBy: [{ direction: 'asc' }, { city: 'asc' }, { weightMin: 'asc' }],
+    });
+    res.json({ rows, total: rows.length });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to get land rates';
+    res.status(500).json({ error: message });
+  }
+});
+
+/**
+ * PATCH /api/admin-pricing/land-rates/:id
+ * Update priceUSD on a single cell.
+ */
+router.patch('/land-rates/:id', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { priceUSD, notes, active } = req.body;
+    const update: Record<string, unknown> = {};
+    if (priceUSD !== undefined) {
+      const p = parseFloat(priceUSD);
+      if (isNaN(p)) return res.status(400).json({ error: 'priceUSD must be a number' });
+      update.priceUSD = p;
+    }
+    if (notes !== undefined) update.notes = notes;
+    if (active !== undefined) update.active = Boolean(active);
+    if (Object.keys(update).length === 0) {
+      return res.status(400).json({ error: 'No updatable fields provided' });
+    }
+    const row = await prisma.landTransportRate.update({
+      where: { id: req.params.id },
+      data: update,
+    });
+    res.json(row);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to update land rate';
+    res.status(400).json({ error: message });
+  }
+});
+
+/**
+ * POST /api/admin-pricing/land-rates
+ * Add a new city/weight/direction row (or upsert).
+ */
+router.post('/land-rates', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { direction, city, weightMin, weightMax, weightLabel, priceUSD, notes } = req.body;
+    if (
+      !direction ||
+      !city ||
+      weightMin === undefined ||
+      weightMax === undefined ||
+      !weightLabel ||
+      priceUSD === undefined
+    ) {
+      return res
+        .status(400)
+        .json({
+          error: 'direction, city, weightMin, weightMax, weightLabel, priceUSD are required',
+        });
+    }
+    const row = await prisma.landTransportRate.upsert({
+      where: {
+        direction_city_weightMin_weightMax: {
+          direction,
+          city,
+          weightMin: parseFloat(weightMin),
+          weightMax: parseFloat(weightMax),
+        },
+      },
+      update: { priceUSD: parseFloat(priceUSD), weightLabel, notes: notes ?? null, active: true },
+      create: {
+        direction,
+        city,
+        weightMin: parseFloat(weightMin),
+        weightMax: parseFloat(weightMax),
+        weightLabel,
+        priceUSD: parseFloat(priceUSD),
+        notes: notes ?? null,
+        active: true,
+      },
+    });
+    res.status(201).json(row);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to create land rate';
+    res.status(400).json({ error: message });
+  }
+});
+
+/**
+ * DELETE /api/admin-pricing/land-rates/:id
+ * Hard-delete a single rate row.
+ */
+router.delete('/land-rates/:id', authMiddleware, adminOnly, async (req: Request, res: Response) => {
+  try {
+    await prisma.landTransportRate.delete({ where: { id: req.params.id } });
+    res.json({ message: 'Land transport rate deleted' });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to delete land rate';
+    res.status(400).json({ error: message });
   }
 });
 

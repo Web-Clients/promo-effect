@@ -13,24 +13,18 @@ import {
   createBasePrice,
   updateBasePrice,
   deleteBasePrice,
-  getPortAdjustments,
-  createPortAdjustment,
-  updatePortAdjustment,
-  deletePortAdjustment,
   getAdminSettings,
   updateAdminSettings,
   getPricingStats,
   BasePrice,
   BasePriceInput,
-  PortAdjustment,
-  PortAdjustmentInput,
   AdminSettings,
   AdminSettingsInput,
   PricingStats,
 } from '../../../services/adminPricing';
 import { Tab } from './types';
 import { BasePricesTab } from './BasePricesTab';
-import { PortAdjustmentsTab } from './PortAdjustmentsTab';
+import { PortPricingMatrixTab } from './PortPricingMatrixTab';
 import { WeightRangesTab } from './WeightRangesTab';
 import { GeneralSettingsTab } from './GeneralSettingsTab';
 
@@ -39,6 +33,7 @@ export function AdminPricingPanel() {
   const currentUser = getStoredUser();
   const isAgent = currentUser?.role === 'AGENT' || currentUser?.role === 'AGENT_CONSTANTA';
   const [activeTab, setActiveTab] = useState<Tab>('base-prices');
+  // port-matrix tab is handled by PortPricingMatrixTab (self-contained)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -51,18 +46,12 @@ export function AdminPricingPanel() {
   const [editingBasePrice, setEditingBasePrice] = useState<BasePrice | null>(null);
   const [showBasePriceForm, setShowBasePriceForm] = useState(false);
 
-  // Port Adjustments
-  const [portAdjustments, setPortAdjustments] = useState<PortAdjustment[]>([]);
-  const [editingPortAdjustment, setEditingPortAdjustment] = useState<PortAdjustment | null>(null);
-  const [showPortAdjustmentForm, setShowPortAdjustmentForm] = useState(false);
-
   // Admin Settings
   const [adminSettings, setAdminSettings] = useState<AdminSettings | null>(null);
 
   useEffect(() => {
     loadStats();
     loadBasePrices();
-    loadPortAdjustments();
     loadAdminSettings();
   }, []);
 
@@ -84,15 +73,6 @@ export function AdminPricingPanel() {
       setError(getErrorMessage(err));
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadPortAdjustments = async () => {
-    try {
-      const data = await getPortAdjustments();
-      setPortAdjustments(data);
-    } catch (err: unknown) {
-      console.error('Failed to load port adjustments:', err);
     }
   };
 
@@ -176,46 +156,6 @@ export function AdminPricingPanel() {
   };
 
   // ============================================
-  // PORT ADJUSTMENT HANDLERS
-  // ============================================
-
-  const handleSavePortAdjustment = async (data: PortAdjustmentInput) => {
-    setLoading(true);
-    try {
-      if (editingPortAdjustment) {
-        await updatePortAdjustment(editingPortAdjustment.id, data);
-        showMessage(t('pricing.portAdjSaved'));
-      } else {
-        await createPortAdjustment(data);
-        showMessage(t('pricing.portAdjCreated'));
-      }
-      setShowPortAdjustmentForm(false);
-      setEditingPortAdjustment(null);
-      loadPortAdjustments();
-      loadStats();
-    } catch (err: unknown) {
-      showMessage(getErrorMessage(err), true);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeletePortAdjustment = async (id: string) => {
-    if (!confirm(t('pricing.portAdjDeleteConfirm'))) return;
-    setLoading(true);
-    try {
-      await deletePortAdjustment(id);
-      showMessage(t('pricing.portAdjDeleted'));
-      loadPortAdjustments();
-      loadStats();
-    } catch (err: unknown) {
-      showMessage(getErrorMessage(err), true);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ============================================
   // ADMIN SETTINGS HANDLERS
   // ============================================
 
@@ -236,8 +176,8 @@ export function AdminPricingPanel() {
     <div className="max-w-7xl mx-auto p-6">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">{t('pricing.title')}</h1>
-        <p className="mt-2 text-gray-600">{t('pricing.subtitle')}</p>
+        <h1 className="text-3xl font-bold text-gray-900">{t('pricing.maritimeTitle')}</h1>
+        <p className="mt-2 text-gray-600">{t('pricing.maritimeSubtitle')}</p>
       </div>
 
       {/* Stats Cards */}
@@ -297,14 +237,14 @@ export function AdminPricingPanel() {
           </button>
           {!isAgent && (
             <button
-              onClick={() => setActiveTab('port-adjustments')}
+              onClick={() => setActiveTab('port-matrix')}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'port-adjustments'
+                activeTab === 'port-matrix'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              {t('pricing.tabPortAdjustments')}
+              {t('pricing.tabPortMatrix')}
             </button>
           )}
           {!isAgent && (
@@ -358,28 +298,7 @@ export function AdminPricingPanel() {
         />
       )}
 
-      {activeTab === 'port-adjustments' && !isAgent && (
-        <PortAdjustmentsTab
-          portAdjustments={portAdjustments}
-          loading={loading}
-          showForm={showPortAdjustmentForm}
-          editingItem={editingPortAdjustment}
-          onShowForm={() => {
-            setEditingPortAdjustment(null);
-            setShowPortAdjustmentForm(true);
-          }}
-          onEdit={(item) => {
-            setEditingPortAdjustment(item);
-            setShowPortAdjustmentForm(true);
-          }}
-          onDelete={handleDeletePortAdjustment}
-          onSave={handleSavePortAdjustment}
-          onCancel={() => {
-            setShowPortAdjustmentForm(false);
-            setEditingPortAdjustment(null);
-          }}
-        />
-      )}
+      {activeTab === 'port-matrix' && !isAgent && <PortPricingMatrixTab />}
 
       {activeTab === 'weight-ranges' && !isAgent && <WeightRangesTab />}
 

@@ -12,4 +12,4 @@ export interface WeightRange {
   containerType?: string; // Optional: if set, interval applies only to this container type
 }
 
-export type Tab = 'base-prices' | 'port-adjustments' | 'weight-ranges' | 'settings';
+export type Tab = 'base-prices' | 'port-matrix' | 'weight-ranges' | 'settings';

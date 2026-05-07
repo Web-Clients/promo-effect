@@ -114,7 +114,7 @@ export const REGEX_PATTERNS = {
 
   // European/Black Sea destination ports (whitelist for portDestination)
   europeanPorts:
-    /\b(Constanta|Constan[tț]a|Rotterdam|Hamburg|Piraeus|Gdansk|Felixstowe|Odessa|Giurgiulesti|Antwerp|Le\s*Havre|Valencia|Barcelona)\b/gi,
+    /\b(Constanta|Constan[tț]a|Rotterdam|Hamburg|Piraeus|Gdansk|Felixstowe|Odessa|Giurgiulesti|Antwerp|Le\s*Havre|Valencia|Barcelona|Tekirdag|Tekirdağ|Istanbul|Mersin|Ambarli|Izmit|Gemlik)\b/gi,
 
   // Shipping lines — extended with ASG, SKY, PIL, Wan Hai, Sinolines
   shippingLines:

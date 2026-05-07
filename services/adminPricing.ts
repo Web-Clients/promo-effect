@@ -192,6 +192,39 @@ export async function deletePortAdjustment(id: string): Promise<void> {
 }
 
 // ============================================
+// PORT PRICING MATRIX
+// ============================================
+
+export interface PortMatrixRow {
+  id: string;
+  portName: string;
+  containerType: string;
+  adjustment: number;
+  updatedAt: string;
+}
+
+export async function getPortMatrix(): Promise<PortMatrixRow[]> {
+  const response = await api.get('/admin-pricing/port-matrix');
+  return response.data.rows;
+}
+
+export async function patchPortMatrixCell(
+  portName: string,
+  containerType: string,
+  adjustment: number
+): Promise<PortMatrixRow> {
+  const response = await api.patch(
+    `/admin-pricing/port-matrix/${encodeURIComponent(portName)}/${encodeURIComponent(containerType)}`,
+    { adjustment }
+  );
+  return response.data;
+}
+
+export async function deletePortMatrixPort(portName: string): Promise<void> {
+  await api.delete(`/admin-pricing/port-matrix/${encodeURIComponent(portName)}`);
+}
+
+// ============================================
 // ADMIN SETTINGS
 // ============================================
 
@@ -212,4 +245,56 @@ export async function updateAdminSettings(data: AdminSettingsInput): Promise<Adm
 export async function getPricingStats(): Promise<PricingStats> {
   const response = await api.get('/admin-pricing/stats');
   return response.data;
+}
+
+// ============================================
+// LAND TRANSPORT RATES
+// ============================================
+
+export interface LandTransportRate {
+  id: string;
+  direction: 'IMPORT' | 'EXPORT';
+  city: string;
+  weightMin: number;
+  weightMax: number;
+  weightLabel: string;
+  priceUSD: number;
+  notes?: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LandTransportRateInput {
+  direction: 'IMPORT' | 'EXPORT';
+  city: string;
+  weightMin: number;
+  weightMax: number;
+  weightLabel: string;
+  priceUSD: number;
+  notes?: string | null;
+}
+
+export async function getLandRates(direction?: 'IMPORT' | 'EXPORT'): Promise<LandTransportRate[]> {
+  const params: Record<string, string> = {};
+  if (direction) params.direction = direction;
+  const response = await api.get('/admin-pricing/land-rates', { params });
+  return response.data.rows;
+}
+
+export async function patchLandRate(
+  id: string,
+  data: { priceUSD?: number; notes?: string; active?: boolean }
+): Promise<LandTransportRate> {
+  const response = await api.patch(`/admin-pricing/land-rates/${id}`, data);
+  return response.data;
+}
+
+export async function createLandRate(data: LandTransportRateInput): Promise<LandTransportRate> {
+  const response = await api.post('/admin-pricing/land-rates', data);
+  return response.data;
+}
+
+export async function deleteLandRate(id: string): Promise<void> {
+  await api.delete(`/admin-pricing/land-rates/${id}`);
 }

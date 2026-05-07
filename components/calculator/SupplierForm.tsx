@@ -111,15 +111,16 @@ export const SupplierForm = ({
           </FormField>
         </div>
 
-        <FormField label="Adresa Furnizor" required>
-          <CalcInput
-            type="text"
-            placeholder="Ex: 123 Industrial Zone, Shanghai, China"
+        <FormField label="Companie expeditoare (din China)" required>
+          <textarea
+            rows={4}
+            placeholder="Denumire companie + adresă + persoană contact + observații (ex: Shanghai XYZ Trading Co., Ltd, 123 Industrial Zone, Shanghai, contact: Mr. Wang +86-..., specializat export mobilier)"
             value={supplierData.supplierAddress}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
               setSupplierData({ ...supplierData, supplierAddress: e.target.value })
             }
             required
+            className="w-full px-3 py-2 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 focus:outline-none transition-colors duration-200 resize-y"
           />
         </FormField>
 

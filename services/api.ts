@@ -20,14 +20,40 @@ const ACCESS_TOKEN_KEY = 'access_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
 const USER_KEY = 'user';
 
-// Create axios instance
+// Create axios instance — withCredentials sends/receives the __csrf cookie
 export const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+// CSRF token cache (refreshed on demand for state-changing requests)
+let csrfTokenCache: string | null = null;
+let csrfTokenPromise: Promise<string> | null = null;
+
+const fetchCsrfToken = async (): Promise<string> => {
+  if (csrfTokenPromise) return csrfTokenPromise;
+  csrfTokenPromise = axios
+    .get<{ token: string }>(`${API_BASE_URL.replace(/\/api\/?$/, '')}/api/csrf-token`, {
+      withCredentials: true,
+    })
+    .then((res) => {
+      csrfTokenCache = res.data.token;
+      return csrfTokenCache;
+    })
+    .finally(() => {
+      csrfTokenPromise = null;
+    });
+  return csrfTokenPromise;
+};
+
+// Reset CSRF token (e.g. on 403 csrf error so we re-fetch)
+export const invalidateCsrfToken = () => {
+  csrfTokenCache = null;
+};
 
 // Token management utilities
 export const tokenManager = {
@@ -75,12 +101,37 @@ export const tokenManager = {
   },
 };
 
-// Request interceptor - Add auth token to all requests
+// Auth endpoints exempt from CSRF (no token yet); see backend app.ts CSRF_EXEMPT_PATHS
+const CSRF_EXEMPT_URL_PATTERNS = [
+  /\/auth\/login(\b|$)/,
+  /\/auth\/register(\b|$)/,
+  /\/auth\/refresh(\b|$)/,
+  /\/auth\/forgot-password(\b|$)/,
+  /\/auth\/reset-password(\b|$)/,
+  /\/auth\/verify-email(\b|$)/,
+  /\/auth\/complete-2fa-login(\b|$)/,
+];
+
+// Request interceptor - Add auth token + CSRF token for state-changing requests
 api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
+  async (config: InternalAxiosRequestConfig) => {
     const token = tokenManager.getAccessToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    const method = (config.method || 'get').toUpperCase();
+    const url = config.url || '';
+    const isStateChange = !['GET', 'HEAD', 'OPTIONS'].includes(method);
+    const isCsrfExempt = CSRF_EXEMPT_URL_PATTERNS.some((re) => re.test(url));
+
+    if (isStateChange && !isCsrfExempt) {
+      try {
+        const csrfToken = csrfTokenCache || (await fetchCsrfToken());
+        config.headers['X-CSRF-Token'] = csrfToken;
+      } catch {
+        // Network/server issue — let request proceed; backend will return 403 if needed
+      }
     }
     return config;
   },

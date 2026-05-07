@@ -94,7 +94,7 @@ export const BookingsTable: React.FC<BookingsTableProps> = ({
           <table className="w-full" aria-label={t('bookings.loadingBookings')} aria-busy="true">
             <tbody>
               {Array.from({ length: 5 }).map((_, i) => (
-                <SkeletonTableRow key={i} cols={12} />
+                <SkeletonTableRow key={i} cols={13} />
               ))}
             </tbody>
           </table>
@@ -148,6 +148,7 @@ export const BookingsTable: React.FC<BookingsTableProps> = ({
               {user.role !== UserRole.CLIENT && <Th>{t('bookings.beneficiary')}</Th>}
               <Th>{t('bookings.shippingLineShort')}</Th>
               <Th>{t('bookings.containerNumber')}</Th>
+              <Th>{t('bookings.weight')}</Th>
               <Th>{t('bookings.route')}</Th>
               <Th>{t('bookings.eta')}</Th>
               <Th align="right">{t('bookings.price')}</Th>
@@ -223,6 +224,12 @@ export const BookingsTable: React.FC<BookingsTableProps> = ({
                   <td className="p-4">
                     <span className="font-mono text-sm text-neutral-600 dark:text-neutral-300">
                       {containerNumber || '—'}
+                    </span>
+                  </td>
+                  {/* Greutate */}
+                  <td className="p-4">
+                    <span className="text-sm text-neutral-600 dark:text-neutral-300 whitespace-nowrap">
+                      {b.cargoWeight || '—'}
                     </span>
                   </td>
                   {/* Rută */}

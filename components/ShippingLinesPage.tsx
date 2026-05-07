@@ -386,11 +386,24 @@ export default function ShippingLinesPage() {
         </div>
       ) : Object.keys(grouped).length === 0 ? (
         <div className="text-center py-12 text-neutral-500 dark:text-neutral-400">
-          <ShipIcon />
-          <p className="mt-2 text-lg font-medium">Nu există configurații</p>
-          <p className="text-sm">
-            Adăugați o linie maritimă cu tipuri de containere și taxe locale
-          </p>
+          <div className="flex justify-center mb-3">
+            <ShipIcon />
+          </div>
+          {filterLine ? (
+            <>
+              <p className="mt-2 text-lg font-medium">
+                Nu există configurații pentru „{filterLine}"
+              </p>
+              <p className="text-sm">Selectați o altă linie sau adăugați o configurație nouă</p>
+            </>
+          ) : (
+            <>
+              <p className="mt-2 text-lg font-medium">Nu există configurații</p>
+              <p className="text-sm">
+                Adăugați o linie maritimă cu tipuri de containere și taxe locale
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <div className="space-y-4">

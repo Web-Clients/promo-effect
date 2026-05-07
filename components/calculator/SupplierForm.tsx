@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '../ui/Button';
+import { useToast } from '../ui/Toast';
 import { FormField, CalcInput, CalcSelect, CalcTextArea } from './FormElements';
 import { PackageIcon } from './Icons';
 import { RouteDisplay } from './RouteDisplay';
@@ -34,6 +35,7 @@ export const SupplierForm = ({
   clients,
   agents,
 }: Props) => {
+  const { addToast } = useToast();
   const [showNewClientForm, setShowNewClientForm] = useState(false);
 
   // Supplier autocomplete state
@@ -99,6 +101,13 @@ export const SupplierForm = ({
 
   const handleCreateSupplierInline = async () => {
     if (!supplierQuery.trim()) return;
+    if (
+      supplierData.supplierEmail &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(supplierData.supplierEmail)
+    ) {
+      addToast('Adresa de email a furnizorului nu este validă', 'error');
+      return;
+    }
     try {
       const s = await createSupplier({
         name: supplierQuery.trim(),

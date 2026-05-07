@@ -42,7 +42,15 @@ export const createBookingSchema = z.object({
   commission: z.number().optional(),
   additionalCharges: z.number().optional(),
   totalPrice: z.number().optional(),
-  supplierName: z.string().optional(),
+  supplierName: z
+    .string()
+    .min(2, 'Supplier name must be at least 2 characters')
+    .max(200, 'Supplier name must be at most 200 characters')
+    .regex(
+      /^[A-Za-z0-9\s\-\.,&()'"\/]+$/,
+      'Supplier name can only contain letters, digits, and basic punctuation'
+    )
+    .optional(),
   supplierPhone: z.string().optional(),
   supplierEmail: z.string().email('Invalid supplier email').optional().or(z.literal('')),
   supplierAddress: z.string().optional(),

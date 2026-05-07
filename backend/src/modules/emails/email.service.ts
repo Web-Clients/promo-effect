@@ -511,6 +511,29 @@ export class EmailService {
         }
       }
 
+      // Bug 18: notify admins when confidence is low and no booking was auto-created
+      if (extractedData.confidence < minConfidenceForAutoCreate && extractedData.containerNumber) {
+        try {
+          const admins = await prisma.user.findMany({
+            where: { role: { in: ['ADMIN', 'SUPER_ADMIN'] } },
+          });
+          for (const admin of admins) {
+            await notificationService.sendNotification({
+              userId: admin.id,
+              type: 'EMAIL_PARSE_LOW_CONFIDENCE',
+              title: `Email cu confidence scăzut: ${email.subject?.substring(0, 60) || 'fără subiect'}`,
+              message: `Emailul de la ${email.from} a fost procesat cu confidence ${extractedData.confidence}% (sub pragul de ${minConfidenceForAutoCreate}%). Container: ${extractedData.containerNumber}. Verificați manual în secțiunea Emailuri.`,
+              channels: { email: false, push: true, sms: false, whatsapp: false },
+            });
+          }
+        } catch (notifErr) {
+          logger.error(
+            '[EmailService] Failed to send EMAIL_PARSE_LOW_CONFIDENCE notification:',
+            notifErr
+          );
+        }
+      }
+
       const status = extractedData.confidence >= 60 ? 'SUCCESS' : 'NEEDS_REVIEW';
       return { emailId: email.id, status, extractedData, processingTime: Date.now() - startTime };
     } catch (error: any) {

@@ -144,7 +144,20 @@ export class CalculatorService {
     }
 
     const exchangeRate = await getExchangeRate('USD', 'MDL');
-    return finalizeOffers(offers, exchangeRate, totalContainerCount, extInput);
+
+    // Bug 20: Auto-apply client discount if clientId provided
+    let client: { discount?: number | null } | undefined;
+    if (extInput.clientId) {
+      const clientRecord = await prisma.client.findUnique({
+        where: { id: extInput.clientId },
+        select: { discount: true },
+      });
+      if (clientRecord?.discount) {
+        client = clientRecord;
+      }
+    }
+
+    return finalizeOffers(offers, exchangeRate, totalContainerCount, extInput, client);
   }
 
   /**
@@ -306,8 +319,8 @@ export class CalculatorService {
       return basePriceLines.map((l) => l.shippingLine).sort();
     }
 
-    // Default shipping lines
-    return ['MSC', 'Maersk', 'Hapag-Lloyd', 'CMA CGM', 'Cosco', 'Yangming'];
+    // Default shipping lines (alphabetically sorted)
+    return ['CMA CGM', 'Cosco', 'Hapag-Lloyd', 'Maersk', 'MSC', 'Yangming'];
   }
 
   /**

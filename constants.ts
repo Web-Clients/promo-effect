@@ -1,5 +1,13 @@
-export const SHIPPING_LINES = ['Maersk', 'MSC', 'Hapag-Lloyd', 'Zim', 'Cosco', 'Yangming'];
-export const ORIGIN_PORTS = ['Shanghai', 'Qingdao', 'Ningbo', 'Shenzhen', 'Guangzhou'];
+export const SHIPPING_LINES = [
+  'CMA CGM',
+  'Cosco',
+  'Hapag-Lloyd',
+  'Maersk',
+  'MSC',
+  'Yangming',
+  'Zim',
+];
+export const ORIGIN_PORTS = ['Guangzhou', 'Ningbo', 'Qingdao', 'Shanghai', 'Shenzhen'];
 export const DESTINATION_PORTS = ['Chișinău'];
 export const CONTAINER_TYPES = [
   '20DV', // 20' Dry Van

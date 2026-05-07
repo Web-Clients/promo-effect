@@ -17,6 +17,7 @@ export interface CalculatorInput {
   cargoWeight: string;
   cargoReadyDate: string; // ISO date string
   includeInsurance?: boolean;
+  clientId?: string; // Optional: used to auto-apply client discount
 }
 
 // Price breakdown per container type
@@ -51,6 +52,9 @@ export interface PriceOffer {
 
   totalPriceUSD: number;
   totalPriceMDL: number;
+
+  // Applied client discount (percentage, 0 if none)
+  discountApplied?: number;
 
   // Multiple containers support
   containerBreakdown?: ContainerPriceBreakdown[];

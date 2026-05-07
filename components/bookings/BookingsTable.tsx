@@ -14,6 +14,7 @@ import { TlxBadge, DocBadge, StatusBadge } from './BookingsBadges';
 import { Button } from '../ui/Button';
 import { PlusIcon, FileTextIcon } from '../icons';
 import { SkeletonTableRow } from '../ui/Skeleton';
+import { formatDateShort } from '../../utils/formatters';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -192,11 +193,7 @@ export const BookingsTable: React.FC<BookingsTableProps> = ({
                   {/* Data */}
                   <td className="p-4 whitespace-nowrap">
                     <span className="text-sm text-neutral-600 dark:text-neutral-300">
-                      {new Date(b.createdAt).toLocaleDateString('ro-RO', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: '2-digit',
-                      })}
+                      {formatDateShort(b.createdAt)}
                     </span>
                   </td>
                   {/* Nr. Comandă (MDPE...) */}
@@ -252,13 +249,7 @@ export const BookingsTable: React.FC<BookingsTableProps> = ({
                   {/* ETA */}
                   <td className="p-4 whitespace-nowrap">
                     <span className="text-sm text-neutral-600 dark:text-neutral-300">
-                      {b.eta
-                        ? new Date(b.eta).toLocaleDateString('ro-RO', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: '2-digit',
-                          })
-                        : '—'}
+                      {b.eta ? formatDateShort(b.eta) : '—'}
                     </span>
                   </td>
                   {/* Preț */}

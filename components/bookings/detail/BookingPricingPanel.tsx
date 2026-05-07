@@ -10,6 +10,11 @@ import { getErrorMessage } from '../../../utils/formatters';
 export interface PricingData {
   tarifMaritim: number;
   cheltuieliAditionale: number;
+  cheltuieliAditionaleLabel?: string;
+  cheltuieliAditionale2: number;
+  cheltuieliAditionale2Label?: string;
+  cheltuieliAditionale3: number;
+  cheltuieliAditionale3Label?: string;
   taxePortuare: number;
   transportTerestru: number;
   taxeVamale: number;
@@ -27,6 +32,11 @@ interface BookingPricingPanelProps {
 const EMPTY_PRICING: PricingData = {
   tarifMaritim: 0,
   cheltuieliAditionale: 0,
+  cheltuieliAditionaleLabel: '',
+  cheltuieliAditionale2: 0,
+  cheltuieliAditionale2Label: '',
+  cheltuieliAditionale3: 0,
+  cheltuieliAditionale3Label: '',
   taxePortuare: 0,
   transportTerestru: 0,
   taxeVamale: 0,
@@ -37,6 +47,8 @@ function computeTotal(p: PricingData): number {
   return (
     Number(p.tarifMaritim) +
     Number(p.cheltuieliAditionale) +
+    Number(p.cheltuieliAditionale2) +
+    Number(p.cheltuieliAditionale3) +
     Number(p.taxePortuare) +
     Number(p.transportTerestru) +
     Number(p.taxeVamale) +
@@ -58,15 +70,19 @@ const BookingPricingPanel: React.FC<BookingPricingPanelProps> = ({
 
   useEffect(() => {
     if (initialPricingData) {
-      setPricing(initialPricingData);
+      setPricing({ ...EMPTY_PRICING, ...initialPricingData });
     }
   }, [initialPricingData]);
 
   const totalUSD = computeTotal(pricing);
   const totalMDL = totalUSD * mdlRate;
 
-  const handleChange = (field: keyof PricingData, value: string) => {
+  const handleNumericChange = (field: keyof PricingData, value: string) => {
     setPricing((prev) => ({ ...prev, [field]: parseFloat(value) || 0 }));
+  };
+
+  const handleLabelChange = (field: keyof PricingData, value: string) => {
+    setPricing((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = async () => {
@@ -83,9 +99,9 @@ const BookingPricingPanel: React.FC<BookingPricingPanelProps> = ({
     }
   };
 
-  const fields: { key: keyof PricingData; label: string }[] = [
+  // Fixed fields (label only)
+  const fixedFields: { key: keyof PricingData; label: string }[] = [
     { key: 'tarifMaritim', label: 'Tarif Maritim' },
-    { key: 'cheltuieliAditionale', label: 'Cheltuieli Adiționale' },
     { key: 'taxePortuare', label: 'Taxe Portuare' },
     { key: 'transportTerestru', label: 'Transport Terestru' },
     { key: 'taxeVamale', label: 'Taxe Vamale' },
@@ -135,8 +151,9 @@ const BookingPricingPanel: React.FC<BookingPricingPanelProps> = ({
         Stabilire Preț (Admin)
       </h4>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {fields.map(({ key, label }) => (
+      {/* Fixed fields */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        {fixedFields.map(({ key, label }) => (
           <div key={key}>
             <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
               {label} <span className="text-neutral-400 font-normal">(USD)</span>
@@ -146,9 +163,53 @@ const BookingPricingPanel: React.FC<BookingPricingPanelProps> = ({
               min="0"
               step="0.01"
               value={pricing[key] === 0 ? '' : String(pricing[key])}
-              onChange={(e) => handleChange(key, e.target.value)}
+              onChange={(e) => handleNumericChange(key, e.target.value)}
               placeholder="0.00"
             />
+          </div>
+        ))}
+      </div>
+
+      {/* 3 cheltuieli adiționale with editable labels */}
+      <div className="space-y-3 border-t border-neutral-200 dark:border-neutral-700 pt-4 mb-4">
+        <p className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+          Cheltuieli Adiționale (până la 3 tipuri)
+        </p>
+
+        {(
+          [
+            { amountKey: 'cheltuieliAditionale', labelKey: 'cheltuieliAditionaleLabel', idx: 1 },
+            { amountKey: 'cheltuieliAditionale2', labelKey: 'cheltuieliAditionale2Label', idx: 2 },
+            { amountKey: 'cheltuieliAditionale3', labelKey: 'cheltuieliAditionale3Label', idx: 3 },
+          ] as const
+        ).map(({ amountKey, labelKey, idx }) => (
+          <div key={idx} className="grid grid-cols-2 gap-3 items-end">
+            <div>
+              <label className="text-xs text-neutral-500 dark:text-neutral-400">
+                Denumire #{idx} <span className="italic">(opțional)</span>
+              </label>
+              <Input
+                type="text"
+                value={(pricing[labelKey] as string) || ''}
+                onChange={(e) => handleLabelChange(labelKey as keyof PricingData, e.target.value)}
+                placeholder={`ex: Stocare port, Demurrage...`}
+              />
+            </div>
+            <div>
+              <label className="text-xs text-neutral-500 dark:text-neutral-400">
+                Sumă #{idx} (USD)
+              </label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={pricing[amountKey] === 0 ? '' : String(pricing[amountKey])}
+                onChange={(e) =>
+                  handleNumericChange(amountKey as keyof PricingData, e.target.value)
+                }
+                placeholder="0.00"
+              />
+            </div>
           </div>
         ))}
       </div>

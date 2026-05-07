@@ -138,6 +138,43 @@ export async function getExchangeRate(from: string, to: string): Promise<number>
 }
 
 /**
+ * Parse a weight range string like "10-15 tone" and return the upper bound as a number.
+ * Falls back to parsing the first number found.
+ */
+export function parseWeightKg(weightRange: string): number {
+  if (!weightRange) return 0;
+  // Match pattern like "10-15 tone" — use upper bound (15)
+  const rangeMatch = weightRange.match(/(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)/);
+  if (rangeMatch) {
+    return parseFloat(rangeMatch[2]);
+  }
+  // e.g. "<23 mt" or "23 tone"
+  const singleMatch = weightRange.match(/(\d+(?:\.\d+)?)/);
+  return singleMatch ? parseFloat(singleMatch[1]) : 0;
+}
+
+/**
+ * Look up LandTransportRate for a given direction/city/weight.
+ * Returns priceUSD or undefined if no matching row.
+ */
+export async function getLandTransportRate(
+  direction: 'IMPORT' | 'EXPORT',
+  city: string,
+  weightKg: number
+): Promise<number | undefined> {
+  const rate = await prisma.landTransportRate.findFirst({
+    where: {
+      direction,
+      city: { contains: city, mode: 'insensitive' },
+      weightMin: { lte: weightKg },
+      weightMax: { gte: weightKg },
+      active: true,
+    },
+  });
+  return rate?.priceUSD;
+}
+
+/**
  * Core calculation using BasePrice table
  */
 export async function computeFromBasePrices(
@@ -217,6 +254,25 @@ export async function computeFromBasePrices(
     trMap.set(`${tr.containerType}__${tr.weightRange}`, tr.rate);
   }
 
+  // Preload PortPricingMatrix adjustments for this port origin
+  const portMatrixEntries = await prisma.portPricingMatrix.findMany({
+    where: { portName: input.portOrigin },
+  });
+  const portMatrixMap = new Map<string, number>();
+  for (const pm of portMatrixEntries) {
+    portMatrixMap.set(pm.containerType, pm.adjustment);
+  }
+
+  // LandTransportRate: look up by finalDestination city and cargo weight
+  const weightKg = parseWeightKg(input.cargoWeight || '');
+  const finalDestCity =
+    input.finalDestination && input.finalDestination !== 'constanta'
+      ? input.finalDestination.charAt(0).toUpperCase() + input.finalDestination.slice(1)
+      : null;
+  const landRateFromTable = finalDestCity
+    ? await getLandTransportRate('IMPORT', finalDestCity, weightKg)
+    : undefined;
+
   // Group by shipping line
   const pricesByShippingLine = new Map<string, typeof filteredPrices>();
   for (const price of filteredPrices) {
@@ -267,14 +323,18 @@ export async function computeFromBasePrices(
     const linePortTaxes = firstPrice.portTaxes ?? slcPortTaxes ?? portTaxes;
 
     const trRate = trMap.get(`${primaryContainerType}__${input.cargoWeight}`);
+    // Priority: LandTransportRate table > BasePrice override > TransportRate table > admin setting
     const lineTerrestrialTransport =
-      firstPrice.terrestrialTransport ?? trRate ?? terrestrialTransport;
+      landRateFromTable ?? firstPrice.terrestrialTransport ?? trRate ?? terrestrialTransport;
 
     const lineCustomsTaxes = firstPrice.customsTaxes ?? settings.customsTaxes;
     const lineCommission = firstPrice.commission ?? settings.commission;
 
     const adjustedTerrestrialTransport = lineTerrestrialTransport + terrestrialSurcharge;
-    const adjustedFreight = totalFreight + freightSurcharge;
+
+    // Apply PortPricingMatrix adjustment per container type on top of freight
+    const portMatrixAdj = portMatrixMap.get(primaryContainerType) ?? 0;
+    const adjustedFreight = totalFreight + freightSurcharge + portMatrixAdj;
 
     const totalFixedCosts =
       linePortTaxes + lineCustomsTaxes + adjustedTerrestrialTransport + lineCommission + insurance;
@@ -432,14 +492,23 @@ export async function computeFromAgentPrices(
 }
 
 /**
- * Sort and rank offers, apply exchange rate
+ * Sort and rank offers, apply exchange rate, apply client discount if any
  */
 export function finalizeOffers(
   offers: PriceOffer[],
   exchangeRate: number,
   totalContainerCount: number,
-  input: ExtendedCalculatorInput
+  input: ExtendedCalculatorInput,
+  client?: { discount?: number | null }
 ): CalculatorResult {
+  // Apply client discount before sorting
+  if (client?.discount) {
+    offers.forEach((o) => {
+      o.totalPriceUSD = Math.round(o.totalPriceUSD * (1 - client.discount! / 100) * 100) / 100;
+      o.discountApplied = client.discount!;
+    });
+  }
+
   offers.sort((a, b) => a.totalPriceUSD - b.totalPriceUSD);
 
   const top5 = offers.slice(0, 5).map((offer, index) => ({

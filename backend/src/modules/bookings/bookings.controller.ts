@@ -151,6 +151,11 @@ router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
     const pricingData = {
       tarifMaritim: booking.freightPrice ?? 0,
       cheltuieliAditionale: (booking as any).additionalCharges ?? 0,
+      cheltuieliAditionaleLabel: (booking as any).additionalChargesLabel ?? '',
+      cheltuieliAditionale2: (booking as any).additionalCharges2 ?? 0,
+      cheltuieliAditionale2Label: (booking as any).additionalCharges2Label ?? '',
+      cheltuieliAditionale3: (booking as any).additionalCharges3 ?? 0,
+      cheltuieliAditionale3Label: (booking as any).additionalCharges3Label ?? '',
       taxePortuare: booking.portTaxes ?? 0,
       transportTerestru: booking.terrestrialTransport ?? 0,
       taxeVamale: booking.customsTaxes ?? 0,
@@ -287,6 +292,11 @@ router.patch(
         pricingData: {
           tarifMaritim?: number;
           cheltuieliAditionale?: number;
+          cheltuieliAditionaleLabel?: string;
+          cheltuieliAditionale2?: number;
+          cheltuieliAditionale2Label?: string;
+          cheltuieliAditionale3?: number;
+          cheltuieliAditionale3Label?: string;
           taxePortuare?: number;
           transportTerestru?: number;
           taxeVamale?: number;
@@ -302,6 +312,8 @@ router.patch(
       const totalPrice =
         (pricingData.tarifMaritim || 0) +
         (pricingData.cheltuieliAditionale || 0) +
+        (pricingData.cheltuieliAditionale2 || 0) +
+        (pricingData.cheltuieliAditionale3 || 0) +
         (pricingData.taxePortuare || 0) +
         (pricingData.transportTerestru || 0) +
         (pricingData.taxeVamale || 0) +
@@ -310,6 +322,11 @@ router.patch(
       const updateData: any = {
         freightPrice: pricingData.tarifMaritim ?? undefined,
         additionalCharges: pricingData.cheltuieliAditionale ?? undefined,
+        additionalChargesLabel: pricingData.cheltuieliAditionaleLabel ?? undefined,
+        additionalCharges2: pricingData.cheltuieliAditionale2 ?? undefined,
+        additionalCharges2Label: pricingData.cheltuieliAditionale2Label ?? undefined,
+        additionalCharges3: pricingData.cheltuieliAditionale3 ?? undefined,
+        additionalCharges3Label: pricingData.cheltuieliAditionale3Label ?? undefined,
         portTaxes: pricingData.taxePortuare ?? undefined,
         customsTaxes: pricingData.taxeVamale ?? undefined,
         terrestrialTransport: pricingData.transportTerestru ?? undefined,

@@ -347,7 +347,7 @@ model AdminSettings {
   terrestrialTransportOdessa Float @default(550.00) @map("terrestrial_transport_odessa")
 
   // Common costs (USD)
-  customsTaxes         Float @default(150.00) @map("customs_taxes")
+  customsTaxes         Float @default(180.00) @map("customs_taxes")
   commission           Float @default(200.00) @map("commission")
   insuranceCost        Float @default(50.00) @map("insurance_cost") // Standard insurance cost
   profitMarginPercent  Float @default(10.0) @map("profit_margin_percent") // Profit margin %
@@ -503,14 +503,23 @@ model Booking {
   cargoWeight    String   @map("cargo_weight")
   cargoReadyDate DateTime @map("cargo_ready_date")
 
-  // Pricing breakdown
+  // Pricing breakdown — all monetary fields are in USD unless currency overrides
+  currency              String @default("USD") // All prices below are in this currency
   shippingLine          String @map("shipping_line")
   freightPrice          Float  @map("freight_price")
   portTaxes             Float  @map("port_taxes")
   customsTaxes          Float  @map("customs_taxes")
   terrestrialTransport  Float  @map("terrestrial_transport")
   commission            Float  @map("commission")
-  additionalCharges     Float  @default(0) @map("additional_charges")
+  additionalCharges       Float   @default(0) @map("additional_charges")
+  additionalChargesLabel  String? @map("additional_charges_label")
+
+  additionalCharges2      Float   @default(0) @map("additional_charges_2")
+  additionalCharges2Label String? @map("additional_charges_2_label")
+
+  additionalCharges3      Float   @default(0) @map("additional_charges_3")
+  additionalCharges3Label String? @map("additional_charges_3_label")
+
   totalPrice            Float  @map("total_price")
 
   // Additional charges (for detailed invoice)
@@ -623,6 +632,10 @@ model Container {
   additionalCosts  Float?  @default(0) @map("additional_costs") // Demurrage, storage fees
   insuranceActive  Boolean @default(false) @map("insurance_active")
   insuranceDetails String? @map("insurance_details") @db.Text
+  // Bug 22 (FUTURE/OPTIONAL): allocatedPrice — split cost for multi-container bookings.
+  // When a booking has 2+ containers, allocatedPrice = booking.totalPrice / container count.
+  // Not yet implemented in calculator; left as null until pricing module supports per-container split.
+  allocatedPrice   Float?  @map("allocated_price") // USD — per-container allocated cost (optional)
 
   // API source
   apiSource  String?   @map("api_source") // SEARATES, MAERSK_API, MANUAL_ENTRY, EMAIL_PARSING

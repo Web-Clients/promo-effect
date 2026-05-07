@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { User, Booking, BookingStatus, UserRole } from '../types';
@@ -83,7 +83,12 @@ const mapApiToFormState = (apiBooking: BookingResponse): BookingFormState => {
     // Pricing & documents — backend now returns pricingData assembled from raw fields
     pricingData: (apiBooking as any).pricingData ?? {
       tarifMaritim: apiBooking.freightPrice ?? 0,
-      cheltuieliAditionale: apiBooking.additionalCharges ?? 0,
+      cheltuieliAditionale: (apiBooking as any).additionalCharges ?? 0,
+      cheltuieliAditionaleLabel: (apiBooking as any).additionalChargesLabel ?? '',
+      cheltuieliAditionale2: (apiBooking as any).additionalCharges2 ?? 0,
+      cheltuieliAditionale2Label: (apiBooking as any).additionalCharges2Label ?? '',
+      cheltuieliAditionale3: (apiBooking as any).additionalCharges3 ?? 0,
+      cheltuieliAditionale3Label: (apiBooking as any).additionalCharges3Label ?? '',
       taxePortuare: apiBooking.portTaxes ?? 0,
       transportTerestru: apiBooking.terrestrialTransport ?? 0,
       taxeVamale: apiBooking.customsTaxes ?? 0,
@@ -152,12 +157,23 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
 
   // Dynamic port list from PortPricingMatrix (single source of truth)
   const [dynamicOriginPorts, setDynamicOriginPorts] = useState<string[]>(ORIGIN_PORTS);
+  // Dynamic shipping lines from BasePrice (falls back to static constant)
+  const [dynamicShippingLines, setDynamicShippingLines] = useState<string[]>(SHIPPING_LINES);
 
   useEffect(() => {
     calculatorService
       .getAvailablePorts()
       .then((ports) => {
         if (ports.length > 0) setDynamicOriginPorts(ports);
+      })
+      .catch(() => {
+        // Keep static fallback on error
+      });
+
+    calculatorService
+      .getAvailableShippingLines()
+      .then((lines) => {
+        if (lines.length > 0) setDynamicShippingLines(lines);
       })
       .catch(() => {
         // Keep static fallback on error
@@ -462,7 +478,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
               value={bookingData.shipping_line || ''}
               onChange={(e) => setBookingData({ ...bookingData, shipping_line: e.target.value })}
             >
-              {SHIPPING_LINES.map((l) => (
+              {dynamicShippingLines.map((l) => (
                 <option key={l} value={l}>
                   {l}
                 </option>
@@ -696,6 +712,12 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
               type="email"
               value={bookingData.supplierEmail || ''}
               onChange={(e) => setBookingData({ ...bookingData, supplierEmail: e.target.value })}
+              onBlur={(e) => {
+                const val = e.target.value.trim();
+                if (val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+                  addToast('Adresa de email a furnizorului nu este validă', 'error');
+                }
+              }}
               disabled={isReadOnly}
             />
           </div>

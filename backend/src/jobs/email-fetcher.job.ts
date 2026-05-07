@@ -10,6 +10,10 @@
 import cron from 'node-cron';
 import { gmailIntegration } from '../integrations/gmail.integration';
 import { EmailService } from '../modules/emails/email.service';
+import {
+  extractBookingIdFromEmail,
+  processAgentReply,
+} from '../modules/emails/agent-reply-handler';
 import logger from '../utils/logger';
 
 const emailService = new EmailService();
@@ -94,6 +98,37 @@ export function startEmailFetcherJob() {
         try {
           // Small delay between emails to avoid Gemini API rate limits (15 RPM on free tier)
           if (processed > 0) await new Promise((r) => setTimeout(r, 4000));
+
+          // ── Agent reply detection ──────────────────────────────────────────
+          // If the subject (or body prefix) contains a MDPE booking ID, this is
+          // a reply from the China agent referencing an existing order.
+          // Route to the dedicated reply handler instead of the generic parser.
+          const referencedBookingId = extractBookingIdFromEmail(email);
+
+          if (referencedBookingId) {
+            logger.info(
+              `[Email Fetcher] Agent reply detected for booking ${referencedBookingId} (email ${email.id})`
+            );
+            try {
+              await processAgentReply(email, referencedBookingId);
+              await emailService.markEmailProcessed(email.id, 'PROCESSED');
+              created++; // reuse counter: counts "meaningful" processing
+            } catch (replyError) {
+              logger.error(
+                `[Email Fetcher] Agent reply handler failed for ${referencedBookingId}:`,
+                replyError
+              );
+              await emailService.markEmailProcessed(
+                email.id,
+                'FAILED',
+                replyError instanceof Error ? replyError.message : 'Agent reply handler error'
+              );
+              failed++;
+            }
+            processed++;
+            continue; // skip normal email processing below
+          }
+          // ─────────────────────────────────────────────────────────────────
 
           const result = await emailService.processEmail(email, true, 80);
 

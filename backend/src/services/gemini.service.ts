@@ -102,25 +102,35 @@ export async function parseEmailWithGemini(emailContent: string): Promise<Parsed
   }
 
   try {
-    const prompt = `Analizează conținutul următorului email de logistică și extrage informațiile cheie în format JSON.
+    const prompt = `You are a logistics data extraction specialist. Analyze the following shipping email and extract key fields into JSON.
 
-Extrage următoarele câmpuri dacă sunt disponibile:
-- containerNumber: Numărul containerului (format: 4 litere + 7 cifre, ex: MSCU1234567)
-- billOfLading: Numărul Bill of Lading (B/L)
-- vesselName: Numele navei
-- departureDate: Data plecării în format YYYY-MM-DD
-- eta: Data estimată a sosirii (ETA) în format YYYY-MM-DD
-- portOfLoading: Portul de încărcare
-- portOfDischarge: Portul de descărcare
-- shippingLine: Compania de transport (MSC, Maersk, CMA CGM, etc.)
-- cargoDescription: Descrierea mărfii
-- weight: Greutatea în kg sau tone
+CRITICAL RULES — read carefully:
+1. containerNumber: ALWAYS exactly 4 UPPERCASE letters followed by exactly 7 digits. Example: CMAU8850469, MRKU8601423, FFAU2287130. NEVER put a BL number here.
+2. billOfLading: The shipping document reference number. It is NOT a container number. Examples: "ASG 202604078", "MEDUKC298446", "HBL04078", "HLCUTA12506BFWH4". Look for labels: "B/L NO", "BL NO", "HBL", "MBL", "Bill of Lading Number".
+3. These two fields are ALWAYS different values. If you are unsure, OMIT the field rather than guessing.
+4. portOfLoading is the ORIGIN port (usually in China: Shanghai, Ningbo, Qingdao, Shenzhen, Guangzhou, Tianjin, Xiamen, Dalian, Yantian, Nansha, etc.)
+5. portOfDischarge is the DESTINATION port (usually: Constanta, Rotterdam, Hamburg, Piraeus, Odessa, etc.)
+6. Do NOT swap origin and destination — China is origin, Europe/Black Sea is destination.
 
-Răspunde DOAR cu un obiect JSON valid, fără text suplimentar.
-Dacă un câmp nu poate fi găsit, omite-l din răspuns.
-Adaugă un câmp "confidence" cu un scor între 0-100 indicând încrederea în extracție.
+Extract these fields if available:
+- containerNumber: Container number (strictly 4 letters + 7 digits, e.g., CMAU8850469)
+- billOfLading: B/L document number (NOT container number — see rules above)
+- vesselName: Vessel/ship name
+- departureDate: Departure/sailing date in YYYY-MM-DD format
+- eta: Estimated arrival date in YYYY-MM-DD format
+- portOfLoading: Origin port (China)
+- portOfDischarge: Destination port (Europe/Black Sea)
+- shippingLine: Carrier company (MSC, Maersk, CMA CGM, ONE, ASG, PIL, etc.)
+- cargoDescription: Description of goods
+- weight: Gross weight with unit (e.g., "24350KGS", "7.5 tons")
+- containerType: Container size/type (e.g., "40HQ", "20DV", "40HC")
+- freightTerms: "PREPAID" or "COLLECT"
 
-Conținut Email:
+Respond ONLY with a valid JSON object. No extra text.
+Omit any field you cannot find with certainty.
+Add a "confidence" field with a score 0-100.
+
+Email content:
 ---
 ${emailContent}
 ---`;
@@ -159,43 +169,77 @@ export async function parseShippingDocumentWithGemini(
   }
 
   try {
-    const prompt = `You are a logistics data extraction specialist. Analyze the following shipping document text (extracted from a Bill of Lading PDF or Shipping Instruction PDF) and extract ALL available fields.
+    const prompt = `You are a logistics data extraction specialist focused on Bill of Lading parsing. Analyze the following shipping document (extracted from a BL/HBL/MBL PDF) and extract ALL available fields with precision.
 
-IMPORTANT: This is a structured shipping document (HBL/MBL/SI), not a regular email. Extract data precisely.
+═══ CRITICAL FIELD DISTINCTIONS — DO NOT CONFUSE ═══
 
-Extract the following fields into a JSON object:
-- billOfLading: B/L number (may appear as "B/L NO", "HBL", "MBL", "BOOKING NO" — extract ALL reference numbers, separate with " / ")
-- containerNumber: Container number (format: 4 letters + 7 digits, e.g., MSCU1234567). May say "N/M" if not yet assigned — in that case omit this field
-- sealNumber: Seal number(s)
-- vesselName: Ocean vessel name (after "Ocean Vessel" or "M/V")
-- voyageNumber: Voyage number (after "Voy.No." or "Voyage")
-- portOfLoading: Port of Loading
-- portOfDischarge: Port of Discharge
-- shippingLine: Shipping line company (MSC, Maersk, CMA CGM, COSCO, Hapag-Lloyd, ONE, Evergreen, Yang Ming, ZIM, ASG, etc.)
-- containerType: Container type and quantity (e.g., "1x40HQ", "2x20DC")
-- weight: Gross weight with unit (e.g., "7800KGS", "18500KG")
-- volume: Volume/measurement (e.g., "68CBM", "45M3")
-- cargoDescription: Description of goods/commodity
-- packageCount: Number and type of packages (e.g., "390 CARTONS", "150 PALLETS")
-- shipperName: Shipper/Exporter company name
+1. billOfLading (B/L Number):
+   - This is the DOCUMENT identifier printed on the Bill of Lading header
+   - Found after labels: "B/L NO", "B/L NUMBER", "HBL", "MBL", "Bill of Lading No."
+   - Examples: "ASG 202604078", "MEDUKC298446", "HBL04078", "HLCUTA12506BFWH4", "NGP3566733"
+   - Can contain letters and numbers in various combinations
+   - Usually printed prominently at the TOP of the document
+
+2. containerNumber:
+   - STRICTLY: exactly 4 UPPERCASE letters + exactly 7 digits. That is the ONLY valid format.
+   - Examples: CMAU8850469, MRKU8601423, FFAU2287130, HAMU2097764, CAAU6714302
+   - Found in the "Container No." field or "CONTAINER NO." column
+   - If the document says "N/M" (not mentioned) → OMIT this field entirely
+   - NEVER put a BL number in this field. NEVER put a booking reference here.
+
+3. sealNumber:
+   - The seal number is printed alongside or after the container number
+   - Often separated by "/" — e.g., "CMAU8850469/M5174463" → container=CMAU8850469, seal=M5174463
+   - Seal is usually shorter and may be purely numeric or alphanumeric WITHOUT the 4+7 pattern
+
+4. portOfLoading (ORIGIN — always China or Asia):
+   - Look for "Port of Loading", "POL", "Place of Receipt", "Pre-carriage"
+   - China ports: Shanghai, Ningbo, Qingdao, Shenzhen, Guangzhou, Tianjin, Xiamen, Dalian, Yantian, Nansha, Shekou
+   - This is where cargo STARTS its journey
+
+5. portOfDischarge (DESTINATION — Europe/Black Sea):
+   - Look for "Port of Discharge", "POD", "Place of Delivery", "Final Destination"
+   - Destination ports: Constanta (Romania), Rotterdam, Hamburg, Piraeus, Odessa, Giurgiulesti
+   - This is where cargo ARRIVES
+
+6. shippingLine:
+   - The carrier operating the vessel. Can be detected from BL prefix or explicit company name.
+   - ASG prefix → ASG; MED prefix → MSC; HLCU prefix → Hapag-Lloyd; CMDU prefix → CMA CGM
+   - ONE, Maersk, COSCO, Evergreen, OOCL, Yang Ming, ZIM, PIL, Wan Hai, Arkas, KMTC
+
+═══ FIELDS TO EXTRACT ═══
+
+- billOfLading: B/L document number (from B/L NO label at top of document)
+- containerNumber: Container number (STRICT: 4 letters + 7 digits ONLY)
+- sealNumber: Seal number (usually after container number, separated by "/")
+- vesselName: Ocean vessel name (from "Ocean Vessel" or "M/V" field)
+- voyageNumber: Voyage number (from "Voy.No." field)
+- portOfLoading: Port of Loading — ORIGIN (China/Asia)
+- portOfDischarge: Port of Discharge — DESTINATION (Europe)
+- shippingLine: Carrier/shipping line company name
+- containerType: Container type e.g. "1x40HQ", "1x20DV", "2x40HC"
+- weight: Gross weight with unit (e.g., "24350KGS", "7500KG")
+- volume: CBM measurement (e.g., "68CBM")
+- cargoDescription: Description of goods
+- packageCount: Number and type of packages (e.g., "1441 CARTONS")
+- shipperName: Shipper/Exporter company name (Chinese exporter)
 - shipperAddress: Shipper full address
-- consigneeName: Consignee company name (the receiver)
+- consigneeName: Consignee company name (Moldova/Romania receiver)
 - consigneeAddress: Consignee full address
 - notifyPartyName: Notify Party name
 - freightTerms: "PREPAID" or "COLLECT"
 - departureDate: Departure/sailing date in YYYY-MM-DD format
-- eta: Estimated arrival date in YYYY-MM-DD (if available)
 - blDate: Date of B/L issue in YYYY-MM-DD format
-- placeOfIssue: Place of B/L issue (e.g., "SHENZHEN")
-- supplierName: Chinese supplier/shipper contact name (from email signatures)
+- placeOfIssue: Place where B/L was issued
+- supplierName: Supplier/shipper contact name (if from email context)
 - supplierPhone: Phone number of supplier
-- supplierEmail: Email of supplier
+- supplierEmail: Email address of supplier
 
-Respond ONLY with a valid JSON object. No extra text.
-If a field cannot be found, omit it.
-Add a "confidence" field with a score 0-100 indicating extraction confidence.
+Respond ONLY with a valid JSON object. No extra text outside the JSON.
+If a field cannot be found with certainty, OMIT it entirely.
+Add a "confidence" field (0-100) reflecting overall extraction quality.
 
-${emailContext ? `Email context:\n---\n${emailContext.substring(0, 1000)}\n---\n\n` : ''}Document text:
+${emailContext ? `Email context (sender info):\n---\n${emailContext.substring(0, 1000)}\n---\n\n` : ''}Shipping document text:
 ---
 ${pdfText.substring(0, 8000)}
 ---`;

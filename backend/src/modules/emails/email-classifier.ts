@@ -4,7 +4,13 @@
  */
 
 import logger from '../../utils/logger';
-import { ParsedEmail, ExtractedBookingData } from './email.types';
+import {
+  ParsedEmail,
+  ExtractedBookingData,
+  isContainerNumber,
+  isBlNumber,
+  CHINA_PORTS_WHITELIST,
+} from './email.types';
 
 /**
  * Detect whether an email likely contains a telex release.
@@ -55,14 +61,35 @@ ${email.body.substring(0, 5000)}
       return { confidence: 0, extractionMethod: 'AI', rawEmailId: email.id };
     }
 
+    // Validate AI output: enforce BL ≠ container distinction
+    const rawContainer = geminiResult.containerNumber?.trim().toUpperCase();
+    const rawBl = geminiResult.billOfLading?.trim().toUpperCase();
+
+    const validatedContainer =
+      rawContainer && isContainerNumber(rawContainer) ? rawContainer : undefined;
+    const validatedBl = rawBl && isBlNumber(rawBl) && !isContainerNumber(rawBl) ? rawBl : undefined;
+
+    // Validate portOrigin is a known China port (guard against swapped ports)
+    let portOrigin = geminiResult.portOfLoading;
+    let portDestination = geminiResult.portOfDischarge;
+    if (portOrigin && portDestination) {
+      const originUpper = portOrigin.toUpperCase().split(',')[0].trim();
+      const destUpper = portDestination.toUpperCase().split(',')[0].trim();
+      // If origin looks like European port and destination looks like China → swap
+      if (!CHINA_PORTS_WHITELIST.has(originUpper) && CHINA_PORTS_WHITELIST.has(destUpper)) {
+        logger.warn('[AI] Port of Loading/Discharge appear swapped — auto-correcting');
+        [portOrigin, portDestination] = [portDestination, portOrigin];
+      }
+    }
+
     return {
-      containerNumber: geminiResult.containerNumber,
-      blNumber: geminiResult.billOfLading,
+      containerNumber: validatedContainer,
+      blNumber: validatedBl,
       shippingLine: geminiResult.shippingLine,
       vesselName: geminiResult.vesselName,
       voyageNumber: undefined,
-      portOrigin: geminiResult.portOfLoading,
-      portDestination: geminiResult.portOfDischarge,
+      portOrigin,
+      portDestination,
       etd: geminiResult.departureDate ? new Date(geminiResult.departureDate) : undefined,
       eta: geminiResult.eta ? new Date(geminiResult.eta) : undefined,
       containerType: undefined,
@@ -95,14 +122,43 @@ export async function parseShippingDocumentWithAI(
     const result = await geminiService.parseShippingDocumentWithGemini(pdfText, emailContext);
     if (result.error) return null;
 
+    // Validate AI output: enforce strict BL ≠ container distinction
+    const rawContainer = result.containerNumber?.trim().toUpperCase();
+    const rawBl = result.billOfLading?.trim().toUpperCase();
+
+    const validatedContainer =
+      rawContainer && isContainerNumber(rawContainer) ? rawContainer : undefined;
+    const validatedBl = rawBl && isBlNumber(rawBl) && !isContainerNumber(rawBl) ? rawBl : undefined;
+
+    if (rawContainer && !validatedContainer) {
+      logger.warn(`[AI-PDF] Rejected invalid containerNumber from AI: "${rawContainer}"`);
+    }
+    if (rawBl && !validatedBl) {
+      logger.warn(
+        `[AI-PDF] Rejected invalid billOfLading from AI: "${rawBl}" (matches container pattern or invalid)`
+      );
+    }
+
+    // Guard against swapped ports
+    let portOrigin = result.portOfLoading;
+    let portDestination = result.portOfDischarge;
+    if (portOrigin && portDestination) {
+      const originUpper = portOrigin.toUpperCase().split(',')[0].trim();
+      const destUpper = portDestination.toUpperCase().split(',')[0].trim();
+      if (!CHINA_PORTS_WHITELIST.has(originUpper) && CHINA_PORTS_WHITELIST.has(destUpper)) {
+        logger.warn('[AI-PDF] Port of Loading/Discharge appear swapped — auto-correcting');
+        [portOrigin, portDestination] = [portDestination, portOrigin];
+      }
+    }
+
     return {
-      containerNumber: result.containerNumber,
-      blNumber: result.billOfLading,
+      containerNumber: validatedContainer,
+      blNumber: validatedBl,
       shippingLine: result.shippingLine,
       vesselName: result.vesselName,
       voyageNumber: result.voyageNumber,
-      portOrigin: result.portOfLoading,
-      portDestination: result.portOfDischarge,
+      portOrigin,
+      portDestination,
       etd: result.departureDate ? new Date(result.departureDate) : undefined,
       eta: result.eta ? new Date(result.eta) : undefined,
       containerType: result.containerType,

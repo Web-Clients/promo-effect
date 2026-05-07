@@ -9,7 +9,7 @@ import { getErrorMessage } from '../../../utils/formatters';
 
 export interface PricingData {
   tarifMaritim: number;
-  ajustarePort: number;
+  cheltuieliAditionale: number;
   taxePortuare: number;
   transportTerestru: number;
   taxeVamale: number;
@@ -26,7 +26,7 @@ interface BookingPricingPanelProps {
 
 const EMPTY_PRICING: PricingData = {
   tarifMaritim: 0,
-  ajustarePort: 0,
+  cheltuieliAditionale: 0,
   taxePortuare: 0,
   transportTerestru: 0,
   taxeVamale: 0,
@@ -36,7 +36,7 @@ const EMPTY_PRICING: PricingData = {
 function computeTotal(p: PricingData): number {
   return (
     Number(p.tarifMaritim) +
-    Number(p.ajustarePort) +
+    Number(p.cheltuieliAditionale) +
     Number(p.taxePortuare) +
     Number(p.transportTerestru) +
     Number(p.taxeVamale) +
@@ -85,7 +85,7 @@ const BookingPricingPanel: React.FC<BookingPricingPanelProps> = ({
 
   const fields: { key: keyof PricingData; label: string }[] = [
     { key: 'tarifMaritim', label: 'Tarif Maritim' },
-    { key: 'ajustarePort', label: 'Ajustare Port' },
+    { key: 'cheltuieliAditionale', label: 'Cheltuieli Adiționale' },
     { key: 'taxePortuare', label: 'Taxe Portuare' },
     { key: 'transportTerestru', label: 'Transport Terestru' },
     { key: 'taxeVamale', label: 'Taxe Vamale' },

@@ -79,8 +79,15 @@ const mapApiToFormState = (apiBooking: BookingResponse): BookingFormState => {
     trackingVehicleId: apiBooking.trackingVehicleId,
     trackingVehicleName: apiBooking.trackingVehicleName,
     trackingStartedAt: apiBooking.trackingStartedAt,
-    // Pricing & documents
-    pricingData: (apiBooking as any).pricingData ?? null,
+    // Pricing & documents — backend now returns pricingData assembled from raw fields
+    pricingData: (apiBooking as any).pricingData ?? {
+      tarifMaritim: apiBooking.freightPrice ?? 0,
+      cheltuieliAditionale: apiBooking.additionalCharges ?? 0,
+      taxePortuare: apiBooking.portTaxes ?? 0,
+      transportTerestru: apiBooking.terrestrialTransport ?? 0,
+      taxeVamale: apiBooking.customsTaxes ?? 0,
+      comision: apiBooking.commission ?? 0,
+    },
     documents: (apiBooking as any).documents ?? [],
   };
 };
@@ -422,9 +429,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
             <BookingSelect
               disabled={isReadOnly}
               value={bookingData.container_type || ''}
-              onChange={(e) =>
-                setBookingData({ ...bookingData, container_type: e.target.value })
-              }
+              onChange={(e) => setBookingData({ ...bookingData, container_type: e.target.value })}
             >
               {CONTAINER_TYPES.map((t) => (
                 <option key={t} value={t}>
@@ -440,9 +445,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
             <BookingSelect
               disabled={isReadOnly}
               value={bookingData.shipping_line || ''}
-              onChange={(e) =>
-                setBookingData({ ...bookingData, shipping_line: e.target.value })
-              }
+              onChange={(e) => setBookingData({ ...bookingData, shipping_line: e.target.value })}
             >
               {SHIPPING_LINES.map((l) => (
                 <option key={l} value={l}>
@@ -458,9 +461,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
             <Input
               type="text"
               value={bookingData.container_number || ''}
-              onChange={(e) =>
-                setBookingData({ ...bookingData, container_number: e.target.value })
-              }
+              onChange={(e) => setBookingData({ ...bookingData, container_number: e.target.value })}
               className="font-mono"
               disabled={isReadOnly}
               placeholder="Ex: MSCU1234567"
@@ -632,9 +633,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
             <Input
               type="date"
               value={bookingData.cargoReadyDate || ''}
-              onChange={(e) =>
-                setBookingData({ ...bookingData, cargoReadyDate: e.target.value })
-              }
+              onChange={(e) => setBookingData({ ...bookingData, cargoReadyDate: e.target.value })}
               disabled={isReadOnly}
             />
           </div>
@@ -690,9 +689,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
             <Input
               type="text"
               value={bookingData.supplierAddress || ''}
-              onChange={(e) =>
-                setBookingData({ ...bookingData, supplierAddress: e.target.value })
-              }
+              onChange={(e) => setBookingData({ ...bookingData, supplierAddress: e.target.value })}
               disabled={isReadOnly}
             />
           </div>
@@ -728,9 +725,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
               </label>
               <textarea
                 value={bookingData.internalNotes || ''}
-                onChange={(e) =>
-                  setBookingData({ ...bookingData, internalNotes: e.target.value })
-                }
+                onChange={(e) => setBookingData({ ...bookingData, internalNotes: e.target.value })}
                 rows={3}
                 className="w-full mt-1 p-2 bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y"
                 placeholder="Note interne, vizibile doar pentru admin"

@@ -78,6 +78,7 @@ export interface BookingResponse {
   customsTaxes: number;
   terrestrialTransport: number;
   commission: number;
+  additionalCharges: number;
   totalPrice: number;
   supplierName: string | null;
   supplierPhone: string | null;

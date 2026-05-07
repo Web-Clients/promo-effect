@@ -226,6 +226,21 @@ model PortAdjustment {
   @@map("port_adjustments")
 }
 
+// Port pricing matrix — spreadsheet-like, port × container_type → adjustment (USD)
+model PortPricingMatrix {
+  id            String   @id @default(uuid())
+  portName      String   @map("port_name")
+  containerType String   @map("container_type")
+  adjustment    Float    @default(0)
+
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([portName, containerType])
+  @@index([portName])
+  @@map("port_pricing_matrix")
+}
+
 // Ports reference table - managed by admin
 model Port {
   id       String  @id @default(uuid())
@@ -489,13 +504,14 @@ model Booking {
   cargoReadyDate DateTime @map("cargo_ready_date")
 
   // Pricing breakdown
-  shippingLine         String @map("shipping_line")
-  freightPrice         Float  @map("freight_price")
-  portTaxes            Float  @map("port_taxes")
-  customsTaxes         Float  @map("customs_taxes")
-  terrestrialTransport Float  @map("terrestrial_transport")
-  commission           Float  @map("commission")
-  totalPrice           Float  @map("total_price")
+  shippingLine          String @map("shipping_line")
+  freightPrice          Float  @map("freight_price")
+  portTaxes             Float  @map("port_taxes")
+  customsTaxes          Float  @map("customs_taxes")
+  terrestrialTransport  Float  @map("terrestrial_transport")
+  commission            Float  @map("commission")
+  additionalCharges     Float  @default(0) @map("additional_charges")
+  totalPrice            Float  @map("total_price")
 
   // Additional charges (for detailed invoice)
   portTransit        String? @map("port_transit")          // Transit port (e.g., Constanta)
@@ -905,6 +921,28 @@ model AuditLog {
   @@index([userId])
   @@index([entityType, entityId])
   @@map("audit_logs")
+}
+
+// ============================================
+// 3d. LAND TRANSPORT RATES (city × weight → USD price matrix)
+// ============================================
+
+model LandTransportRate {
+  id          String   @id @default(uuid())
+  direction   String   // 'IMPORT' or 'EXPORT'
+  city        String   // 'Chișinău', 'Bălți', etc.
+  weightMin   Float    @map("weight_min")    // 0 for <23, 23 for 23-24, etc.
+  weightMax   Float    @map("weight_max")    // 23, 24, 25, 26, 27, 28
+  weightLabel String   @map("weight_label")  // '<23 mt', '23-24 mt', etc. (display)
+  priceUSD    Float    @map("price_usd")
+  notes       String?                        // 'through Leușeni' for Comrat/Vulcănești
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([direction, city, weightMin, weightMax], name: "direction_city_weightMin_weightMax")
+  @@index([direction, city])
+  @@map("land_transport_rates")
 }
 
 model BackgroundJob {

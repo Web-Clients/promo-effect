@@ -147,7 +147,16 @@ router.get('/stats', authMiddleware, async (req: Request, res: Response) => {
 router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
   try {
     const booking = await bookingsService.findOne(req.params.id, req.user!.userId, req.user!.role);
-    res.json(booking);
+    // Assemble pricingData from raw DB fields so BookingPricingPanel can populate on load
+    const pricingData = {
+      tarifMaritim: booking.freightPrice ?? 0,
+      cheltuieliAditionale: (booking as any).additionalCharges ?? 0,
+      taxePortuare: booking.portTaxes ?? 0,
+      transportTerestru: booking.terrestrialTransport ?? 0,
+      taxeVamale: booking.customsTaxes ?? 0,
+      comision: booking.commission ?? 0,
+    };
+    res.json({ ...booking, pricingData });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to fetch booking';
     if (message.includes('Forbidden')) {
@@ -277,7 +286,7 @@ router.patch(
       const { pricingData } = req.body as {
         pricingData: {
           tarifMaritim?: number;
-          ajustarePort?: number;
+          cheltuieliAditionale?: number;
           taxePortuare?: number;
           transportTerestru?: number;
           taxeVamale?: number;
@@ -292,22 +301,25 @@ router.patch(
       // Map UI fields → Prisma booking fields
       const totalPrice =
         (pricingData.tarifMaritim || 0) +
-        (pricingData.ajustarePort || 0) +
+        (pricingData.cheltuieliAditionale || 0) +
         (pricingData.taxePortuare || 0) +
         (pricingData.transportTerestru || 0) +
         (pricingData.taxeVamale || 0) +
         (pricingData.comision || 0);
 
+      const updateData: any = {
+        freightPrice: pricingData.tarifMaritim ?? undefined,
+        additionalCharges: pricingData.cheltuieliAditionale ?? undefined,
+        portTaxes: pricingData.taxePortuare ?? undefined,
+        customsTaxes: pricingData.taxeVamale ?? undefined,
+        terrestrialTransport: pricingData.transportTerestru ?? undefined,
+        commission: pricingData.comision ?? undefined,
+        totalPrice,
+      };
+
       const updated = await prisma.booking.update({
         where: { id: req.params.id },
-        data: {
-          freightPrice: pricingData.tarifMaritim ?? undefined,
-          portTaxes: pricingData.taxePortuare ?? undefined,
-          customsTaxes: pricingData.taxeVamale ?? undefined,
-          terrestrialTransport: pricingData.transportTerestru ?? undefined,
-          commission: pricingData.comision ?? undefined,
-          totalPrice,
-        },
+        data: updateData,
       });
 
       // Audit log
@@ -430,6 +442,14 @@ router.get('/:id/payment-invoice.pdf', authMiddleware, async (req: Request, res:
         quantity: 1,
         unitPrice: booking.commission,
         total: booking.commission,
+      });
+    }
+    if ((booking as any).additionalCharges > 0) {
+      lineItems.push({
+        description: 'Cheltuieli adiționale',
+        quantity: 1,
+        unitPrice: (booking as any).additionalCharges,
+        total: (booking as any).additionalCharges,
       });
     }
     if (lineItems.length === 0) {

@@ -286,7 +286,24 @@
     "paginationNext": "Următor",
     "countSingular": "rezervare",
     "countPlural": "rezervări",
-    "ofTotal": "din {{total}} total"
+    "ofTotal": "din {{total}} total",
+    "actions": {
+      "print": "Tipărește",
+      "transportOrder": "Comandă Transport",
+      "paymentInvoice": "Cont de Plată",
+      "generating": "Se generează...",
+      "submitRequest": "Trimite Cererea",
+      "saveChanges": "Salvează Modificările",
+      "transportDownloaded": "Comanda de transport a fost descărcată",
+      "transportError": "Eroare la generarea comenzii de transport",
+      "invoiceDownloaded": "Contul de plată a fost descărcat",
+      "invoiceError": "Eroare la generarea contului de plată"
+    },
+    "pricing": {
+      "saveSuccess": "Prețuri salvate cu succes",
+      "saveError": "Eroare la salvarea prețurilor",
+      "savePrice": "Salvează Prețul"
+    }
   },
   "tracking": {
     "title": "Urmărire Containere",
@@ -649,5 +666,61 @@
       "syncStarted": "Sincronizare în curs...",
       "syncCompleted": "Sincronizare completă"
     }
+  },
+  "agents": {
+    "errorLoading": "Eroare la încărcarea agenților",
+    "errorSaving": "Eroare la salvarea agentului",
+    "errorDeleting": "Eroare la ștergerea agentului",
+    "errorUpdatingStatus": "Eroare la actualizarea statusului",
+    "updated": "Agentul a fost actualizat",
+    "created": "Agentul a fost creat",
+    "deactivated": "Agentul a fost dezactivat",
+    "deactivateConfirm": "Sigur doriți să dezactivați agentul {{company}}?",
+    "statusChanged": "Statusul agentului a fost schimbat la {{status}}",
+    "editTitle": "Editare Agent",
+    "newTitle": "Agent Nou",
+    "noAgents": "Nu există agenți înregistrați.",
+    "addAgent": "Adaugă agent",
+    "prices": {
+      "deleteTitle": "Ștergeți prețul?",
+      "deleteConfirm": "Sigur doriți să ștergeți acest preț?",
+      "deleted": "Prețul a fost șters",
+      "updated": "Prețul a fost actualizat",
+      "created": "Prețul a fost creat",
+      "addNew": "+ Adaugă Preț Nou",
+      "noPrices": "Acest agent nu are prețuri definite.",
+      "backToList": "Înapoi la listă",
+      "editTitle": "Editare Preț",
+      "addTitle": "Adăugare Preț Nou"
+    }
+  },
+  "transportRates": {
+    "updated": "Rată actualizată cu succes",
+    "created": "Rată adăugată cu succes",
+    "deleted": "Rată ștearsă",
+    "deleteTitle": "Ștergeți rata?",
+    "editTitle": "Editare Rată",
+    "addTitle": "Adăugare Rată Nouă"
+  },
+  "resetPassword": {
+    "title": "Resetează parola",
+    "subtitle": "Introdu noua ta parolă mai jos.",
+    "missingToken": "Token de resetare lipsă sau invalid",
+    "failed": "Resetarea parolei a eșuat. Token-ul poate fi expirat.",
+    "invalidLink": "Link invalid",
+    "invalidLinkDesc": "Link-ul de resetare a parolei este invalid sau a expirat.",
+    "requestNewLink": "Solicită un nou link",
+    "successTitle": "Parolă resetată cu succes!",
+    "successDesc": "Noua ta parolă a fost setată. Acum te poți autentifica.",
+    "processing": "Se procesează..."
+  },
+  "adminSettings": {
+    "connectionSuccess": "Conexiunea {{service}} a fost testată cu succes!",
+    "connectionFailed": "Conexiunea {{service}} a eșuat.",
+    "copiedToClipboard": "Copiat în clipboard!",
+    "saved": "Setările au fost salvate!",
+    "gmailFillRequired": "Completați adresa Gmail și App Password.",
+    "gmailSaved": "Configurație Gmail salvată cu succes!",
+    "gmailSaveError": "Eroare la salvarea configurației Gmail."
   }
 }

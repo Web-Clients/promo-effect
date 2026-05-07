@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '../../ui/Button';
 import { useToast } from '../../ui/Toast';
 import { api } from '../../../services/api';
@@ -38,6 +39,7 @@ const BookingActions: React.FC<BookingActionsProps> = ({
   onBack,
   onPrint,
 }) => {
+  const { t } = useTranslation();
   const { addToast } = useToast();
   const [loadingTransport, setLoadingTransport] = useState(false);
   const [loadingInvoice, setLoadingInvoice] = useState(false);
@@ -50,9 +52,9 @@ const BookingActions: React.FC<BookingActionsProps> = ({
         `/bookings/${bookingId}/transport-order.pdf`,
         `comanda-transport-${bookingId}.pdf`
       );
-      addToast('Comanda de transport a fost descărcată', 'success');
+      addToast(t('bookings.actions.transportDownloaded'), 'success');
     } catch (err) {
-      addToast(getErrorMessage(err, 'Eroare la generarea comenzii de transport'), 'error');
+      addToast(getErrorMessage(err, t('bookings.actions.transportError')), 'error');
     } finally {
       setLoadingTransport(false);
     }
@@ -66,9 +68,9 @@ const BookingActions: React.FC<BookingActionsProps> = ({
         `/bookings/${bookingId}/payment-invoice.pdf`,
         `cont-plata-${bookingId}.pdf`
       );
-      addToast('Contul de plată a fost descărcat', 'success');
+      addToast(t('bookings.actions.invoiceDownloaded'), 'success');
     } catch (err) {
-      addToast(getErrorMessage(err, 'Eroare la generarea contului de plată'), 'error');
+      addToast(getErrorMessage(err, t('bookings.actions.invoiceError')), 'error');
     } finally {
       setLoadingInvoice(false);
     }
@@ -81,20 +83,20 @@ const BookingActions: React.FC<BookingActionsProps> = ({
         {!isReadOnly && (
           <>
             <Button type="button" variant="secondary" onClick={onBack}>
-              Anulează
+              {t('actions.cancel')}
             </Button>
             <Button type="submit" disabled={isSubmitting} loading={isSubmitting}>
               {isSubmitting
-                ? 'Se salvează...'
+                ? t('actions.saving')
                 : isNew
-                  ? 'Trimite Cererea'
-                  : 'Salvează Modificările'}
+                  ? t('bookings.actions.submitRequest')
+                  : t('bookings.actions.saveChanges')}
             </Button>
           </>
         )}
         {isReadOnly && (
           <Button type="button" variant="secondary" onClick={onBack}>
-            Înapoi
+            {t('actions.back')}
           </Button>
         )}
       </div>
@@ -123,7 +125,7 @@ const BookingActions: React.FC<BookingActionsProps> = ({
                 d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
               />
             </svg>
-            Tipărește
+            {t('bookings.actions.print')}
           </Button>
 
           {/* Comanda Transport PDF */}
@@ -151,7 +153,9 @@ const BookingActions: React.FC<BookingActionsProps> = ({
                 />
               </svg>
             )}
-            {loadingTransport ? 'Se generează...' : 'Comandă Transport'}
+            {loadingTransport
+              ? t('bookings.actions.generating')
+              : t('bookings.actions.transportOrder')}
           </Button>
 
           {/* Cont de Plată PDF */}
@@ -179,7 +183,9 @@ const BookingActions: React.FC<BookingActionsProps> = ({
                 />
               </svg>
             )}
-            {loadingInvoice ? 'Se generează...' : 'Cont de Plată'}
+            {loadingInvoice
+              ? t('bookings.actions.generating')
+              : t('bookings.actions.paymentInvoice')}
           </Button>
         </div>
       )}

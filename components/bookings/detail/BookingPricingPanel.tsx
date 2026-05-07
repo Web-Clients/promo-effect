@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card } from '../../ui/Card';
 import { Button } from '../../ui/Button';
 import { Input } from '../../ui/Input';
@@ -50,6 +51,7 @@ const BookingPricingPanel: React.FC<BookingPricingPanelProps> = ({
   mdlRate = 18,
   onSaved,
 }) => {
+  const { t } = useTranslation();
   const { addToast } = useToast();
   const [pricing, setPricing] = useState<PricingData>(initialPricingData ?? EMPTY_PRICING);
   const [isSaving, setIsSaving] = useState(false);
@@ -72,10 +74,10 @@ const BookingPricingPanel: React.FC<BookingPricingPanelProps> = ({
     setIsSaving(true);
     try {
       await api.patch(`/bookings/${bookingId}/pricing`, { pricingData: pricing });
-      addToast('Prețuri salvate cu succes', 'success');
+      addToast(t('bookings.pricing.saveSuccess'), 'success');
       onSaved?.(pricing);
     } catch (err) {
-      addToast(getErrorMessage(err, 'Eroare la salvarea prețurilor'), 'error');
+      addToast(getErrorMessage(err, t('bookings.pricing.saveError')), 'error');
     } finally {
       setIsSaving(false);
     }
@@ -100,10 +102,20 @@ const BookingPricingPanel: React.FC<BookingPricingPanelProps> = ({
         {totalUSD > 0 ? (
           <div className="space-y-1">
             <p className="text-3xl font-bold text-primary-700 dark:text-primary-400">
-              ${totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+              $
+              {totalUSD.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}{' '}
+              USD
             </p>
             <p className="text-sm text-neutral-500 dark:text-neutral-400">
-              ≈ {totalMDL.toLocaleString('ro-MD', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} MDL
+              ≈{' '}
+              {totalMDL.toLocaleString('ro-MD', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+              })}{' '}
+              MDL
               <span className="ml-1 text-xs text-neutral-400">(curs {mdlRate} MDL/USD)</span>
             </p>
           </div>
@@ -146,18 +158,30 @@ const BookingPricingPanel: React.FC<BookingPricingPanelProps> = ({
         <div className="flex justify-between items-center">
           <span className="text-sm text-neutral-600 dark:text-neutral-400">Total USD</span>
           <span className="text-xl font-bold text-primary-700 dark:text-primary-400">
-            ${totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            $
+            {totalUSD.toLocaleString('en-US', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
           </span>
         </div>
         <div className="flex justify-between items-center text-sm text-neutral-500 dark:text-neutral-400">
-          <span>Total MDL <span className="text-xs">(curs {mdlRate})</span></span>
-          <span>{totalMDL.toLocaleString('ro-MD', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} MDL</span>
+          <span>
+            Total MDL <span className="text-xs">(curs {mdlRate})</span>
+          </span>
+          <span>
+            {totalMDL.toLocaleString('ro-MD', {
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            })}{' '}
+            MDL
+          </span>
         </div>
       </div>
 
       <div className="mt-4 flex justify-end">
         <Button onClick={handleSave} disabled={isSaving} loading={isSaving}>
-          {isSaving ? 'Se salvează...' : 'Salvează Prețul'}
+          {isSaving ? t('actions.saving') : t('bookings.pricing.savePrice')}
         </Button>
       </div>
     </Card>

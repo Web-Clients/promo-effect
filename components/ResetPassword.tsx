@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import authService from '../services/auth';
 import { getErrorMessage } from '../utils/formatters';
 
 const ResetPassword = () => {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
 
@@ -42,17 +44,17 @@ const ResetPassword = () => {
     setError('');
 
     if (!isPasswordValid) {
-      setError('Parola nu îndeplinește cerințele de securitate');
+      setError(t('auth.passwordRequirements'));
       return;
     }
 
     if (!passwordsMatch) {
-      setError('Parolele nu coincid');
+      setError(t('auth.passwordsNotMatch'));
       return;
     }
 
     if (!token) {
-      setError('Token de resetare lipsă sau invalid');
+      setError(t('resetPassword.missingToken'));
       return;
     }
 
@@ -62,7 +64,7 @@ const ResetPassword = () => {
       await authService.resetPassword(token, newPassword);
       setIsSuccess(true);
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Resetarea parolei a eșuat. Token-ul poate fi expirat.'));
+      setError(getErrorMessage(err, t('resetPassword.failed')));
     } finally {
       setIsLoading(false);
     }
@@ -88,13 +90,15 @@ const ResetPassword = () => {
               />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-primary-800 dark:text-white mb-2">Link invalid</h2>
+          <h2 className="text-2xl font-bold text-primary-800 dark:text-white mb-2">
+            {t('resetPassword.invalidLink')}
+          </h2>
           <p className="text-neutral-600 dark:text-neutral-400 mb-6">
-            Link-ul de resetare a parolei este invalid sau a expirat.
+            {t('resetPassword.invalidLinkDesc')}
           </p>
           <Link to="/forgot-password">
             <Button variant="primary" className="w-full">
-              Solicită un nou link
+              {t('resetPassword.requestNewLink')}
             </Button>
           </Link>
         </div>
@@ -123,14 +127,14 @@ const ResetPassword = () => {
             </svg>
           </div>
           <h2 className="text-2xl font-bold text-primary-800 dark:text-white mb-2">
-            Parolă resetată cu succes!
+            {t('resetPassword.successTitle')}
           </h2>
           <p className="text-neutral-600 dark:text-neutral-400 mb-6">
-            Noua ta parolă a fost setată. Acum te poți autentifica.
+            {t('resetPassword.successDesc')}
           </p>
           <Link to="/login">
             <Button variant="primary" className="w-full">
-              Mergi la autentificare
+              {t('auth.goToLogin')}
             </Button>
           </Link>
         </div>
@@ -169,9 +173,9 @@ const ResetPassword = () => {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-primary-800 dark:text-white mb-2">
-            Resetează parola
+            {t('resetPassword.title')}
           </h1>
-          <p className="text-neutral-600 dark:text-neutral-400">Introdu noua ta parolă mai jos.</p>
+          <p className="text-neutral-600 dark:text-neutral-400">{t('resetPassword.subtitle')}</p>
         </div>
 
         {/* Form */}
@@ -184,7 +188,7 @@ const ResetPassword = () => {
 
           <div className="space-y-2">
             <label className="block text-sm font-medium text-primary-800 dark:text-neutral-200">
-              Parolă nouă
+              {t('auth.newPassword')}
             </label>
             <Input
               type="password"
@@ -197,17 +201,17 @@ const ResetPassword = () => {
 
             {/* Password strength indicators */}
             <div className="grid grid-cols-2 gap-2 mt-3">
-              <PasswordCheck passed={passwordChecks.length} label="Min. 8 caractere" />
-              <PasswordCheck passed={passwordChecks.uppercase} label="O literă mare" />
-              <PasswordCheck passed={passwordChecks.lowercase} label="O literă mică" />
-              <PasswordCheck passed={passwordChecks.number} label="O cifră" />
-              <PasswordCheck passed={passwordChecks.special} label="Un caracter special" />
+              <PasswordCheck passed={passwordChecks.length} label={t('auth.minChars')} />
+              <PasswordCheck passed={passwordChecks.uppercase} label={t('auth.uppercase')} />
+              <PasswordCheck passed={passwordChecks.lowercase} label={t('auth.lowercase')} />
+              <PasswordCheck passed={passwordChecks.number} label={t('auth.number')} />
+              <PasswordCheck passed={passwordChecks.special} label={t('auth.specialChar')} />
             </div>
           </div>
 
           <div className="space-y-2">
             <label className="block text-sm font-medium text-primary-800 dark:text-neutral-200">
-              Confirmă parola
+              {t('auth.confirmPassword')}
             </label>
             <Input
               type="password"
@@ -235,7 +239,7 @@ const ResetPassword = () => {
                         d="M4.5 12.75l6 6 9-13.5"
                       />
                     </svg>
-                    Parolele coincid
+                    {t('auth.passwordsMatch')}
                   </>
                 ) : (
                   <>
@@ -248,7 +252,7 @@ const ResetPassword = () => {
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
-                    Parolele nu coincid
+                    {t('auth.passwordsNotMatch')}
                   </>
                 )}
               </div>
@@ -279,10 +283,10 @@ const ResetPassword = () => {
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                   />
                 </svg>
-                Se procesează...
+                {t('resetPassword.processing')}
               </span>
             ) : (
-              'Resetează parola'
+              t('auth.resetPassword')
             )}
           </Button>
 
@@ -291,7 +295,7 @@ const ResetPassword = () => {
               to="/login"
               className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
             >
-              ← Înapoi la autentificare
+              {t('auth.backToLogin')}
             </Link>
           </div>
         </form>

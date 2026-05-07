@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { SystemSettings } from '../types';
 import { Card } from './ui/Card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/Tabs';
@@ -176,6 +177,7 @@ function formatRelative(dateStr: string | null | undefined): string {
 // ── Main component ────────────────────────────────────────────────────
 
 const AdminSettingsPage = () => {
+  const { t } = useTranslation();
   const [settings, setSettings] = useState<SystemSettings>(mockSettings);
   const [testResults, setTestResults] = useState<Record<string, 'success' | 'error' | 'pending'>>(
     {}
@@ -225,27 +227,27 @@ const AdminSettingsPage = () => {
     const success = Math.random() > 0.3;
     if (success) {
       setTestResults((prev) => ({ ...prev, [service]: 'success' }));
-      addToast(`Conexiunea ${service} a fost testată cu succes!`, 'success');
+      addToast(t('adminSettings.connectionSuccess', { service }), 'success');
     } else {
       setTestResults((prev) => ({ ...prev, [service]: 'error' }));
-      addToast(`Conexiunea ${service} a eșuat.`, 'error');
+      addToast(t('adminSettings.connectionFailed', { service }), 'error');
     }
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    addToast('Copiat în clipboard!', 'success');
+    addToast(t('adminSettings.copiedToClipboard'), 'success');
   };
 
   const saveSettings = () => {
-    addToast('Setările au fost salvate!', 'success');
+    addToast(t('adminSettings.saved'), 'success');
   };
 
   // ── Gmail handlers ────────────────────────────────────────────────
 
   const handleGmailSave = async () => {
     if (!gmailEmail || !gmailPassword) {
-      addToast('Completați adresa Gmail și App Password.', 'error');
+      addToast(t('adminSettings.gmailFillRequired'), 'error');
       return;
     }
     setGmailSaving(true);
@@ -253,9 +255,9 @@ const AdminSettingsPage = () => {
       const updated = await configureGmail({ email: gmailEmail, appPassword: gmailPassword });
       setGmailConfig(updated);
       setGmailPassword('');
-      addToast('Configurație Gmail salvată cu succes!', 'success');
+      addToast(t('adminSettings.gmailSaved'), 'success');
     } catch (err: any) {
-      addToast(err?.message || 'Eroare la salvarea configurației Gmail.', 'error');
+      addToast(err?.message || t('adminSettings.gmailSaveError'), 'error');
     } finally {
       setGmailSaving(false);
     }
@@ -281,7 +283,7 @@ const AdminSettingsPage = () => {
 
   const handleGmailSync = async () => {
     setGmailSyncing(true);
-    addToast('Sincronizare în curs...', 'info');
+    addToast(t('settings.gmail.syncStarted'), 'info');
     try {
       const result = await syncGmailNow();
       // Refresh config to get updated lastFetchAt

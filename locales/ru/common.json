@@ -286,7 +286,24 @@
     "paginationNext": "Далее",
     "countSingular": "бронирование",
     "countPlural": "бронирований",
-    "ofTotal": "из {{total}} всего"
+    "ofTotal": "из {{total}} всего",
+    "actions": {
+      "print": "Печать",
+      "transportOrder": "Заказ транспорта",
+      "paymentInvoice": "Счёт на оплату",
+      "generating": "Генерируется...",
+      "submitRequest": "Отправить заявку",
+      "saveChanges": "Сохранить изменения",
+      "transportDownloaded": "Заказ транспорта скачан",
+      "transportError": "Ошибка при создании заказа транспорта",
+      "invoiceDownloaded": "Счёт на оплату скачан",
+      "invoiceError": "Ошибка при создании счёта на оплату"
+    },
+    "pricing": {
+      "saveSuccess": "Цены успешно сохранены",
+      "saveError": "Ошибка при сохранении цен",
+      "savePrice": "Сохранить цену"
+    }
   },
   "tracking": {
     "title": "Отслеживание контейнеров",
@@ -649,5 +666,61 @@
       "syncStarted": "Синхронизация...",
       "syncCompleted": "Синхронизация завершена"
     }
+  },
+  "agents": {
+    "errorLoading": "Ошибка загрузки агентов",
+    "errorSaving": "Ошибка сохранения агента",
+    "errorDeleting": "Ошибка удаления агента",
+    "errorUpdatingStatus": "Ошибка обновления статуса",
+    "updated": "Агент обновлён",
+    "created": "Агент создан",
+    "deactivated": "Агент деактивирован",
+    "deactivateConfirm": "Вы уверены, что хотите деактивировать агента {{company}}?",
+    "statusChanged": "Статус агента изменён на {{status}}",
+    "editTitle": "Редактировать агента",
+    "newTitle": "Новый агент",
+    "noAgents": "Зарегистрированных агентов нет.",
+    "addAgent": "Добавить агента",
+    "prices": {
+      "deleteTitle": "Удалить цену?",
+      "deleteConfirm": "Вы уверены, что хотите удалить эту цену?",
+      "deleted": "Цена удалена",
+      "updated": "Цена обновлена",
+      "created": "Цена создана",
+      "addNew": "+ Добавить новую цену",
+      "noPrices": "У этого агента нет определённых цен.",
+      "backToList": "Назад к списку",
+      "editTitle": "Редактировать цену",
+      "addTitle": "Добавить новую цену"
+    }
+  },
+  "transportRates": {
+    "updated": "Тариф успешно обновлён",
+    "created": "Тариф успешно добавлен",
+    "deleted": "Тариф удалён",
+    "deleteTitle": "Удалить тариф?",
+    "editTitle": "Редактировать тариф",
+    "addTitle": "Добавить новый тариф"
+  },
+  "resetPassword": {
+    "title": "Сбросить пароль",
+    "subtitle": "Введите ваш новый пароль ниже.",
+    "missingToken": "Токен сброса отсутствует или недействителен",
+    "failed": "Сброс пароля не удался. Токен мог устареть.",
+    "invalidLink": "Недействительная ссылка",
+    "invalidLinkDesc": "Ссылка для сброса пароля недействительна или истекла.",
+    "requestNewLink": "Запросить новую ссылку",
+    "successTitle": "Пароль успешно сброшен!",
+    "successDesc": "Ваш новый пароль установлен. Теперь вы можете войти.",
+    "processing": "Обработка..."
+  },
+  "adminSettings": {
+    "connectionSuccess": "Подключение {{service}} успешно проверено!",
+    "connectionFailed": "Подключение {{service}} не удалось.",
+    "copiedToClipboard": "Скопировано в буфер обмена!",
+    "saved": "Настройки сохранены!",
+    "gmailFillRequired": "Заполните адрес Gmail и пароль приложения.",
+    "gmailSaved": "Конфигурация Gmail успешно сохранена!",
+    "gmailSaveError": "Ошибка при сохранении конфигурации Gmail."
   }
 }

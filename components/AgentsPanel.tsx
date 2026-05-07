@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getErrorMessage } from '../utils/formatters';
 import {
   getAgents,
@@ -21,6 +22,7 @@ import { AgentPriceManager } from './AgentPriceManager';
 import { EyeIcon, EyeOffIcon, XIcon, SearchIcon } from './icons';
 
 export function AgentsPanel() {
+  const { t } = useTranslation();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [stats, setStats] = useState<AgentStats | null>(null);
   const [loading, setLoading] = useState(false);
@@ -56,7 +58,7 @@ export function AgentsPanel() {
       const data = await getAgents(filters);
       setAgents(data);
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Eroare la încărcarea agenților'));
+      setError(getErrorMessage(err, t('agents.errorLoading')));
     } finally {
       setLoading(false);
     }
@@ -105,10 +107,10 @@ export function AgentsPanel() {
           phone: formData.phone || undefined,
         };
         await updateAgent(editingAgent.id, updateData);
-        showMessage('Agentul a fost actualizat');
+        showMessage(t('agents.updated'));
       } else {
         await createAgent(formData);
-        showMessage('Agentul a fost creat');
+        showMessage(t('agents.created'));
       }
 
       setShowForm(false);
@@ -117,7 +119,7 @@ export function AgentsPanel() {
       loadAgents();
       loadStats();
     } catch (err: unknown) {
-      showMessage(getErrorMessage(err, 'Eroare la salvarea agentului'), true);
+      showMessage(getErrorMessage(err, t('agents.errorSaving')), true);
     } finally {
       setLoading(false);
     }
@@ -138,16 +140,16 @@ export function AgentsPanel() {
   };
 
   const handleDelete = async (agent: Agent) => {
-    if (!confirm(`Sigur doriți să dezactivați agentul ${agent.company}?`)) return;
+    if (!confirm(t('agents.deactivateConfirm', { company: agent.company }))) return;
 
     setLoading(true);
     try {
       await deleteAgent(agent.id);
-      showMessage('Agentul a fost dezactivat');
+      showMessage(t('agents.deactivated'));
       loadAgents();
       loadStats();
     } catch (err: unknown) {
-      showMessage(getErrorMessage(err, 'Eroare la ștergerea agentului'), true);
+      showMessage(getErrorMessage(err, t('agents.errorDeleting')), true);
     } finally {
       setLoading(false);
     }
@@ -160,11 +162,11 @@ export function AgentsPanel() {
     setLoading(true);
     try {
       await updateAgent(agent.id, { status: newStatus });
-      showMessage(`Statusul agentului a fost schimbat la ${newStatus}`);
+      showMessage(t('agents.statusChanged', { status: newStatus }));
       loadAgents();
       loadStats();
     } catch (err: unknown) {
-      showMessage(getErrorMessage(err, 'Eroare la actualizarea statusului'), true);
+      showMessage(getErrorMessage(err, t('agents.errorUpdatingStatus')), true);
     } finally {
       setLoading(false);
     }
@@ -289,7 +291,7 @@ export function AgentsPanel() {
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <h2 className="text-xl font-bold mb-4">
-                {editingAgent ? 'Editare Agent' : 'Agent Nou'}
+                {editingAgent ? t('agents.editTitle') : t('agents.newTitle')}
               </h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -411,14 +413,14 @@ export function AgentsPanel() {
                     }}
                     className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                   >
-                    Anulează
+                    {t('actions.cancel')}
                   </button>
                   <button
                     type="submit"
                     disabled={loading}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                   >
-                    {loading ? 'Se salvează...' : 'Salvează'}
+                    {loading ? t('actions.saving') : t('actions.save')}
                   </button>
                 </div>
               </form>
@@ -466,19 +468,19 @@ export function AgentsPanel() {
               {loading && agents.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
-                    Se încarcă...
+                    {t('common.loading')}
                   </td>
                 </tr>
               ) : agents.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-4 py-12 text-center text-gray-500">
-                    <p className="mb-3">Nu există agenți înregistrați.</p>
+                    <p className="mb-3">{t('agents.noAgents')}</p>
                     <button
                       type="button"
                       onClick={() => setShowForm(true)}
                       className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
                     >
-                      Adaugă agent
+                      {t('agents.addAgent')}
                     </button>
                   </td>
                 </tr>

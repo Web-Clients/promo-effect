@@ -80,15 +80,15 @@ export function AgentPriceManager({ agent, onClose }: Props) {
 
   const handleDelete = async (priceId: string) => {
     const ok = await confirmDialog({
-      title: 'Ștergeți prețul?',
-      message: 'Sigur doriți să ștergeți acest preț?',
+      title: t('agents.prices.deleteTitle'),
+      message: t('agents.prices.deleteConfirm'),
       variant: 'danger',
-      confirmText: 'Șterge',
+      confirmText: t('actions.delete'),
     });
     if (!ok) return;
     try {
       await deleteAgentPrice(agent.id, priceId);
-      addToast('Prețul a fost șters', 'success');
+      addToast(t('agents.prices.deleted'), 'success');
       loadPrices();
     } catch (err: unknown) {
       addToast(getErrorMessage(err, t('errors.deleting')), 'error');
@@ -100,10 +100,10 @@ export function AgentPriceManager({ agent, onClose }: Props) {
     try {
       if (editingPrice) {
         await updateAgentPrice(agent.id, editingPrice.id, formData);
-        addToast('Prețul a fost actualizat', 'success');
+        addToast(t('agents.prices.updated'), 'success');
       } else {
         await createAgentPrice(agent.id, formData);
-        addToast('Prețul a fost creat', 'success');
+        addToast(t('agents.prices.created'), 'success');
       }
       setShowForm(false);
       setEditingPrice(null);
@@ -158,15 +158,15 @@ export function AgentPriceManager({ agent, onClose }: Props) {
               <>
                 <div className="flex justify-end mb-4">
                   <Button variant="accent" onClick={resetForm}>
-                    + Adaugă Preț Nou
+                    {t('agents.prices.addNew')}
                   </Button>
                 </div>
 
                 {loading ? (
-                  <div className="text-center py-10">Se încarcă...</div>
+                  <div className="text-center py-10">{t('common.loading')}</div>
                 ) : prices.length === 0 ? (
                   <div className="text-center py-10 text-neutral-500">
-                    Acest agent nu are prețuri definite.
+                    {t('agents.prices.noPrices')}
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -263,11 +263,11 @@ export function AgentPriceManager({ agent, onClose }: Props) {
                   className="flex items-center gap-2 mb-6 cursor-pointer text-neutral-500 hover:text-primary-800"
                   onClick={() => setShowForm(false)}
                 >
-                  ← Înapoi la listă
+                  ← {t('agents.prices.backToList')}
                 </div>
 
                 <h3 className="text-lg font-bold mb-4">
-                  {editingPrice ? 'Editare Preț' : 'Adăugare Preț Nou'}
+                  {editingPrice ? t('agents.prices.editTitle') : t('agents.prices.addTitle')}
                 </h3>
 
                 <form onSubmit={handleSubmit} className="space-y-4">

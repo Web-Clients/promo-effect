@@ -128,10 +128,10 @@ export default function TransportRatesPage() {
     try {
       if (editingId) {
         await shippingLinesService.updateTransportRate(editingId, formData);
-        setSuccess('Rată actualizată cu succes');
+        setSuccess(t('transportRates.updated'));
       } else {
         await shippingLinesService.createTransportRate(formData);
-        setSuccess('Rată adăugată cu succes');
+        setSuccess(t('transportRates.created'));
       }
       setShowForm(false);
       setEditingId(null);
@@ -157,15 +157,18 @@ export default function TransportRatesPage() {
 
   const handleDelete = async (item: TransportRate) => {
     const ok = await confirmDialog({
-      title: 'Ștergeți rata?',
-      message: `Sigur doriți să ștergeți rata ${item.containerType} / ${item.weightRange}?`,
+      title: t('transportRates.deleteTitle'),
+      message: t('confirmations.deleteTransportRate', {
+        container: item.containerType,
+        weightRange: item.weightRange,
+      }),
       variant: 'danger',
-      confirmText: 'Șterge',
+      confirmText: t('actions.delete'),
     });
     if (!ok) return;
     try {
       await shippingLinesService.deleteTransportRate(item.id);
-      setSuccess('Rată ștearsă');
+      setSuccess(t('transportRates.deleted'));
       loadData();
     } catch (err: unknown) {
       setError(getErrorMessage(err, t('errors.deleting')));
@@ -303,7 +306,7 @@ export default function TransportRatesPage() {
       {showForm && (
         <div className="bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-700 p-6">
           <h3 className="text-lg font-semibold text-primary-800 dark:text-white mb-4">
-            {editingId ? 'Editare Rată' : 'Adăugare Rată Nouă'}
+            {editingId ? t('transportRates.editTitle') : t('transportRates.addTitle')}
           </h3>
           <form
             onSubmit={handleSubmit}

@@ -286,7 +286,24 @@
     "paginationNext": "Next",
     "countSingular": "booking",
     "countPlural": "bookings",
-    "ofTotal": "of {{total}} total"
+    "ofTotal": "of {{total}} total",
+    "actions": {
+      "print": "Print",
+      "transportOrder": "Transport Order",
+      "paymentInvoice": "Payment Invoice",
+      "generating": "Generating...",
+      "submitRequest": "Submit Request",
+      "saveChanges": "Save Changes",
+      "transportDownloaded": "Transport order downloaded",
+      "transportError": "Error generating transport order",
+      "invoiceDownloaded": "Payment invoice downloaded",
+      "invoiceError": "Error generating payment invoice"
+    },
+    "pricing": {
+      "saveSuccess": "Prices saved successfully",
+      "saveError": "Error saving prices",
+      "savePrice": "Save Price"
+    }
   },
   "tracking": {
     "title": "Container Tracking",
@@ -649,5 +666,61 @@
       "syncStarted": "Sync in progress...",
       "syncCompleted": "Sync completed"
     }
+  },
+  "agents": {
+    "errorLoading": "Error loading agents",
+    "errorSaving": "Error saving agent",
+    "errorDeleting": "Error deleting agent",
+    "errorUpdatingStatus": "Error updating status",
+    "updated": "Agent updated",
+    "created": "Agent created",
+    "deactivated": "Agent deactivated",
+    "deactivateConfirm": "Are you sure you want to deactivate agent {{company}}?",
+    "statusChanged": "Agent status changed to {{status}}",
+    "editTitle": "Edit Agent",
+    "newTitle": "New Agent",
+    "noAgents": "No agents registered.",
+    "addAgent": "Add agent",
+    "prices": {
+      "deleteTitle": "Delete price?",
+      "deleteConfirm": "Are you sure you want to delete this price?",
+      "deleted": "Price deleted",
+      "updated": "Price updated",
+      "created": "Price created",
+      "addNew": "+ Add New Price",
+      "noPrices": "This agent has no defined prices.",
+      "backToList": "Back to list",
+      "editTitle": "Edit Price",
+      "addTitle": "Add New Price"
+    }
+  },
+  "transportRates": {
+    "updated": "Rate updated successfully",
+    "created": "Rate added successfully",
+    "deleted": "Rate deleted",
+    "deleteTitle": "Delete rate?",
+    "editTitle": "Edit Rate",
+    "addTitle": "Add New Rate"
+  },
+  "resetPassword": {
+    "title": "Reset password",
+    "subtitle": "Enter your new password below.",
+    "missingToken": "Reset token missing or invalid",
+    "failed": "Password reset failed. The token may have expired.",
+    "invalidLink": "Invalid link",
+    "invalidLinkDesc": "The password reset link is invalid or has expired.",
+    "requestNewLink": "Request a new link",
+    "successTitle": "Password reset successfully!",
+    "successDesc": "Your new password has been set. You can now sign in.",
+    "processing": "Processing..."
+  },
+  "adminSettings": {
+    "connectionSuccess": "{{service}} connection tested successfully!",
+    "connectionFailed": "{{service}} connection failed.",
+    "copiedToClipboard": "Copied to clipboard!",
+    "saved": "Settings saved!",
+    "gmailFillRequired": "Please fill in the Gmail address and App Password.",
+    "gmailSaved": "Gmail configuration saved successfully!",
+    "gmailSaveError": "Error saving Gmail configuration."
   }
 }

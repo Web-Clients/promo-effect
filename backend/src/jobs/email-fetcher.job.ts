@@ -33,8 +33,9 @@ export function startEmailFetcherJob() {
     try {
       logger.info('[Email Fetcher] Starting scheduled email fetch...');
 
-      // Check if Gmail is configured
-      if (!gmailIntegration.isConfigured()) {
+      // Check if Gmail is configured (async: reads from DB so credentials saved via UI are found)
+      const gmailConfigured = await gmailIntegration.isConfiguredAsync();
+      if (!gmailConfigured) {
         logger.info('[Email Fetcher] Gmail not configured, skipping');
         isRunning = false;
         return;

@@ -101,21 +101,15 @@ app.get('/api/csrf-token', (req: Request, res: Response) => {
 // Apply CSRF protection to state-changing API routes (skip GET/HEAD/OPTIONS).
 // Auth entry-point endpoints are exempt — user has no session yet, and same-origin
 // policy + Helmet/CORS already prevent cross-site abuse.
-const CSRF_EXEMPT_PATHS = [
-  '/api/v1/auth/login',
-  '/api/v1/auth/register',
-  '/api/v1/auth/refresh',
-  '/api/v1/auth/forgot-password',
-  '/api/v1/auth/reset-password',
-  '/api/v1/auth/verify-email',
-  '/api/v1/auth/complete-2fa-login',
-];
+// Match both /api/v1/auth/* and legacy /api/auth/*
+const CSRF_EXEMPT_PATTERN =
+  /^\/api(\/v\d+)?\/auth\/(login|register|refresh|forgot-password|reset-password|verify-email|complete-2fa-login)(\b|\/|\?|$)/;
 
 app.use('/api', (req: Request, res: Response, next: NextFunction) => {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     return next();
   }
-  if (CSRF_EXEMPT_PATHS.some((path) => req.originalUrl.startsWith(path))) {
+  if (CSRF_EXEMPT_PATTERN.test(req.originalUrl)) {
     return next();
   }
   doubleCsrfProtection(req, res, next);

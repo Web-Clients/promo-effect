@@ -192,19 +192,43 @@ export default function TransportRatesPage() {
     resetForm();
   };
 
-  // Inline editing
+  // Inline editing — auto-save on blur, no checkmark needed
   const [editingCell, setEditingCell] = useState<string | null>(null);
   const [cellValue, setCellValue] = useState<string>('');
+  const [savingCell, setSavingCell] = useState<string | null>(null);
+  const [savedCell, setSavedCell] = useState<string | null>(null);
+  // Track original value to detect if anything actually changed
+  const cellOriginalValue = React.useRef<string>('');
+  // Flag to skip blur when pressing Escape
+  const cancelledByEscape = React.useRef(false);
 
   const startCellEdit = (key: string, currentValue: number) => {
     setEditingCell(key);
-    setCellValue(currentValue.toString());
+    const valStr = currentValue > 0 ? currentValue.toString() : '';
+    setCellValue(valStr);
+    cellOriginalValue.current = valStr;
+    cancelledByEscape.current = false;
   };
 
-  const saveCellEdit = async (containerType: string, weightRange: string) => {
+  const saveCellEdit = async (
+    containerType: string,
+    weightRange: string,
+    valueOverride?: string
+  ) => {
     const key = `${containerType}__${weightRange}`;
-    const rate = parseFloat(cellValue) || 0;
+    const val = valueOverride !== undefined ? valueOverride : cellValue;
+
+    // Nothing changed — just close
+    if (val === cellOriginalValue.current) {
+      setEditingCell(null);
+      return;
+    }
+
+    const rate = parseFloat(val) || 0;
     const existing = rateMap[key];
+
+    setSavingCell(key);
+    setEditingCell(null);
 
     try {
       if (existing) {
@@ -217,15 +241,27 @@ export default function TransportRatesPage() {
           rate,
         });
       }
-      setEditingCell(null);
+      setSavedCell(key);
+      setTimeout(() => setSavedCell(null), 1500);
       loadData();
     } catch (err: unknown) {
       setError(getErrorMessage(err, t('errors.saving')));
+    } finally {
+      setSavingCell(null);
     }
   };
 
   const cancelCellEdit = () => {
+    cancelledByEscape.current = true;
     setEditingCell(null);
+  };
+
+  const handleCellBlur = (containerType: string, weightRange: string) => {
+    if (cancelledByEscape.current) {
+      cancelledByEscape.current = false;
+      return;
+    }
+    saveCellEdit(containerType, weightRange);
   };
 
   // Stats
@@ -455,7 +491,8 @@ export default function TransportRatesPage() {
               Rate Transport → {filterDest}
             </h3>
             <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
-              Faceți clic pe o celulă pentru a edita rata. Valorile sunt în USD.
+              Clic pe celulă → tastați valoarea → Enter sau Tab pentru a salva automat. Esc
+              anulează.
             </p>
           </div>
           <div className="overflow-x-auto">
@@ -491,38 +528,74 @@ export default function TransportRatesPage() {
                         const rate = rateMap[key];
                         const isEditing = editingCell === key;
 
+                        const isSaving = savingCell === key;
+                        const isSaved = savedCell === key;
+
                         return (
                           <td key={ct} className="px-3 py-2 text-center">
                             {isEditing ? (
-                              <div className="flex items-center gap-1">
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={cellValue}
-                                  onChange={(e) => setCellValue(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') saveCellEdit(ct, wr);
-                                    if (e.key === 'Escape') cancelCellEdit();
-                                  }}
-                                  className="w-20 px-2 py-1 text-sm text-center bg-white dark:bg-neutral-700 border border-primary-400 rounded focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                                  autoFocus
-                                />
-                                <button
-                                  onClick={() => saveCellEdit(ct, wr)}
-                                  className="p-0.5 text-green-600 hover:text-green-700"
-                                  title="Salvează"
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={cellValue}
+                                onChange={(e) => setCellValue(e.target.value)}
+                                onBlur={() => handleCellBlur(ct, wr)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    (e.target as HTMLInputElement).blur();
+                                  }
+                                  if (e.key === 'Escape') {
+                                    cancelCellEdit();
+                                  }
+                                  if (e.key === 'Tab') {
+                                    // Let browser move focus naturally; blur will fire and save
+                                  }
+                                }}
+                                className="w-full px-2 py-1.5 text-sm text-center bg-white dark:bg-neutral-700 border-2 border-primary-500 rounded-lg focus:ring-2 focus:ring-primary-400 focus:outline-none shadow-sm"
+                                autoFocus
+                                placeholder="0"
+                              />
+                            ) : isSaving ? (
+                              <span className="inline-flex items-center justify-center w-full px-3 py-1.5 rounded-lg text-sm text-neutral-400 dark:text-neutral-500">
+                                <svg
+                                  className="w-3.5 h-3.5 animate-spin mr-1"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
                                 >
-                                  <SaveIcon />
-                                </button>
-                                <button
-                                  onClick={cancelCellEdit}
-                                  className="p-0.5 text-neutral-400 hover:text-neutral-600"
-                                  title="Anulează"
+                                  <circle
+                                    className="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                  />
+                                  <path
+                                    className="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                  />
+                                </svg>
+                                ...
+                              </span>
+                            ) : isSaved ? (
+                              <span className="inline-flex items-center justify-center w-full px-3 py-1.5 rounded-lg text-sm font-semibold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 transition-all">
+                                <svg
+                                  className="w-3.5 h-3.5 mr-1"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
                                 >
-                                  <XIcon />
-                                </button>
-                              </div>
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2.5}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                                {rate ? `$${rate.rate.toFixed(0)}` : '$0'}
+                              </span>
                             ) : (
                               <button
                                 onClick={() => startCellEdit(key, rate?.rate || 0)}

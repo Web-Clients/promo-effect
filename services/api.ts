@@ -194,9 +194,20 @@ api.interceptors.response.use(
 
     // Handle other errors
     if (error.response) {
-      // Server responded with error status
-      const responseData = error.response.data as { error?: string; message?: string } | undefined;
-      const message = responseData?.error || responseData?.message || 'A apărut o eroare pe server';
+      // Server responded with error status — extract message from AppError format or legacy
+      const responseData = error.response.data as
+        | { error?: string | { code?: string; message?: string }; message?: string }
+        | undefined;
+      let message = 'A apărut o eroare pe server';
+      if (responseData?.error) {
+        if (typeof responseData.error === 'string') {
+          message = responseData.error;
+        } else if (typeof responseData.error === 'object' && responseData.error.message) {
+          message = responseData.error.message;
+        }
+      } else if (responseData?.message) {
+        message = responseData.message;
+      }
 
       return Promise.reject({
         status: error.response.status,

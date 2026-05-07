@@ -63,7 +63,8 @@ router.post(
     try {
       const { maxResults = 10 } = req.body;
 
-      if (!gmailIntegration.isConfigured()) {
+      const gmailReady = await gmailIntegration.isConfiguredAsync();
+      if (!gmailReady) {
         return res.status(400).json({
           error: 'Gmail не настроен',
           message: 'Добавьте GMAIL_EMAIL и GMAIL_APP_PASSWORD в .env на сервере',
@@ -109,10 +110,11 @@ router.post(
     try {
       const { maxResults = 10, autoCreate = true, minConfidence = 80 } = req.body;
 
-      if (!gmailIntegration.isConfigured()) {
+      const gmailReady2 = await gmailIntegration.isConfiguredAsync();
+      if (!gmailReady2) {
         return res.status(400).json({
           error: 'Gmail не настроен',
-          message: 'Добавьте GMAIL_EMAIL и GMAIL_APP_PASSWORD в .env на сервере',
+          message: 'Добавьте GMAIL_EMAIL și GMAIL_APP_PASSWORD în .env на сервере',
         });
       }
 

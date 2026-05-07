@@ -487,11 +487,22 @@ export class BookingsService {
     // Extract container fields (not on Booking model)
     const { containerNumber, blNumber, ...bookingData } = data;
 
+    // Bug 4-5: Auto-correct swapped ports if supplied in update payload
+    normalizePortDirection(bookingData as any);
+
+    // Bug 6: Re-encrypt supplierEmail if it was changed (must not store plaintext)
+    const bookingDataToSave: any = { ...bookingData };
+    if (bookingDataToSave.supplierEmail !== undefined) {
+      bookingDataToSave.supplierEmail = bookingDataToSave.supplierEmail
+        ? encrypt(bookingDataToSave.supplierEmail)
+        : bookingDataToSave.supplierEmail;
+    }
+
     // Update booking
     const updated = await prisma.booking.update({
       where: { id },
       data: {
-        ...bookingData,
+        ...bookingDataToSave,
         updatedAt: new Date(),
       },
       include: {
@@ -581,7 +592,8 @@ export class BookingsService {
       }
     }
 
-    return updated;
+    // Bug 6: Decrypt supplierEmail before returning to caller
+    return this.decryptBooking(updated);
   }
 
   /**

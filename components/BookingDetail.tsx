@@ -399,7 +399,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-              Port Origine
+              Port Origine <span className="text-red-500">*</span>
             </label>
             <BookingSelect
               disabled={isReadOnly}
@@ -415,7 +415,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
           </div>
           <div>
             <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-              Port Destinație
+              Port Destinație <span className="text-red-500">*</span>
             </label>
             <BookingSelect disabled value={bookingData.destination_port || ''}>
               {DESTINATION_PORTS.map((p) => (
@@ -439,7 +439,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-              Tip Container
+              Tip Container <span className="text-red-500">*</span>
             </label>
             <BookingSelect
               disabled={isReadOnly}
@@ -455,7 +455,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
           </div>
           <div>
             <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-              Linie Maritimă Preferată
+              Linie Maritimă Preferată <span className="text-red-500">*</span>
             </label>
             <BookingSelect
               disabled={isReadOnly}
@@ -619,7 +619,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-              Categorie Marfă
+              Categorie Marfă <span className="text-red-500">*</span>
             </label>
             <Input
               type="text"
@@ -631,7 +631,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
           </div>
           <div>
             <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-              Greutate
+              Greutate <span className="text-red-500">*</span>
             </label>
             <Input
               type="text"
@@ -645,7 +645,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
           </div>
           <div>
             <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-              Data Disponibilitate Marfă
+              Data Disponibilitate Marfă <span className="text-red-500">*</span>
             </label>
             <Input
               type="date"

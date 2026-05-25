@@ -293,7 +293,11 @@ const App = () => {
             />
             <Route path="clients" element={<ClientsList />} />
             <Route path="invoices" element={<InvoicesList />} />
-            <Route path="reports" element={<ReportsPage />} />
+            {/* reports moved to Settings → tab reports (admin only) */}
+            <Route
+              path="reports"
+              element={<Navigate to="/dashboard/adminSettings?tab=reports" replace />}
+            />
             <Route path="adminSettings" element={<AdminSettingsPage />} />
             <Route path="admin-pricing" element={<AdminPricingPanel />} />
             {/* admin-pricing-land removed — redirect to AdminPricingPanel tab "Prețuri Terestru" */}
@@ -316,7 +320,11 @@ const App = () => {
             <Route path="my-prices" element={<AgentPricesDashboard />} />
             <Route path="price-approval" element={<AdminPriceApproval />} />
             <Route path="ports-manager" element={<AdminPortsManager />} />
-            <Route path="user-management" element={<UserManagement currentUser={user!} />} />
+            {/* user-management moved to Settings → tab users (admin only) */}
+            <Route
+              path="user-management"
+              element={<Navigate to="/dashboard/adminSettings?tab=users" replace />}
+            />
             <Route path="userProfile" element={<UserProfile user={user!} />} />
           </Route>
 

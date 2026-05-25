@@ -4,6 +4,9 @@ import { useSearchParams } from 'react-router-dom';
 import { SystemSettings } from '../types';
 import AdminDashboard from './AdminDashboard';
 import AIEmailParser from './AIEmailParser';
+import UserManagement from './UserManagement';
+import ReportsPage from './ReportsPage';
+import { getStoredUser } from '../services/auth';
 import { Card } from './ui/Card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/Tabs';
 import { Button } from './ui/Button';
@@ -187,6 +190,8 @@ const VALID_TABS = [
   'system',
   'admin',
   'emailParser',
+  'users',
+  'reports',
 ] as const;
 type TabValue = (typeof VALID_TABS)[number];
 
@@ -197,6 +202,7 @@ const AdminSettingsPage = () => {
     const p = searchParams.get('tab');
     return (VALID_TABS as readonly string[]).includes(p ?? '') ? (p as TabValue) : 'email';
   })();
+  const currentUser = getStoredUser();
   const [settings, setSettings] = useState<SystemSettings>(mockSettings);
   const [testResults, setTestResults] = useState<Record<string, 'success' | 'error' | 'pending'>>(
     {}
@@ -344,7 +350,9 @@ const AdminSettingsPage = () => {
           <TabsTrigger value="notifications">Notificări</TabsTrigger>
           <TabsTrigger value="integrations">Integrări</TabsTrigger>
           <TabsTrigger value="system">Sistem</TabsTrigger>
-          <TabsTrigger value="admin">{t('nav.adminPanel')}</TabsTrigger>
+          <TabsTrigger value="admin">Statistici</TabsTrigger>
+          <TabsTrigger value="users">Utilizatori</TabsTrigger>
+          <TabsTrigger value="reports">Rapoarte</TabsTrigger>
           <TabsTrigger value="emailParser">{t('nav.aiParser')}</TabsTrigger>
         </TabsList>
 
@@ -718,6 +726,20 @@ const AdminSettingsPage = () => {
 
         <TabsContent value="admin">
           <AdminDashboard />
+        </TabsContent>
+
+        <TabsContent value="users">
+          {currentUser ? (
+            <UserManagement currentUser={{ id: currentUser.id, role: String(currentUser.role) }} />
+          ) : (
+            <Card>
+              <p className="text-sm text-neutral-500">Sesiune indisponibilă.</p>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="reports">
+          <ReportsPage />
         </TabsContent>
 
         <TabsContent value="emailParser">

@@ -102,7 +102,7 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
     { name: t('nav.clients'), path: 'clients', icon: UsersIcon, visible: isAdminOrManager },
     { name: t('nav.invoices'), path: 'invoices', icon: FileTextIcon, visible: isAdminOrManager },
     // AI Email Parser moved to Settings → tab "emailParser"
-    { name: t('nav.reports'), path: 'reports', icon: BarChartIcon, visible: isAdminOrManager },
+    // Reports moved to Settings → tab "reports" (admin only, accessible via Setări Admin)
     {
       name: t('nav.adminPricingMaritime'),
       path: 'admin-pricing',
@@ -113,7 +113,7 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
     { name: t('nav.chineseAgents'), path: 'agents', icon: GlobeIcon, visible: isAdmin },
     { name: t('nav.portsManager'), path: 'ports-manager', icon: AnchorIcon, visible: isAdmin },
     // Panou Admin moved to Settings → tab "admin"
-    { name: t('nav.userManagement'), path: 'user-management', icon: UsersIcon, visible: isAdmin },
+    // User management moved to Settings → tab "users"
     { name: t('nav.adminSettings'), path: 'adminSettings', icon: SettingsIcon, visible: isAdmin },
     {
       name: t('nav.myPrices'),

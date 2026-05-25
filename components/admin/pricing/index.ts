@@ -1,5 +1,5 @@
 export { AdminPricingPanel } from './AdminPricingPanel';
-export { AdminPricingLandPanel } from './AdminPricingLandPanel';
+// AdminPricingLandPanel removed — consolidated into AdminPricingPanel → tab "Prețuri Terestru"
 export { BasePricesTab } from './BasePricesTab';
 export { PortAdjustmentsTab } from './PortAdjustmentsTab';
 export { PortPricingMatrixTab } from './PortPricingMatrixTab';

@@ -142,6 +142,8 @@ const mapToCreateData = (formData: BookingFormState): CreateBookingData => {
     );
   }
   return {
+    clientId: formData.clientId || undefined,
+    agentId: formData.agentId || undefined,
     portOrigin: formData.origin_port || ORIGIN_PORTS[0],
     portDestination: formData.destination_port || DESTINATION_PORTS[0],
     containerType: formData.container_type || CONTAINER_TYPES[0],
@@ -161,6 +163,7 @@ const mapToCreateData = (formData: BookingFormState): CreateBookingData => {
 const mapToUpdateData = (formData: BookingFormState): UpdateBookingData => {
   return {
     status: formData.status,
+    agentId: formData.agentId || undefined,
     supplierName: formData.supplierName || undefined,
     supplierPhone: formData.supplierPhone || undefined,
     supplierEmail: formData.supplierEmail || undefined,
@@ -309,6 +312,20 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
     },
     [isNew, bookingId, bookingData, isSubmitting, navigate, addToast]
   );
+
+  // ── Autocomplete search helpers (Task 3) ────────────────────────────
+  const searchClients = useCallback(async (q: string): Promise<Client[]> => {
+    const res = await getClients({ search: q || undefined, limit: 20 });
+    return res.clients;
+  }, []);
+  const searchSuppliers = useCallback(async (q: string): Promise<Supplier[]> => {
+    const res = await getSuppliers({ search: q || undefined, limit: 20 });
+    return res.suppliers;
+  }, []);
+  const searchAgents = useCallback(async (q: string): Promise<Agent[]> => {
+    const res = await getAgents({ search: q || undefined });
+    return res;
+  }, []);
 
   // Loading state
   if (isLoading) {
@@ -716,64 +733,331 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
     );
   }
 
+  const handleClientSelect = (c: Client) => {
+    setBookingData((prev) => ({
+      ...prev,
+      clientId: c.id,
+      client_id: parseInt(c.id) || prev.client_id || 0,
+      client_name: c.companyName,
+      clientCompanyName: c.companyName,
+      clientContactPerson: c.contactPerson,
+      clientEmail: c.email,
+      clientPhone: c.phone,
+      clientAddress: c.address || '',
+      clientTaxId: c.taxId || '',
+      clientBankAccount: c.bankAccount || '',
+    }));
+  };
+
+  const handleSupplierSelect = (s: Supplier) => {
+    setBookingData((prev) => ({
+      ...prev,
+      supplierId: s.id,
+      supplierName: s.name,
+      supplierAddress: s.address || '',
+      supplierPhone: s.phone || '',
+      supplierEmail: s.email || '',
+      supplierContact: s.contact || '',
+    }));
+  };
+
+  const handleAgentSelect = (a: Agent) => {
+    setBookingData((prev) => ({
+      ...prev,
+      agentId: a.id,
+      agentCode: a.agentCode,
+      agentCompany: a.company,
+      agentContactName: a.contactName,
+      agentWechatId: a.wechatId || '',
+    }));
+  };
+
+  const handleCreateClient = async (initialName: string) => {
+    try {
+      const created = await createClient({
+        companyName: initialName,
+        contactPerson: '',
+        email: '',
+        phone: '',
+      });
+      handleClientSelect(created);
+      addToast(`Client „${created.companyName}" creat`, 'success');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Nu s-a putut crea clientul'), 'error');
+    }
+  };
+
+  const handleCreateSupplier = async (initialName: string) => {
+    try {
+      const created = await createSupplier({ name: initialName });
+      handleSupplierSelect(created);
+      addToast(`Furnizor „${created.name}" creat`, 'success');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Nu s-a putut crea furnizorul'), 'error');
+    }
+  };
+
   function renderSupplierSection() {
     return (
-      <div>
-        <h4 className="text-base font-semibold text-neutral-700 dark:text-neutral-200 border-b border-neutral-200 dark:border-neutral-700 pb-2 mb-4">
-          Date Furnizor
-        </h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="space-y-6">
+        {/* ── Beneficiar (Client moldovenesc) ─────────────────────── */}
+        {!isClient && (
           <div>
-            <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-              Nume Furnizor
-            </label>
-            <Input
-              type="text"
-              value={bookingData.supplierName || ''}
-              onChange={(e) => setBookingData({ ...bookingData, supplierName: e.target.value })}
-              disabled={isReadOnly}
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-              Telefon Furnizor
-            </label>
-            <Input
-              type="text"
-              value={bookingData.supplierPhone || ''}
-              onChange={(e) => setBookingData({ ...bookingData, supplierPhone: e.target.value })}
-              disabled={isReadOnly}
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-              Email Furnizor
-            </label>
-            <Input
-              type="email"
-              value={bookingData.supplierEmail || ''}
-              onChange={(e) => setBookingData({ ...bookingData, supplierEmail: e.target.value })}
-              onBlur={(e) => {
-                const val = e.target.value.trim();
-                if (val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
-                  addToast('Adresa de email a furnizorului nu este validă', 'error');
+            <h4 className="text-base font-semibold text-neutral-700 dark:text-neutral-200 border-b border-neutral-200 dark:border-neutral-700 pb-2 mb-4">
+              Beneficiar (Client)
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <EntityAutocomplete<Client>
+                label="Companie *"
+                placeholder="Caută client după nume companie..."
+                value={bookingData.clientCompanyName || bookingData.client_name || ''}
+                onTextChange={(text) =>
+                  setBookingData((prev) => ({
+                    ...prev,
+                    clientCompanyName: text,
+                    client_name: text,
+                    // Clear ID if text no longer matches selected
+                    clientId: prev.clientCompanyName === text ? prev.clientId : undefined,
+                  }))
                 }
-              }}
-              disabled={isReadOnly}
-            />
+                onSelect={handleClientSelect}
+                onCreateNew={handleCreateClient}
+                search={searchClients}
+                getDisplayName={(c) => c.companyName}
+                renderItem={(c) => (
+                  <>
+                    <span className="font-medium">{c.companyName}</span>
+                    <span className="text-xs text-neutral-500">
+                      {[c.contactPerson, c.email, c.phone].filter(Boolean).join(' · ')}
+                    </span>
+                  </>
+                )}
+                disabled={isReadOnly}
+              />
+              <div>
+                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+                  Persoană contact
+                </label>
+                <Input
+                  type="text"
+                  value={bookingData.clientContactPerson || ''}
+                  onChange={(e) =>
+                    setBookingData({ ...bookingData, clientContactPerson: e.target.value })
+                  }
+                  disabled={isReadOnly}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+                  Email
+                </label>
+                <Input
+                  type="email"
+                  value={bookingData.clientEmail || ''}
+                  onChange={(e) => setBookingData({ ...bookingData, clientEmail: e.target.value })}
+                  disabled={isReadOnly}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+                  Telefon
+                </label>
+                <Input
+                  type="text"
+                  value={bookingData.clientPhone || ''}
+                  onChange={(e) => setBookingData({ ...bookingData, clientPhone: e.target.value })}
+                  disabled={isReadOnly}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+                  Adresă
+                </label>
+                <Input
+                  type="text"
+                  value={bookingData.clientAddress || ''}
+                  onChange={(e) =>
+                    setBookingData({ ...bookingData, clientAddress: e.target.value })
+                  }
+                  disabled={isReadOnly}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+                  Cod fiscal / IDNO
+                </label>
+                <Input
+                  type="text"
+                  value={bookingData.clientTaxId || ''}
+                  onChange={(e) => setBookingData({ ...bookingData, clientTaxId: e.target.value })}
+                  disabled={isReadOnly}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+                  Rechizite bancare
+                </label>
+                <Input
+                  type="text"
+                  value={bookingData.clientBankAccount || ''}
+                  onChange={(e) =>
+                    setBookingData({ ...bookingData, clientBankAccount: e.target.value })
+                  }
+                  disabled={isReadOnly}
+                />
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-              Adresă Furnizor
-            </label>
-            <Input
-              type="text"
-              value={bookingData.supplierAddress || ''}
-              onChange={(e) => setBookingData({ ...bookingData, supplierAddress: e.target.value })}
+        )}
+
+        {/* ── Furnizor (Supplier China) ───────────────────────────── */}
+        <div>
+          <h4 className="text-base font-semibold text-neutral-700 dark:text-neutral-200 border-b border-neutral-200 dark:border-neutral-700 pb-2 mb-4">
+            Furnizor (China)
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <EntityAutocomplete<Supplier>
+              label="Nume Furnizor"
+              placeholder="Caută furnizor după nume..."
+              value={bookingData.supplierName || ''}
+              onTextChange={(text) =>
+                setBookingData((prev) => ({
+                  ...prev,
+                  supplierName: text,
+                  supplierId: prev.supplierName === text ? prev.supplierId : undefined,
+                }))
+              }
+              onSelect={handleSupplierSelect}
+              onCreateNew={handleCreateSupplier}
+              search={searchSuppliers}
+              getDisplayName={(s) => s.name}
+              renderItem={(s) => (
+                <>
+                  <span className="font-medium">{s.name}</span>
+                  <span className="text-xs text-neutral-500">
+                    {[s.country, s.contact, s.phone].filter(Boolean).join(' · ')}
+                  </span>
+                </>
+              )}
               disabled={isReadOnly}
             />
+            <div>
+              <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+                Telefon
+              </label>
+              <Input
+                type="text"
+                value={bookingData.supplierPhone || ''}
+                onChange={(e) => setBookingData({ ...bookingData, supplierPhone: e.target.value })}
+                disabled={isReadOnly}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+                Email
+              </label>
+              <Input
+                type="email"
+                value={bookingData.supplierEmail || ''}
+                onChange={(e) => setBookingData({ ...bookingData, supplierEmail: e.target.value })}
+                onBlur={(e) => {
+                  const val = e.target.value.trim();
+                  if (val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+                    addToast('Adresa de email a furnizorului nu este validă', 'error');
+                  }
+                }}
+                disabled={isReadOnly}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+                Adresă
+              </label>
+              <Input
+                type="text"
+                value={bookingData.supplierAddress || ''}
+                onChange={(e) =>
+                  setBookingData({ ...bookingData, supplierAddress: e.target.value })
+                }
+                disabled={isReadOnly}
+              />
+            </div>
           </div>
         </div>
+
+        {/* ── Agent China ─────────────────────────────────────────── */}
+        {isAdmin && (
+          <div>
+            <h4 className="text-base font-semibold text-neutral-700 dark:text-neutral-200 border-b border-neutral-200 dark:border-neutral-700 pb-2 mb-4">
+              Agent China
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <EntityAutocomplete<Agent>
+                label="Companie Agent"
+                placeholder="Caută agent după companie sau cod..."
+                value={bookingData.agentCompany || ''}
+                onTextChange={(text) =>
+                  setBookingData((prev) => ({
+                    ...prev,
+                    agentCompany: text,
+                    agentId: prev.agentCompany === text ? prev.agentId : undefined,
+                  }))
+                }
+                onSelect={handleAgentSelect}
+                search={searchAgents}
+                getDisplayName={(a) => a.company}
+                renderItem={(a) => (
+                  <>
+                    <span className="font-medium">
+                      {a.company} <span className="text-xs text-neutral-500">({a.agentCode})</span>
+                    </span>
+                    <span className="text-xs text-neutral-500">
+                      {[a.contactName, a.wechatId].filter(Boolean).join(' · ')}
+                    </span>
+                  </>
+                )}
+                disabled={isReadOnly}
+              />
+              <div>
+                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+                  Cod Agent
+                </label>
+                <Input
+                  type="text"
+                  value={bookingData.agentCode || ''}
+                  disabled
+                  className="bg-neutral-50 dark:bg-neutral-800"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+                  Persoană contact
+                </label>
+                <Input
+                  type="text"
+                  value={bookingData.agentContactName || ''}
+                  onChange={(e) =>
+                    setBookingData({ ...bookingData, agentContactName: e.target.value })
+                  }
+                  disabled={isReadOnly}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+                  WeChat ID
+                </label>
+                <Input
+                  type="text"
+                  value={bookingData.agentWechatId || ''}
+                  onChange={(e) =>
+                    setBookingData({ ...bookingData, agentWechatId: e.target.value })
+                  }
+                  disabled={isReadOnly}
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

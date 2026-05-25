@@ -15,6 +15,10 @@ import bookingsService, {
 } from '../services/bookings';
 import calculatorService from '../services/calculator';
 import { getErrorMessage } from '../utils/formatters';
+import { getClients, createClient, Client } from '../services/clients';
+import { getSuppliers, createSupplier, Supplier } from '../services/suppliers';
+import { getAgents, Agent } from '../services/agents';
+import { EntityAutocomplete } from './ui/EntityAutocomplete';
 
 // Sub-components
 import BookingHeader from './bookings/detail/BookingHeader';
@@ -33,10 +37,29 @@ interface BookingFormState extends Partial<Booking> {
   cargoCategory?: string;
   cargoWeight?: string;
   cargoReadyDate?: string;
+  // Beneficiar (Client moldovenesc) — autocomplete from /api/v1/clients
+  clientId?: string;
+  clientCompanyName?: string;
+  clientContactPerson?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  clientAddress?: string;
+  clientTaxId?: string;
+  clientBankAccount?: string;
+  // Furnizor (Supplier China) — autocomplete from /api/v1/suppliers
+  supplierId?: string;
   supplierName?: string | null;
   supplierPhone?: string | null;
   supplierEmail?: string | null;
   supplierAddress?: string | null;
+  supplierContact?: string | null;
+  // Agent China — autocomplete from /agents
+  agentId?: string | null;
+  agentCode?: string | null;
+  agentCompany?: string | null;
+  agentContactName?: string | null;
+  agentWechatId?: string | null;
+  // Notes
   clientNotes?: string | null;
   internalNotes?: string | null;
   bl_number?: string;
@@ -57,6 +80,16 @@ const mapApiToFormState = (apiBooking: BookingResponse): BookingFormState => {
     booking_number: apiBooking.id,
     client_id: parseInt(apiBooking.clientId) || 0,
     client_name: apiBooking.client?.companyName || apiBooking.client?.contactPerson || '',
+    // Beneficiar (auto-filled from selected Client)
+    clientId: apiBooking.clientId,
+    clientCompanyName: apiBooking.client?.companyName,
+    clientContactPerson: apiBooking.client?.contactPerson,
+    clientEmail: apiBooking.client?.email,
+    clientPhone: apiBooking.client?.phone,
+    // Agent (auto-filled from selected Agent)
+    agentId: apiBooking.agentId,
+    agentCode: apiBooking.agent?.agentCode,
+    agentCompany: apiBooking.agent?.company,
     status: apiBooking.status as BookingStatus,
     origin_port: apiBooking.portOrigin,
     destination_port: apiBooking.portDestination,
@@ -100,13 +133,21 @@ const mapApiToFormState = (apiBooking: BookingResponse): BookingFormState => {
 
 // Map form state to API create format
 const mapToCreateData = (formData: BookingFormState): CreateBookingData => {
+  // cargoWeight is REQUIRED — backend uses it to auto-select the land transport
+  // tariff from LandTransportRate. Form-level validation enforces presence; we
+  // throw here defensively so we never send a silent "1-10 tone" placeholder.
+  if (!formData.cargoWeight || !formData.cargoWeight.trim()) {
+    throw new Error(
+      'Greutatea cargo (cargoWeight) este obligatorie pentru a calcula tariful terestru'
+    );
+  }
   return {
     portOrigin: formData.origin_port || ORIGIN_PORTS[0],
     portDestination: formData.destination_port || DESTINATION_PORTS[0],
     containerType: formData.container_type || CONTAINER_TYPES[0],
     shippingLine: formData.shipping_line || SHIPPING_LINES[0],
     cargoCategory: formData.cargoCategory || 'general',
-    cargoWeight: formData.cargoWeight || '1-10 tone',
+    cargoWeight: formData.cargoWeight,
     cargoReadyDate: formData.cargoReadyDate || new Date().toISOString().split('T')[0],
     supplierName: formData.supplierName || undefined,
     supplierPhone: formData.supplierPhone || undefined,

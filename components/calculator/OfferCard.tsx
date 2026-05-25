@@ -341,113 +341,108 @@ export const OfferCard = ({
               )}
             </>
           ) : (
-            /* Client: simplified blocks with subtotals */
+            /* Client view — grouped by INCOTERM (EXW / FOB / CFR-CIF).
+               Internal cost components (port adjustment, port taxes, commission, etc.) are hidden.
+               Only the Incoterm-level subtotals are shown. */
             <div className="space-y-4 mb-4">
-              {/* Client: Rata 0 - EXW */}
+              {/* EXW — China local export taxes (only when incoterm === EXW) */}
               {incoterm === 'EXW' && (
                 <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4 border border-purple-100 dark:border-purple-800/30">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-7 h-7 rounded-full bg-purple-500 text-white flex items-center justify-center text-xs font-bold">
-                      0
-                    </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-2 py-0.5 text-xs font-bold text-white bg-purple-500 rounded">
+                      EXW
+                    </span>
                     <h5 className="text-sm font-semibold text-purple-800 dark:text-purple-300">
-                      Costuri China (EXW)
+                      Taxe locale China
                     </h5>
                   </div>
                   <p className="text-2xl font-bold text-purple-700 dark:text-purple-400">
                     ${getEXWTotal().toFixed(0)}
                   </p>
                   <p className="text-xs text-purple-500 mt-1">
-                    Transport + vamă + depozitare China
+                    Origine: {offer.portOrigin} (vamă export + ridicare + depozitare)
                   </p>
                 </div>
               )}
 
-              {/* Client: Rata 1 - Maritime (no portTaxes) */}
+              {/* FOB — Maritime China → Constanța/Odessa */}
               {incoterm !== 'CFR' ? (
                 <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-100 dark:border-blue-800/30">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-7 h-7 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">
-                      1
-                    </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-2 py-0.5 text-xs font-bold text-white bg-blue-500 rounded">
+                      FOB
+                    </span>
                     <h5 className="text-sm font-semibold text-blue-800 dark:text-blue-300">
-                      {offer.portOrigin} → {offer.portIntermediate}
+                      Transport maritim China → {offer.portIntermediate}
                     </h5>
                   </div>
                   <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">
-                    ${getMaritimeTotal(offer).toFixed(0)}
+                    ${(getMaritimeTotal(offer) + offer.portTaxes).toFixed(0)}
                   </p>
-                  <p className="text-xs text-blue-500 mt-1">Tarif maritim + ajustare port</p>
+                  <p className="text-xs text-blue-500 mt-1">
+                    {offer.shippingLine} · {offer.estimatedTransitDays} zile pe apă
+                  </p>
                 </div>
               ) : (
                 <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-100 dark:border-blue-800/30">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-7 h-7 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">
-                      i
-                    </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-2 py-0.5 text-xs font-bold text-white bg-blue-500 rounded">
+                      CFR
+                    </span>
                     <h5 className="text-sm font-semibold text-blue-800 dark:text-blue-300">
-                      CFR — Transport maritim inclus
+                      Maritim inclus în prețul furnizorului
                     </h5>
                   </div>
                   <p className="text-sm text-blue-600 dark:text-blue-400">
-                    Transportul maritim este inclus în prețul furnizorului ({offer.shippingLine})
+                    Transportul maritim până la {offer.portIntermediate} este inclus de furnizor (
+                    {offer.shippingLine})
                   </p>
                 </div>
               )}
 
-              {/* Client: Rata 2 land leg (no comision) */}
+              {/* CFR / CIF — Land from Constanța/Odessa to final destination (Chișinău, Bălți, etc.)
+                  Includes terrestrial + customs + local fees + commission combined */}
               <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4 border border-green-100 dark:border-green-800/30">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-7 h-7 rounded-full bg-green-500 text-white flex items-center justify-center text-xs font-bold">
-                    {incoterm === 'CFR' ? '1' : '2'}
-                  </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="px-2 py-0.5 text-xs font-bold text-white bg-green-600 rounded">
+                    {finalDestination === 'constanta' ? 'CFR' : 'CFR/CIF'}
+                  </span>
                   <h5 className="text-sm font-semibold text-green-800 dark:text-green-300">
                     {offer.portIntermediate} → {offer.portFinal}
                   </h5>
                 </div>
                 <p className="text-2xl font-bold text-green-700 dark:text-green-400">
-                  ${getLandLegSubtotal(offer).toFixed(0)}
+                  $
+                  {(
+                    getLandLegSubtotal(offer) +
+                    (finalDestination === 'chisinau'
+                      ? getLandTransportTotal(commissionOverride)
+                      : commissionOverride)
+                  ).toFixed(0)}
                 </p>
-                <p className="text-xs text-green-500 mt-1">Transport terestru + taxe vamale</p>
+                <p className="text-xs text-green-500 mt-1">
+                  Transport terestru + vamă + comision (totul inclus)
+                </p>
               </div>
 
-              {/* Client: Rata 3 — Constanța → Chișinău (with cheltuieliLocale + comision) */}
-              {finalDestination === 'chisinau' && (
-                <div className="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-4 border border-orange-100 dark:border-orange-800/30">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-7 h-7 rounded-full bg-orange-500 text-white flex items-center justify-center text-xs font-bold">
-                      {incoterm === 'CFR' ? '2' : '3'}
-                    </div>
-                    <h5 className="text-sm font-semibold text-orange-800 dark:text-orange-300">
-                      Constanța → Chișinău
-                    </h5>
-                  </div>
-                  <p className="text-2xl font-bold text-orange-700 dark:text-orange-400">
-                    ${getLandTransportTotal(commissionOverride).toFixed(0)}
+              {/* Grand total for clarity */}
+              <div className="bg-neutral-50 dark:bg-neutral-700/40 rounded-xl p-4 border border-neutral-200 dark:border-neutral-600/40">
+                <div className="flex items-center justify-between">
+                  <h5 className="text-sm font-semibold text-neutral-700 dark:text-neutral-200">
+                    Total
+                  </h5>
+                  <p className="text-2xl font-bold text-accent-600 dark:text-accent-400">
+                    ${adjustedTotal.toFixed(0)}
                   </p>
-                  <p className="text-xs text-orange-500 mt-1">
-                    Transport terestru + taxe vamale + cheltuieli locale + comision
-                  </p>
-                  {/* Editable commission for admin/non-client view */}
-                  {isAdmin && (
-                    <div className="mt-3 flex items-center gap-2">
-                      <span className="text-xs text-orange-600 dark:text-orange-400 whitespace-nowrap">
-                        Comision:
-                      </span>
-                      <span className="text-xs text-orange-400">$</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        className="w-20 text-sm font-semibold text-orange-700 dark:text-orange-300 bg-transparent border-b border-orange-400 focus:outline-none focus:border-orange-600"
-                        value={commissionValue}
-                        onChange={(e) => setCommissionValue(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                  )}
                 </div>
-              )}
+                <p className="text-xs text-neutral-500 mt-1">
+                  {incoterm === 'EXW'
+                    ? 'EXW + FOB + CFR/CIF'
+                    : incoterm === 'FOB'
+                      ? 'FOB + CFR/CIF'
+                      : 'CFR/CIF (maritim inclus de furnizor)'}
+                </p>
+              </div>
             </div>
           )}
           <Button

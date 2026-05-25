@@ -5,6 +5,37 @@ import notificationService from '../../services/notification.service';
 import { storageService } from '../../services/storage.service';
 import { encrypt, decrypt } from '../../utils/crypto.util';
 import logger from '../../utils/logger';
+import { parseWeightKg, getLandTransportRate } from '../calculator/calculator-engine';
+
+/**
+ * Fallback weight-based land tariff bands (USD per truck) — used when no
+ * LandTransportRate row matches the (city, weight) combination. Stable rates,
+ * independent of shipping line:
+ *   ≤18t  → 1500
+ *   18-23 → 1550
+ *   23-26 → 1650
+ *   >26t  → 1750 (extrapolated)
+ */
+function fallbackLandTariff(weightTons: number): number {
+  if (weightTons <= 18) return 1500;
+  if (weightTons <= 23) return 1550;
+  if (weightTons <= 26) return 1650;
+  return 1750;
+}
+
+/**
+ * Resolve land transport tariff from cargoWeight string.
+ * Tries LandTransportRate(IMPORT, Chișinău, weight) first, then falls back
+ * to weight-band defaults so callers always get a number.
+ */
+async function resolveLandTariff(cargoWeight: string | undefined): Promise<number> {
+  const tons = parseWeightKg(cargoWeight || '');
+  if (tons > 0) {
+    const dbRate = await getLandTransportRate('IMPORT', 'Chișinău', tons);
+    if (dbRate && dbRate > 0) return dbRate;
+  }
+  return fallbackLandTariff(tons);
+}
 
 // ─── Port whitelists (Bugs 4-5) ─────────────────────────────────────────────
 const KNOWN_ORIGIN_PORTS = [
@@ -135,7 +166,12 @@ export class BookingsService {
       clientId = await this.getOrCreateClientForUser(userId);
     }
 
-    // 4. Find best price from AgentPrice table (if agent/price specified)
+    // 4. Resolve freight price.
+    // Priority order:
+    //   1. Explicit override from caller (data.freightPrice) — per-booking override, wins.
+    //   2. AgentPrice row referenced by priceId (legacy path).
+    //   3. Auto-preload from BasePrice (shippingLine × portOrigin × portDestination × containerType)
+    //      + PortPricingMatrix adjustment for the origin port. STABLE per shipping line.
     let freightPrice = data.freightPrice || 0;
     let shippingLine = data.shippingLine || 'TBD';
     let agentId = data.agentId;
@@ -154,20 +190,74 @@ export class BookingsService {
       freightPrice = selectedPrice.freightPrice;
       shippingLine = selectedPrice.shippingLine;
       agentId = selectedPrice.agentId || undefined;
+    } else if (freightPrice === 0 && data.shippingLine && data.portOrigin) {
+      // Auto-preload from BasePrice for the selected shipping line (Maersk/CMA/MSC/etc.)
+      const basePrice = await prisma.basePrice.findFirst({
+        where: {
+          shippingLine: data.shippingLine,
+          portOrigin: data.portOrigin,
+          containerType: data.containerType,
+          isActive: true,
+          portDestination: {
+            contains: (data.portDestination || 'Constanta')
+              .replace(/[ăâ]/g, 'a')
+              .replace(/ț/g, 't'),
+            mode: 'insensitive',
+          },
+        },
+        orderBy: { updatedAt: 'desc' },
+      });
+      if (basePrice) {
+        // Add origin-port adjustment (e.g. Ningbo +$X) from PortPricingMatrix.
+        const matrixAdj = await prisma.portPricingMatrix.findUnique({
+          where: {
+            portName_containerType: {
+              portName: data.portOrigin,
+              containerType: data.containerType,
+            },
+          },
+        });
+        freightPrice = basePrice.basePrice + (matrixAdj?.adjustment || 0);
+      }
     }
 
-    // 5. Calculate total price
-    const portTaxes = settings.portTaxes;
-    const customsTaxes = settings.customsTaxes;
-    const terrestrialTransport = settings.terrestrialTransport;
-    const commission = settings.commission;
-    const totalPrice =
+    // 5. Calculate total price.
+    // cargoWeight is REQUIRED — drives auto-selection of the land transport tariff
+    // from LandTransportRate (IMPORT, Chișinău) with weight-band fallback. This rate
+    // is STABLE: it does not change with the shipping line, only with the cargo weight.
+    if (!data.cargoWeight || !data.cargoWeight.trim()) {
+      throw new Error('cargoWeight is required to compute the land transport tariff');
+    }
+
+    const portTaxes = data.portTaxes ?? settings.portTaxes;
+    const customsTaxes = data.customsTaxes ?? settings.customsTaxes;
+    // Caller can override (admin edit per-booking), otherwise auto-resolve from
+    // LandTransportRate table by weight, then fall back to 1500/1550/1650/1750 bands.
+    const terrestrialTransport =
+      data.terrestrialTransport ?? (await resolveLandTariff(data.cargoWeight));
+    const commission = data.commission ?? settings.commission;
+
+    let totalPrice =
       freightPrice +
       portTaxes +
       customsTaxes +
       terrestrialTransport +
       commission +
       (data.additionalCharges || 0);
+
+    // 5b. Auto-apply client discount (if any). Per-booking override of total is allowed.
+    const clientForDiscount = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { discount: true },
+    });
+    const discountPct = clientForDiscount?.discount || 0;
+    if (discountPct > 0) {
+      totalPrice = Math.round(totalPrice * (1 - discountPct / 100) * 100) / 100;
+    }
+    if (data.totalPrice !== undefined && data.totalPrice > 0) {
+      // Explicit manual override wins
+      totalPrice = data.totalPrice;
+    }
 
     // 6. Create booking
     const booking = await prisma.booking.create({

@@ -22,8 +22,8 @@ export function useCalculator(user?: User): UseCalculatorReturn {
     cargoWeight: '',
     cargoReadyDate: '',
     cargoCategory: '',
-    incoterm: 'FOB',
-    finalDestination: 'constanta',
+    incoterm: 'CFR', // Default: CFR (most common for China→Moldova imports)
+    finalDestination: 'chisinau',
   });
 
   const [containers, setContainers] = useState<ContainerEntry[]>([{ type: '', quantity: 1 }]);
@@ -142,7 +142,12 @@ export function useCalculator(user?: User): UseCalculatorReturn {
         cargoWeight: params.cargoWeight,
         cargoReadyDate: params.cargoReadyDate,
         cargoCategory: params.cargoCategory,
-      });
+        // Pass Incoterm context so the engine can pick the right LandTransportRate
+        // and include/exclude legs (EXW adds China, CFR removes maritime line filter).
+        incoterm: params.incoterm,
+        finalDestination: params.finalDestination,
+        shippingLine: params.shippingLine,
+      } as never);
 
       setResult(calculatorResult);
     } catch (err: unknown) {

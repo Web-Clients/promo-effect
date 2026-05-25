@@ -570,6 +570,12 @@ model Booking {
   telexReleased         Boolean   @default(false) @map("telex_released")     // Telex release confirmed by shipping line
   documentsUploaded     Boolean   @default(false) @map("documents_uploaded") // Client uploaded required documents
 
+  // ETA notifications — track last value that was notified to client to detect changes
+  lastNotifiedEta       DateTime? @map("last_notified_eta")                  // Last ETA value sent in a client notification
+  // Path/URL of beneficiary PDF (consignee copy) saved from the China agent confirmation email
+  beneficiaryPdfUrl     String?   @map("beneficiary_pdf_url")
+  beneficiaryPdfName    String?   @map("beneficiary_pdf_name")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -820,6 +826,10 @@ model Notification {
   title   String
   message String
 
+  // Severity level — used by the dashboard to surface red flags
+  // INFO | WARNING | CRITICAL — default INFO so existing rows stay safe
+  severity String @default("INFO")
+
   // Delivery (stored as comma-separated string)
   channels String // "email,sms,whatsapp"
 
@@ -835,6 +845,7 @@ model Notification {
   booking Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@index([userId, read])
+  @@index([severity])
   @@map("notifications")
 }
 

@@ -12,9 +12,44 @@ import prisma from '../../lib/prisma';
 import { infobipService } from '../../services/infobip.service';
 import notificationService from '../../services/notification.service';
 import { extractTextFromPDF } from '../../services/pdf-parser.service';
+import { storageService } from '../../services/storage.service';
 import { parseShippingDocumentWithAI } from './email-classifier';
-import { ParsedEmail } from './email.types';
+import { ParsedEmail, EmailAttachment } from './email.types';
 import logger from '../../utils/logger';
+
+/**
+ * China agent typically attaches 2 PDFs to the booking confirmation:
+ *  - one labelled "Draft" / "Agent Copy" / "Shipper Copy" — internal use only
+ *  - one labelled "Final" / "Consignee Copy" / "Beneficiar" — the one we
+ *    forward to the Moldovan client.
+ *
+ * Detection rules (in order):
+ *   1. Filename contains "final", "consignee", "beneficiar", "client" — pick it.
+ *   2. Filename contains "draft", "agent", "shipper" — exclude it.
+ *   3. If exactly 2 PDFs and no labels match → use the second (China agents
+ *      send draft first, beneficiary copy second by convention).
+ *   4. If only 1 PDF → use it.
+ */
+export function pickBeneficiaryPdf(attachments: EmailAttachment[]): EmailAttachment | null {
+  const pdfs = attachments.filter((a) => a.mimeType === 'application/pdf' && a.data);
+  if (pdfs.length === 0) return null;
+  if (pdfs.length === 1) return pdfs[0];
+
+  const finalRe = /(final|consignee|beneficiar|client|copy[\s_-]*2)/i;
+  const draftRe = /(draft|agent|shipper|copy[\s_-]*1)/i;
+
+  const explicitFinal = pdfs.find((a) => finalRe.test(a.filename));
+  if (explicitFinal) return explicitFinal;
+
+  const nonDraft = pdfs.filter((a) => !draftRe.test(a.filename));
+  if (nonDraft.length === 1) return nonDraft[0];
+
+  // Fallback: second PDF when exactly 2 attachments
+  if (pdfs.length === 2) return pdfs[1];
+
+  // Otherwise: most recent / last in list
+  return pdfs[pdfs.length - 1];
+}
 
 // Matches MDPE format: MDPE + 4-digit year + 2-digit month + 4-digit sequence
 // Examples: MDPE2026050001, MDPE2026120099
@@ -196,6 +231,62 @@ export async function processAgentReply(email: ParsedEmail, bookingId: string): 
     logger.info(`[AgentReply] Container ${containerNum} updated for booking ${bookingId}`);
   }
 
+  // 7b. Persist the beneficiary PDF (consignee copy) so we can forward it
+  //     to the Moldovan client and store it as a Booking Document for audit.
+  let beneficiaryPdfBuffer: Buffer | null = null;
+  let beneficiaryPdfName: string | null = null;
+  if (email.attachments?.length) {
+    const picked = pickBeneficiaryPdf(email.attachments);
+    if (picked && picked.data) {
+      // EmailAttachment.data is base64-encoded
+      beneficiaryPdfBuffer = Buffer.from(picked.data, 'base64');
+      beneficiaryPdfName = picked.filename || `BL-${bookingId}.pdf`;
+
+      try {
+        const fileUrl = await storageService.uploadFile(
+          beneficiaryPdfBuffer,
+          beneficiaryPdfName,
+          `bookings/${bookingId}/bl`
+        );
+
+        await prisma.booking.update({
+          where: { id: bookingId },
+          data: {
+            beneficiaryPdfUrl: fileUrl,
+            beneficiaryPdfName: beneficiaryPdfName,
+          } as any,
+        });
+
+        // Track in Document table for the booking history view
+        try {
+          await prisma.document.create({
+            data: {
+              bookingId,
+              fileName: beneficiaryPdfName,
+              fileType: 'BL_BENEFICIARY',
+              mimeType: 'application/pdf',
+              fileSize: beneficiaryPdfBuffer.length,
+              storageKey: fileUrl,
+              url: fileUrl,
+              uploadedBy: 'system:agent-reply',
+            } as any,
+          });
+        } catch (docErr) {
+          logger.warn('[AgentReply] Could not insert Document row (non-fatal):', docErr);
+        }
+
+        logger.info(
+          `[AgentReply] Beneficiary PDF saved for ${bookingId}: ${beneficiaryPdfName} → ${fileUrl}`
+        );
+      } catch (uploadErr) {
+        logger.error('[AgentReply] Failed to upload beneficiary PDF:', uploadErr);
+        // Continue anyway — we can still email the buffer even without storage
+      }
+    } else {
+      logger.info(`[AgentReply] No PDF attachment found to forward for ${bookingId}`);
+    }
+  }
+
   // 8. Notify the Moldovan client
   const clientUser = booking.client?.user;
   const clientEmail = booking.client?.email || clientUser?.email;
@@ -220,12 +311,27 @@ export async function processAgentReply(email: ParsedEmail, bookingId: string): 
     });
 
     try {
+      const attachments = beneficiaryPdfBuffer
+        ? [
+            {
+              filename: beneficiaryPdfName || `BL-${bookingId}.pdf`,
+              content: beneficiaryPdfBuffer,
+              contentType: 'application/pdf',
+            },
+          ]
+        : undefined;
+
       await infobipService.sendEmail({
         to: clientEmail,
         subject: `Marfa dvs. a fost încărcată — Comanda ${bookingId}`,
         html: notifyHtml,
+        attachments,
       });
-      logger.info(`[AgentReply] Client loaded notification sent to ${clientEmail}`);
+      logger.info(
+        `[AgentReply] Client loaded notification sent to ${clientEmail}${
+          attachments ? ` (with attachment: ${attachments[0].filename})` : ''
+        }`
+      );
     } catch (err) {
       logger.error(`[AgentReply] Failed to send client notification email:`, err);
     }

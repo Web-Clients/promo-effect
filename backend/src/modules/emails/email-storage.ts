@@ -5,7 +5,17 @@
 
 import prisma from '../../lib/prisma';
 import { extractTextFromPDF } from '../../services/pdf-parser.service';
+import { storageService } from '../../services/storage.service';
+import logger from '../../utils/logger';
 import { ParsedEmail } from './email.types';
+
+interface AttachmentMeta {
+  filename: string;
+  mimeType: string;
+  size: number;
+  /** Storage URL where the original binary was uploaded — used to forward to clients */
+  url?: string;
+}
 
 /**
  * Save raw email to incomingEmail queue for async processing.
@@ -13,19 +23,40 @@ import { ParsedEmail } from './email.types';
  */
 export async function queueEmailForProcessing(email: ParsedEmail): Promise<void> {
   let pdfText = '';
-  const attachmentsMeta: Array<{ filename: string; mimeType: string; size: number }> = [];
+  const attachmentsMeta: AttachmentMeta[] = [];
 
   if (email.attachments?.length) {
     for (const attachment of email.attachments) {
-      attachmentsMeta.push({
+      const meta: AttachmentMeta = {
         filename: attachment.filename,
         mimeType: attachment.mimeType,
         size: attachment.size,
-      });
+      };
+
+      // Upload PDF binaries to storage so we can forward them later
+      // (the queue table only stores extracted text, not the original PDF).
       if (attachment.mimeType === 'application/pdf' && attachment.data) {
+        try {
+          // EmailAttachment.data is base64-encoded (see gmail.integration.ts)
+          const buf = Buffer.from(attachment.data, 'base64');
+          const url = await storageService.uploadFile(
+            buf,
+            attachment.filename || 'attachment.pdf',
+            `incoming-emails/${email.id.replace(/[^a-zA-Z0-9_-]/g, '_')}`
+          );
+          meta.url = url;
+        } catch (err) {
+          logger.warn(
+            `[EmailStorage] Failed to persist PDF ${attachment.filename}, continuing with text only:`,
+            err
+          );
+        }
+
         const text = await extractTextFromPDF(attachment.data);
         if (text.trim()) pdfText += `--- ${attachment.filename} ---\n${text}\n\n`;
       }
+
+      attachmentsMeta.push(meta);
     }
   }
 
@@ -55,17 +86,59 @@ export async function getPendingEmails(): Promise<ParsedEmail[]> {
     take: 10,
   });
 
-  return queued.map((q: any) => {
+  const results: ParsedEmail[] = [];
+  for (const q of queued) {
     const body = q.pdfText ? `${q.body}\n\n${q.pdfText}` : q.body;
-    return {
+
+    // Rehydrate attachments from storage (only those uploaded during queueing)
+    const meta: AttachmentMeta[] = q.attachments ? safeParseMeta(q.attachments) : [];
+    const attachments: ParsedEmail['attachments'] = [];
+    for (const m of meta) {
+      if (!m.url) {
+        attachments.push({
+          filename: m.filename,
+          mimeType: m.mimeType,
+          size: m.size,
+        });
+        continue;
+      }
+      try {
+        const buf = await storageService.getFile(m.url);
+        attachments.push({
+          filename: m.filename,
+          mimeType: m.mimeType,
+          size: m.size,
+          data: buf ? buf.toString('base64') : undefined,
+        });
+      } catch (err) {
+        logger.warn(`[EmailStorage] Could not rehydrate attachment ${m.filename}:`, err);
+        attachments.push({
+          filename: m.filename,
+          mimeType: m.mimeType,
+          size: m.size,
+        });
+      }
+    }
+
+    results.push({
       id: q.messageId,
       from: q.fromAddress,
       subject: q.subject,
       date: q.receivedAt,
       body,
-      attachments: [],
-    };
-  });
+      attachments,
+    });
+  }
+  return results;
+}
+
+function safeParseMeta(raw: string): AttachmentMeta[] {
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 /**

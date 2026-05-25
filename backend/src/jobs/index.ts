@@ -88,7 +88,7 @@ export function getJobsStatus(): JobStatus[] {
     },
     {
       name: 'ETA Reminder',
-      schedule: 'Daily at 09:00 AM (0 9 * * *)',
+      schedule: 'Daily at 08:00 UTC (0 8 * * *) — 5/3/1 days before Constanța + ETA changes',
       enabled: true,
     },
   ];

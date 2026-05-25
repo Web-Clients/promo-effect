@@ -15,6 +15,12 @@ export interface NotificationChannel {
   push?: boolean;
 }
 
+export interface NotificationAttachment {
+  filename: string;
+  content: Buffer;
+  contentType?: string;
+}
+
 export interface SendNotificationOptions {
   userId: string;
   bookingId?: string;
@@ -24,6 +30,10 @@ export interface SendNotificationOptions {
   channels: NotificationChannel;
   template?: string;
   templateData?: Record<string, any>;
+  /** INFO | WARNING | CRITICAL — drives dashboard red-flag styling */
+  severity?: 'INFO' | 'WARNING' | 'CRITICAL';
+  /** Optional email attachments (forwarded to Infobip) */
+  attachments?: NotificationAttachment[];
 }
 
 export class NotificationService {
@@ -31,7 +41,18 @@ export class NotificationService {
    * Send notification through specified channels
    */
   async sendNotification(options: SendNotificationOptions) {
-    const { userId, bookingId, type, title, message, channels, template, templateData } = options;
+    const {
+      userId,
+      bookingId,
+      type,
+      title,
+      message,
+      channels,
+      template,
+      templateData,
+      severity = 'INFO',
+      attachments,
+    } = options;
 
     // Get user details
     const user = await prisma.user.findUnique({
@@ -92,10 +113,11 @@ export class NotificationService {
         type,
         title,
         message,
+        severity,
         channels: channelsString || 'email',
         sent: false,
         read: false,
-      },
+      } as any,
     });
 
     const results: Record<string, { success: boolean; error?: string }> = {};
@@ -103,7 +125,7 @@ export class NotificationService {
     // Send through each enabled channel
     if (channelsToUse.email) {
       try {
-        await this.sendEmail(user.email, title, message, template, templateData);
+        await this.sendEmail(user.email, title, message, template, templateData, attachments);
         results.email = { success: true };
       } catch (error: any) {
         results.email = { success: false, error: error.message };
@@ -164,13 +186,15 @@ export class NotificationService {
     subject: string,
     message: string,
     template?: string,
-    templateData?: Record<string, any>
+    templateData?: Record<string, any>,
+    attachments?: NotificationAttachment[]
   ) {
     const result = await infobipService.sendEmail({
       to,
       subject,
       html: this.formatEmailMessage(message),
       text: message,
+      attachments,
     });
 
     if (!result.success) {

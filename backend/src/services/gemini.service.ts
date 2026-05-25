@@ -193,38 +193,67 @@ export async function parseShippingDocumentWithGemini(
 ═══ CRITICAL FIELD DISTINCTIONS — DO NOT CONFUSE ═══
 
 1. billOfLading (B/L Number):
-   - This is the DOCUMENT identifier printed on the Bill of Lading header
-   - Found after labels: "B/L NO", "B/L NUMBER", "HBL", "MBL", "Bill of Lading No."
-   - Examples: "ASG 202604078", "MEDUKC298446", "HBL04078", "HLCUTA12506BFWH4", "NGP3566733"
-   - Can contain letters and numbers in various combinations
-   - Usually printed prominently at the TOP of the document
+   - This is a UNIQUE document identifier printed on the Bill of Lading header.
+   - Usually 8-12 alphanumeric characters. Examples: LGP1234567, HDMUSZX12345,
+     ASG 202604078, MEDUKC298446, HBL04078, HLCUTA12506BFWH4, NGP3566733.
+   - Found after labels: "B/L NO", "B/L NUMBER", "HBL", "MBL", "Bill of Lading No.",
+     "Document No.", "Reference No.".
+   - **NEVER copy the value from Container Number into this field.** BL and container
+     are two completely different identifiers on every Bill of Lading.
+   - If the BL number EQUALS the container number you extracted, you are WRONG —
+     re-read the document and find the actual document identifier near the top.
 
 2. containerNumber:
-   - STRICTLY: exactly 4 UPPERCASE letters + exactly 7 digits. That is the ONLY valid format.
-   - Examples: CMAU8850469, MRKU8601423, FFAU2287130, HAMU2097764, CAAU6714302
-   - Found in the "Container No." field or "CONTAINER NO." column
-   - If the document says "N/M" (not mentioned) → OMIT this field entirely
-   - NEVER put a BL number in this field. NEVER put a booking reference here.
+   - STRICTLY: exactly 4 UPPERCASE letters + exactly 7 digits. Format: ^[A-Z]{4}\\d{7}$.
+   - Examples: CMAU1234567, HLXU8765432, CMAU8850469, MRKU8601423, FFAU2287130,
+     HAMU2097764, CAAU6714302.
+   - Found in the "Container No." field or "CONTAINER NO." column of the cargo table.
+   - This is a DIFFERENT VALUE from the BL number. Always.
+   - If the document says "N/M" (not mentioned) → OMIT this field entirely.
+   - NEVER put a BL number, booking reference, or seal number here.
 
 3. sealNumber:
-   - The seal number is printed alongside or after the container number
+   - The seal number is printed alongside or after the container number.
    - Often separated by "/" — e.g., "CMAU8850469/M5174463" → container=CMAU8850469, seal=M5174463
-   - Seal is usually shorter and may be purely numeric or alphanumeric WITHOUT the 4+7 pattern
+   - Seal is usually shorter and may be purely numeric or alphanumeric WITHOUT the 4+7 pattern.
 
 4. portOfLoading (ORIGIN — always China or Asia):
-   - Look for "Port of Loading", "POL", "Place of Receipt", "Pre-carriage"
-   - China ports: Shanghai, Ningbo, Qingdao, Shenzhen, Guangzhou, Tianjin, Xiamen, Dalian, Yantian, Nansha, Shekou
-   - This is where cargo STARTS its journey
+   - Look for "Port of Loading", "POL", "Place of Receipt", "Pre-carriage".
+   - This is the FIRST port — where cargo STARTS its journey.
+   - Allowed China ports ONLY (use one of these spellings; reject anything else):
+     Ningbo, Shanghai, Shenzhen, Qingdao, Tianjin, Xiamen, Dalian, Guangzhou,
+     Yantian, Lianyungang, Nansha, Shekou, Chiwan, Huangpu, Xingang.
+   - If the document mentions a Chinese transit port (e.g. Shanghai) separately from
+     the actual loading port (e.g. Ningbo), prefer the explicit "Port of Loading" label.
+   - DO NOT invent partial city names like "Jo", "Ergonjo", "Ning" — output a full
+     city name from the list above, or OMIT the field if uncertain.
 
-5. portOfDischarge (DESTINATION — Europe/Black Sea):
-   - Look for "Port of Discharge", "POD", "Place of Delivery", "Final Destination"
-   - Destination ports: Constanta (Romania), Rotterdam, Hamburg, Piraeus, Odessa, Giurgiulesti
-   - This is where cargo ARRIVES
+5. portOfDischarge (DESTINATION — final delivery, usually Romania/Moldova/Black Sea):
+   - Look for "Port of Discharge", "POD", "Place of Delivery", "Final Destination".
+   - This is the LAST port BEFORE the cargo is delivered to the consignee.
+   - For Promo-Effect shipments the destination is typically:
+     Constanta (Romania), Galati (Romania), Odessa (Ukraine), Giurgiulesti (Moldova).
+   - May also be a European hub: Piraeus, Rotterdam, Hamburg, Antwerp.
+   - DO NOT confuse with a transit/transshipment port. The DISCHARGE port is final.
+   - DO NOT output partial fragments like "Jo" or "Ergonjo".
 
 6. shippingLine:
-   - The carrier operating the vessel. Can be detected from BL prefix or explicit company name.
-   - ASG prefix → ASG; MED prefix → MSC; HLCU prefix → Hapag-Lloyd; CMDU prefix → CMA CGM
-   - ONE, Maersk, COSCO, Evergreen, OOCL, Yang Ming, ZIM, PIL, Wan Hai, Arkas, KMTC
+   - Identify the OCEAN CARRIER operating the vessel by inspecting the document
+     **HEADER, LOGO, BRANDING, and letterhead** at the top of the BL.
+   - Allowed values (use the EXACT canonical spelling):
+     CMA-CGM, ONE, Maersk, Hapag-Lloyd, COSCO, Evergreen, MSC, Yang Ming, HMM, ZIM,
+     OOCL, PIL, Wan Hai, ASG.
+   - Strong signals (in order):
+     a) Logo / company name in the top-left header (e.g. "CMA CGM" → CMA-CGM).
+     b) Container prefix: CMAU/CMDU → CMA-CGM; MRKU/MAEU → Maersk; HLXU/HLCU → Hapag-Lloyd;
+        TGHU/EGHU/EMCU/EGLV → Evergreen; COSU/CCLU/CSNU → COSCO; OOLU → OOCL;
+        YMLU → Yang Ming; HDMU → HMM; ZIMU → ZIM; MEDU → MSC; ONEY → ONE.
+     c) Phrase "Issued by" or "On behalf of" near the bottom.
+   - DO NOT confuse the SHIPPING LINE with the Forwarder, NVOCC, or Agent
+     (those appear in the body, not the header).
+   - If the header shows "CMA CGM" or "CMA-CGM", the answer is "CMA-CGM" — NEVER "ONE".
+   - Output "ONE" only if you see explicit "Ocean Network Express" branding or the
+     pink/magenta ONE logo notation in the text.
 
 ═══ FIELDS TO EXTRACT ═══
 
@@ -250,12 +279,21 @@ SHIPPER (Furnizor — Chinese exporter):
 - shipperWebsite: Website of shipper (if in letterhead or document)
 
 CONSIGNEE (Beneficiar — Moldovan/Romanian receiver):
-- consigneeName: Consignee company name (Moldova or Romania)
-- consigneeAddress: Consignee full address
-- consigneeContact: Contact person at consignee (if present)
-- consigneePhone: Phone number of consignee
-- consigneeEmail: Email address of consignee
-- consigneeIDNO: Moldovan IDNO or Romanian CUI/CIF tax identifier (digits after "IDNO", "CUI", "CIF" label, or standalone 13-digit number for Moldova / 6-10 digit for Romania)
+- consigneeName: Company appearing in the "CONSIGNEE" labeled field of the BL.
+  ⚠️ The consignee is the LEGAL RECEIVER of the goods — usually a Moldovan or Romanian
+  company (e.g. "Comagroteh SRL", "Andy SRL", "BETY COMPANY SRL").
+  ⚠️ NEVER copy the value from the "SHIPPER" field (which is the Chinese exporter).
+  ⚠️ NEVER copy from "NOTIFY PARTY" — that is a separate notification address.
+  ⚠️ NEVER output a generic placeholder like "Import SRL" or "Importator" — those
+  are not real consignee names. If the consignee field shows "TO ORDER", look for
+  the actual company name in the Notify Party section ONLY as a last resort and
+  mark it explicitly.
+  Read the label carefully: "Consignee" / "Consignee Name" / "Cnee" / "TO".
+- consigneeAddress: Address printed in the consignee box (NOT shipper address).
+- consigneeContact: Contact person at consignee (if present).
+- consigneePhone: Phone number of consignee.
+- consigneeEmail: Email address of consignee.
+- consigneeIDNO: Moldovan IDNO or Romanian CUI/CIF tax identifier (digits after "IDNO", "CUI", "CIF" label, or standalone 13-digit number for Moldova / 6-10 digit for Romania).
 
 NOTIFY PARTY:
 - notifyPartyName: Notify Party company name

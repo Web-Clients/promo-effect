@@ -203,6 +203,151 @@ export const CHINA_PORTS_WHITELIST = new Set([
   'YINGKOU',
 ]);
 
+/**
+ * Destination ports whitelist — Moldova/Romania/Black Sea region.
+ * Used to validate that portDestination is a sensible final discharge port.
+ * Includes both ASCII and diacritic forms of Constanta.
+ */
+export const DESTINATION_PORTS_WHITELIST = new Set([
+  'CONSTANTA',
+  'CONSTANȚA',
+  'CONSTANŢA',
+  'ODESSA',
+  'ODESA',
+  'GIURGIULESTI',
+  'GIURGIULEȘTI',
+  'GALATI',
+  'GALAȚI',
+  'GALAŢI',
+  'PIRAEUS',
+  'ROTTERDAM',
+  'HAMBURG',
+  'ANTWERP',
+  'GDANSK',
+  'FELIXSTOWE',
+  'LE HAVRE',
+  'VALENCIA',
+  'BARCELONA',
+  'ISTANBUL',
+  'MERSIN',
+  'AMBARLI',
+  'TEKIRDAG',
+  'TEKIRDAĞ',
+  'IZMIT',
+  'GEMLIK',
+]);
+
+/**
+ * Known shipping line tokens. Compared case-insensitively after normalizing
+ * separators (hyphens, spaces, dots). Used to validate AI output and as a
+ * fallback regex when the AI returns garbage.
+ */
+export const SHIPPING_LINES_KNOWN = [
+  'CMA CGM',
+  'CMA-CGM',
+  'CMACGM',
+  'ONE',
+  'MAERSK',
+  'HAPAG-LLOYD',
+  'HAPAG LLOYD',
+  'COSCO',
+  'EVERGREEN',
+  'MSC',
+  'YANG MING',
+  'YANGMING',
+  'HMM',
+  'ZIM',
+  'OOCL',
+  'PIL',
+  'WAN HAI',
+  'ASG',
+  'SINOLINES',
+  'ARKAS',
+  'KMTC',
+  'TS LINES',
+  'HEUNG-A',
+];
+
+/**
+ * Normalize a shipping line string to a canonical form (uppercased,
+ * separators collapsed). Returns `undefined` if no known carrier matches.
+ *
+ * Examples:
+ *   normalizeShippingLine('cma-cgm') → 'CMA CGM'
+ *   normalizeShippingLine('CMACGM')  → 'CMA CGM'
+ *   normalizeShippingLine('one')     → 'ONE'
+ *   normalizeShippingLine('Hapag Lloyd') → 'Hapag-Lloyd'
+ */
+export function normalizeShippingLine(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const cleaned = value
+    .trim()
+    .toUpperCase()
+    .replace(/[\-_.]+/g, ' ')
+    .replace(/\s+/g, ' ');
+  const condensed = cleaned.replace(/\s/g, '');
+  if (condensed === 'CMACGM' || cleaned === 'CMA CGM') return 'CMA CGM';
+  if (condensed === 'HAPAGLLOYD' || cleaned === 'HAPAG LLOYD') return 'Hapag-Lloyd';
+  if (condensed === 'YANGMING' || cleaned === 'YANG MING') return 'Yangming';
+  if (cleaned === 'WAN HAI' || condensed === 'WANHAI') return 'Wan Hai';
+  if (cleaned === 'TS LINES' || condensed === 'TSLINES') return 'TS Lines';
+  if (cleaned === 'HEUNG A' || condensed === 'HEUNGA') return 'Heung-A';
+  // Direct single-token matches
+  const single = SHIPPING_LINE_MAP[cleaned.toLowerCase()];
+  if (single) return single;
+  return undefined;
+}
+
+/**
+ * Fallback regex-based shipping line detector. Scans raw text (PDF body) for
+ * known carrier brand markers and returns the FIRST hit. Used when AI mislabels
+ * the carrier (e.g. returns "ONE" on a CMA-CGM document).
+ */
+export function detectShippingLineFromText(text: string): string | undefined {
+  if (!text) return undefined;
+  const upper = text.toUpperCase();
+  // CMA-CGM has many spellings — check first because container prefix CMAU
+  // is also a strong signal.
+  if (/CMA[\s\-]*CGM/.test(upper) || /\bCMAU\d{7}\b/.test(upper) || /\bCMDU/.test(upper))
+    return 'CMA CGM';
+  if (/HAPAG[\s\-]*LLOYD/.test(upper) || /\bHLCU/.test(upper)) return 'Hapag-Lloyd';
+  if (/\bMAERSK\b/.test(upper) || /\bMAEU\d{7}\b/.test(upper) || /\bMRKU\d{7}\b/.test(upper))
+    return 'Maersk';
+  if (/\bEVERGREEN\b/.test(upper) || /\bEGLV\b/.test(upper) || /\bEMCU\d{7}\b/.test(upper))
+    return 'Evergreen';
+  if (/\bCOSCO\b/.test(upper) || /\bCOSU\d{7}\b/.test(upper)) return 'COSCO';
+  if (/\bOOCL\b/.test(upper) || /\bOOLU\d{7}\b/.test(upper)) return 'OOCL';
+  if (/\bYANG[\s\-]*MING\b/.test(upper) || /\bYMLU\d{7}\b/.test(upper)) return 'Yangming';
+  if (/\bHMM\b/.test(upper) || /\bHDMU\d{7}\b/.test(upper)) return 'HMM';
+  if (/\bZIM\b/.test(upper) || /\bZIMU\d{7}\b/.test(upper)) return 'ZIM';
+  if (/\bMSC\b/.test(upper) || /\bMEDU\w{2,4}\d{6,}\b/.test(upper)) return 'MSC';
+  // Ocean Network Express — guard so we don't pick "ONE" appearing as common word
+  if (/\bONE\s*LINE\b/.test(upper) || /OCEAN\s*NETWORK\s*EXPRESS/.test(upper)) return 'ONE';
+  return undefined;
+}
+
+/**
+ * Fallback regex-based port detector — scans text for a port from the given
+ * whitelist set and returns the first hit (Title-Cased).
+ */
+export function detectPortFromText(text: string, whitelist: Set<string>): string | undefined {
+  if (!text) return undefined;
+  const upper = text.toUpperCase();
+  for (const port of whitelist) {
+    // Escape special chars (diacritics ok) and word-bound check
+    const re = new RegExp(`\\b${port.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+    if (re.test(upper)) {
+      // Return Title-Cased form
+      return port
+        .toLowerCase()
+        .split(' ')
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+    }
+  }
+  return undefined;
+}
+
 // ===== SHIPPING LINE NORMALIZATION =====
 
 export const SHIPPING_LINE_MAP: Record<string, string> = {

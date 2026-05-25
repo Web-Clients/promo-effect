@@ -10,6 +10,10 @@ import {
   isContainerNumber,
   isBlNumber,
   CHINA_PORTS_WHITELIST,
+  DESTINATION_PORTS_WHITELIST,
+  normalizeShippingLine,
+  detectShippingLineFromText,
+  detectPortFromText,
 } from './email.types';
 
 /**
@@ -67,7 +71,13 @@ ${email.body.substring(0, 5000)}
 
     const validatedContainer =
       rawContainer && isContainerNumber(rawContainer) ? rawContainer : undefined;
-    const validatedBl = rawBl && isBlNumber(rawBl) && !isContainerNumber(rawBl) ? rawBl : undefined;
+    let validatedBl = rawBl && isBlNumber(rawBl) && !isContainerNumber(rawBl) ? rawBl : undefined;
+    if (validatedContainer && validatedBl && validatedContainer === validatedBl) {
+      logger.warn(
+        `[AI] BL number equals container number ("${validatedContainer}") — rejecting BL`
+      );
+      validatedBl = undefined;
+    }
 
     // Validate portOrigin is a known China port (guard against swapped ports)
     let portOrigin = geminiResult.portOfLoading;
@@ -85,7 +95,7 @@ ${email.body.substring(0, 5000)}
     return {
       containerNumber: validatedContainer,
       blNumber: validatedBl,
-      shippingLine: geminiResult.shippingLine,
+      shippingLine: normalizeShippingLine(geminiResult.shippingLine) || geminiResult.shippingLine,
       vesselName: geminiResult.vesselName,
       voyageNumber: undefined,
       portOrigin,
@@ -126,9 +136,9 @@ export async function parseShippingDocumentWithAI(
     const rawContainer = result.containerNumber?.trim().toUpperCase();
     const rawBl = result.billOfLading?.trim().toUpperCase();
 
-    const validatedContainer =
+    let validatedContainer =
       rawContainer && isContainerNumber(rawContainer) ? rawContainer : undefined;
-    const validatedBl = rawBl && isBlNumber(rawBl) && !isContainerNumber(rawBl) ? rawBl : undefined;
+    let validatedBl = rawBl && isBlNumber(rawBl) && !isContainerNumber(rawBl) ? rawBl : undefined;
 
     if (rawContainer && !validatedContainer) {
       logger.warn(`[AI-PDF] Rejected invalid containerNumber from AI: "${rawContainer}"`);
@@ -138,8 +148,32 @@ export async function parseShippingDocumentWithAI(
         `[AI-PDF] Rejected invalid billOfLading from AI: "${rawBl}" (matches container pattern or invalid)`
       );
     }
+    // Hard reject if BL == container (the exact bug we saw on the CMA-CGM BL).
+    if (validatedContainer && validatedBl && validatedContainer === validatedBl) {
+      logger.warn(
+        `[AI-PDF] BL number equals container number ("${validatedContainer}") — rejecting BL and falling back to PDF text scan`
+      );
+      validatedBl = undefined;
+    }
+    // Fallback: scrape BL from raw PDF text using regex if AI dropped it.
+    if (!validatedBl) {
+      const labelMatch = pdfText.match(
+        /(?:B\/L\s*N[oO]\.?|BL\s*N[oO]\.?|H\.?B\.?L\.?\s*N?[oO]?\.?|M\.?B\.?L\.?\s*N?[oO]?\.?|Bill\s*of\s*Lading\s*N[oO]\.?|Document\s*N[oO]\.?|Reference\s*N[oO]\.?)\s*[:\-]?\s*([A-Z0-9][A-Z0-9 \-]{4,19})/i
+      );
+      if (labelMatch && labelMatch[1]) {
+        const candidate = labelMatch[1].trim().toUpperCase();
+        if (
+          isBlNumber(candidate) &&
+          !isContainerNumber(candidate) &&
+          candidate !== validatedContainer
+        ) {
+          validatedBl = candidate;
+          logger.info(`[AI-PDF] Recovered BL from PDF text via label regex: "${candidate}"`);
+        }
+      }
+    }
 
-    // Guard against swapped ports
+    // Guard against swapped ports + validate against whitelists
     let portOrigin = result.portOfLoading;
     let portDestination = result.portOfDischarge;
     if (portOrigin && portDestination) {
@@ -150,11 +184,107 @@ export async function parseShippingDocumentWithAI(
         [portOrigin, portDestination] = [portDestination, portOrigin];
       }
     }
+    // Whitelist guard — if AI returned a garbage port name (e.g. "Jo", "Ergonjo"),
+    // scrape the PDF text for a known port instead.
+    {
+      const originUpper = portOrigin?.toUpperCase().split(',')[0].trim() ?? '';
+      if (!portOrigin || !CHINA_PORTS_WHITELIST.has(originUpper)) {
+        const fallback = detectPortFromText(pdfText, CHINA_PORTS_WHITELIST);
+        if (fallback) {
+          if (portOrigin && portOrigin !== fallback) {
+            logger.warn(
+              `[AI-PDF] Suspicious portOfLoading from AI ("${portOrigin}") — overriding with text-scan hit "${fallback}"`
+            );
+          }
+          portOrigin = fallback;
+        } else if (portOrigin && !CHINA_PORTS_WHITELIST.has(originUpper)) {
+          logger.warn(
+            `[AI-PDF] portOfLoading "${portOrigin}" not in China whitelist and no fallback found — keeping with warning`
+          );
+        }
+      }
+      const destUpper = portDestination?.toUpperCase().split(',')[0].trim() ?? '';
+      if (!portDestination || !DESTINATION_PORTS_WHITELIST.has(destUpper)) {
+        const fallback = detectPortFromText(pdfText, DESTINATION_PORTS_WHITELIST);
+        if (fallback) {
+          if (portDestination && portDestination !== fallback) {
+            logger.warn(
+              `[AI-PDF] Suspicious portOfDischarge from AI ("${portDestination}") — overriding with text-scan hit "${fallback}"`
+            );
+          }
+          portDestination = fallback;
+        } else if (portDestination && !DESTINATION_PORTS_WHITELIST.has(destUpper)) {
+          logger.warn(
+            `[AI-PDF] portOfDischarge "${portDestination}" not in destination whitelist — keeping with warning`
+          );
+        }
+      }
+    }
+
+    // Validate + normalize shipping line; fallback to header/text regex scan.
+    let validatedShippingLine = normalizeShippingLine(result.shippingLine);
+    if (!validatedShippingLine) {
+      const fallback = detectShippingLineFromText(pdfText);
+      if (fallback) {
+        if (result.shippingLine && result.shippingLine.toUpperCase() !== fallback.toUpperCase()) {
+          logger.warn(
+            `[AI-PDF] AI shippingLine "${result.shippingLine}" did not match known carriers — overriding with text-scan hit "${fallback}"`
+          );
+        }
+        validatedShippingLine = fallback;
+      } else if (result.shippingLine) {
+        // Keep as-is but warn
+        validatedShippingLine = result.shippingLine;
+        logger.warn(`[AI-PDF] shippingLine "${result.shippingLine}" not recognized`);
+      }
+    } else if (
+      result.shippingLine &&
+      validatedShippingLine.toUpperCase() !== result.shippingLine.trim().toUpperCase()
+    ) {
+      // Normalization happened (e.g. "cma-cgm" → "CMA CGM"); log for observability.
+      logger.info(
+        `[AI-PDF] Normalized shippingLine "${result.shippingLine}" → "${validatedShippingLine}"`
+      );
+    }
+    // Sanity: if BL prefix or container prefix points to a different carrier than
+    // the AI output, override with text-scan hit (e.g. ONE vs CMA-CGM bug).
+    const carrierFromSignals = detectShippingLineFromText(pdfText);
+    if (
+      carrierFromSignals &&
+      validatedShippingLine &&
+      carrierFromSignals.toUpperCase() !== validatedShippingLine.toUpperCase()
+    ) {
+      logger.warn(
+        `[AI-PDF] shippingLine conflict — AI said "${validatedShippingLine}" but document signals point to "${carrierFromSignals}". Overriding.`
+      );
+      validatedShippingLine = carrierFromSignals;
+    }
+
+    // Consignee sanity check: reject placeholder names + reject if it equals shipper.
+    let validatedConsigneeName = result.consigneeName?.trim();
+    const shipperName = (result.shipperName || result.supplierName)?.trim();
+    if (validatedConsigneeName) {
+      const placeholderRe = /^(import\s*srl|importator|to\s*order|n\/a|n\.a\.|unknown|tbd)\.?$/i;
+      if (placeholderRe.test(validatedConsigneeName)) {
+        logger.warn(
+          `[AI-PDF] Rejected placeholder consigneeName "${validatedConsigneeName}" — clearing`
+        );
+        validatedConsigneeName = undefined;
+      } else if (
+        shipperName &&
+        validatedConsigneeName.toLowerCase() === shipperName.toLowerCase()
+      ) {
+        logger.warn(
+          `[AI-PDF] consigneeName equals shipperName ("${shipperName}") — clearing (AI confused Shipper with Consignee)`
+        );
+        validatedConsigneeName = undefined;
+      }
+    }
 
     return {
       containerNumber: validatedContainer,
       blNumber: validatedBl,
-      shippingLine: result.shippingLine,
+      shippingLine: validatedShippingLine,
       vesselName: result.vesselName,
       voyageNumber: result.voyageNumber,
       portOrigin,
@@ -172,7 +302,7 @@ export async function parseShippingDocumentWithAI(
       supplierContact: result.shipperContact,
       supplierWebsite: result.shipperWebsite,
       // Consignee (Moldovan/Romanian beneficiary)
-      consigneeName: result.consigneeName,
+      consigneeName: validatedConsigneeName,
       consigneeAddress: result.consigneeAddress,
       consigneeContact: result.consigneeContact,
       consigneePhone: result.consigneePhone,
@@ -186,7 +316,8 @@ export async function parseShippingDocumentWithAI(
       extractionMethod: 'AI',
       rawEmailId: '',
     };
-  } catch {
+  } catch (err) {
+    logger.error('[AI-PDF] parseShippingDocumentWithAI threw:', err);
     return null;
   }
 }

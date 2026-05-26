@@ -1,11 +1,18 @@
 /**
  * Tracking Webhook Service
- * Handles webhook requests from external tracking providers (SeaRates web integration, etc.)
+ *
+ * Provider-agnostic ingestion path for tracking events. Used by:
+ *   - manual entry (operator UI)
+ *   - Gemini email parser
+ *   - any future inbound integration (e.g. Maersk Track API webhook)
+ *
+ * Vessel positions arrive separately via the AISStream WebSocket
+ * (see aisstream.integration.ts) and are written directly to the
+ * Container table, so they don't flow through this service.
  */
 
 import prisma from '../../lib/prisma';
 import notificationService from '../../services/notification.service';
-import { searatesIntegration } from '../../integrations/searates.integration';
 import logger from '../../utils/logger';
 
 export interface WebhookPayload {
@@ -21,26 +28,18 @@ export interface WebhookPayload {
   longitude?: number;
   status?: string;
   details?: any;
-  source: string; // SEARATES, MAERSK_API, etc.
+  source: string; // AISSTREAM, MANUAL_ENTRY, EMAIL_PARSING, MAERSK_API
 }
 
 export class TrackingWebhookService {
   /**
-   * Process webhook from external provider
+   * Persist a tracking event coming from any source.
    */
-  async processWebhook(payload: WebhookPayload, signature?: string, provider: string = 'SEARATES') {
-    // Verify webhook signature for security
-    if (signature && provider === 'SEARATES') {
-      const webhookSecret = process.env.SEARATES_WEBHOOK_SECRET;
-      if (webhookSecret) {
-        const payloadString = typeof payload === 'string' ? payload : JSON.stringify(payload);
-        if (!searatesIntegration.verifyWebhookSignature(payloadString, signature, webhookSecret)) {
-          throw new Error('Invalid webhook signature');
-        }
-      }
-    }
-
-    // Find container by container number or B/L number
+  async processWebhook(
+    payload: WebhookPayload,
+    _signature?: string,
+    _provider: string = 'GENERIC'
+  ) {
     let container = null;
 
     if (payload.containerNumber) {
@@ -51,24 +50,13 @@ export class TrackingWebhookService {
     }
 
     if (!container && payload.blNumber) {
-      // Try to find by B/L number directly
-      // Note: blNumber field exists in schema but may need Prisma client regeneration
       container = await prisma.container.findFirst({
-        where: {
-          blNumber: payload.blNumber,
-        } as any,
-        include: {
-          booking: {
-            include: {
-              client: true,
-            },
-          },
-        },
+        where: { blNumber: payload.blNumber } as any,
+        include: { booking: { include: { client: true } } },
       });
     }
 
     if (!container) {
-      // Container not found - log for manual review
       await prisma.auditLog.create({
         data: {
           action: 'WEBHOOK_CONTAINER_NOT_FOUND',
@@ -88,7 +76,6 @@ export class TrackingWebhookService {
       };
     }
 
-    // Check if event already exists (avoid duplicates)
     const existingEvent = await prisma.trackingEvent.findFirst({
       where: {
         containerId: container.id,
@@ -106,7 +93,6 @@ export class TrackingWebhookService {
       };
     }
 
-    // Create tracking event
     const event = await prisma.trackingEvent.create({
       data: {
         containerId: container.id,
@@ -122,15 +108,12 @@ export class TrackingWebhookService {
         containerStatus: payload.status,
         details: payload.details ? JSON.stringify(payload.details) : null,
         source: payload.source || 'MANUAL_ENTRY',
-        validated: true, // Events from API are considered validated
+        validated: true,
         visibility: 'PUBLIC',
       } as any,
     });
 
-    // Update container status and location
     await this.updateContainerFromEvent(container.id, payload);
-
-    // Check for significant changes (ETA, delays, etc.)
     await this.checkForAlerts(container.id, payload);
 
     return {
@@ -141,44 +124,23 @@ export class TrackingWebhookService {
     };
   }
 
-  /**
-   * Update container based on webhook event
-   */
   private async updateContainerFromEvent(containerId: string, payload: WebhookPayload) {
     const updateData: any = {
       lastSyncAt: new Date(),
       apiSource: payload.source,
     };
 
-    // Update status if provided
-    if (payload.status) {
-      updateData.currentStatus = payload.status;
-    }
-
-    // Update location
-    if (payload.location) {
-      updateData.currentLocation = payload.location;
-    }
-
+    if (payload.status) updateData.currentStatus = payload.status;
+    if (payload.location) updateData.currentLocation = payload.location;
     if (payload.latitude && payload.longitude) {
       updateData.currentLat = payload.latitude;
       updateData.currentLng = payload.longitude;
     }
+    if (payload.details?.eta) updateData.eta = new Date(payload.details.eta);
 
-    // Update ETA if provided in details
-    if (payload.details?.eta) {
-      updateData.eta = new Date(payload.details.eta);
-    }
-
-    await prisma.container.update({
-      where: { id: containerId },
-      data: updateData,
-    });
+    await prisma.container.update({ where: { id: containerId }, data: updateData });
   }
 
-  /**
-   * Check for alerts (delays, ETA changes, etc.)
-   */
   private async checkForAlerts(containerId: string, payload: WebhookPayload) {
     const container = await prisma.container.findUnique({
       where: { id: containerId },
@@ -187,7 +149,6 @@ export class TrackingWebhookService {
 
     if (!container) return;
 
-    // Check for delay
     const containerWithExtras = container as any;
     if (container.eta && containerWithExtras.etaOriginal) {
       const delayDays = Math.floor(
@@ -201,9 +162,7 @@ export class TrackingWebhookService {
           data: { delayed: true } as any,
         });
 
-        // Send delay notification to client
         try {
-          // Resolve User ID from client email (Client and User are separate entities)
           const clientData = await prisma.client.findUnique({
             where: { id: container.booking.clientId },
             select: { email: true },
@@ -226,12 +185,7 @@ export class TrackingWebhookService {
               type: 'CONTAINER_DELAYED',
               title: `Container ${container.containerNumber} - Întârziere`,
               message: `Container-ul ${container.containerNumber} este întârziat cu ${delayDays} zile. ETA actualizat: ${container.eta ? new Date(container.eta).toLocaleDateString('ro-RO') : 'N/A'}`,
-              channels: {
-                email: true,
-                sms: true,
-                whatsapp: true,
-                push: true,
-              },
+              channels: { email: true, sms: true, whatsapp: true, push: true },
             });
           }
         } catch (error) {
@@ -240,24 +194,21 @@ export class TrackingWebhookService {
       }
     }
 
-    // Check for ETA change
     if (payload.details?.eta && container.eta) {
       const newEta = new Date(payload.details.eta);
       const oldEta = container.eta;
       const diffDays = Math.abs((newEta.getTime() - oldEta.getTime()) / (1000 * 60 * 60 * 24));
 
       if (diffDays > 1) {
-        // Significant ETA change - send notification
         try {
-          const container = await prisma.container.findUnique({
+          const refreshed = await prisma.container.findUnique({
             where: { id: containerId },
             include: { booking: true },
           });
 
-          if (container) {
-            // Resolve User ID from client email (Client and User are separate entities)
+          if (refreshed) {
             const clientData = await prisma.client.findUnique({
-              where: { id: container.booking.clientId },
+              where: { id: refreshed.booking.clientId },
               select: { email: true },
             });
             const clientUser = clientData
@@ -269,21 +220,16 @@ export class TrackingWebhookService {
 
             if (!clientUser) {
               logger.warn(
-                `[Webhook] No user found for clientId ${container.booking.clientId}, skipping ETA notification`
+                `[Webhook] No user found for clientId ${refreshed.booking.clientId}, skipping ETA notification`
               );
             } else {
               await notificationService.sendNotification({
                 userId: clientUser.id,
-                bookingId: container.bookingId,
+                bookingId: refreshed.bookingId,
                 type: 'ETA_CHANGED',
-                title: `Container ${container.containerNumber} - ETA Actualizat`,
-                message: `ETA pentru container-ul ${container.containerNumber} a fost actualizat. Noua dată estimată: ${newEta.toLocaleDateString('ro-RO')}`,
-                channels: {
-                  email: true,
-                  sms: false,
-                  whatsapp: false,
-                  push: true,
-                },
+                title: `Container ${refreshed.containerNumber} - ETA Actualizat`,
+                message: `ETA pentru container-ul ${refreshed.containerNumber} a fost actualizat. Noua dată estimată: ${newEta.toLocaleDateString('ro-RO')}`,
+                channels: { email: true, sms: false, whatsapp: false, push: true },
               });
             }
           }
@@ -294,26 +240,9 @@ export class TrackingWebhookService {
     }
   }
 
-  /**
-   * Extract UNLOCODE from location string
-   */
   private extractUnlocode(location?: string): string | null {
     if (!location) return null;
-
-    // Try to extract UNLOCODE pattern (e.g., "ROCND" from "Constanța (ROCND)")
     const match = location.match(/\(([A-Z]{5})\)/);
     return match ? match[1] : null;
-  }
-
-  /**
-   * Process SeaRates webhook payload
-   * This method handles the raw webhook payload from SeaRates web integration
-   */
-  async processSeaRatesWebhook(rawPayload: any, signature?: string) {
-    // Parse SeaRates payload format
-    const payload = searatesIntegration.parseWebhookPayload(rawPayload);
-
-    // Process as regular webhook
-    return this.processWebhook(payload, signature, 'SEARATES');
   }
 }

@@ -50,7 +50,7 @@ export enum TrackingStatus {
   ARRIVED = 'ARRIVED',
   DISCHARGED = 'DISCHARGED',
   GATE_OUT = 'GATE_OUT',
-  DELIVERED = 'DELIVERED'
+  DELIVERED = 'DELIVERED',
 }
 
 export interface TrackingEvent {
@@ -106,10 +106,10 @@ export interface SystemSettings {
     syncInterval: number;
   };
 
-  // Container Tracking
+  // Container Tracking — AISStream (free WebSocket of live AIS positions)
   trackingSettings: {
-    provider: 'SEARATES';
-    searatesApiKey: string;
+    provider: 'AISSTREAM';
+    aisstreamApiKey: string;
     enabled: boolean;
     syncInterval: number;
   };

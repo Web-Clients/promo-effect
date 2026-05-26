@@ -1,11 +1,60 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware, requireRole } from '../../middleware/auth.middleware';
 import trackingService, { TrackingEventInput } from './tracking.service';
+import { aisstreamIntegration } from '../../integrations/aisstream.integration';
 import notificationService from '../../services/notification.service';
 import prisma from '../../lib/prisma';
 import logger from '../../utils/logger';
 
 const router = Router();
+
+/**
+ * PATCH /api/tracking/containers/:id/vessel
+ * Assign or update the AIS vessel for a container. Once set, the
+ * AISStream WebSocket will start streaming live positions for it.
+ * @access ADMIN, OPERATOR
+ */
+router.patch(
+  '/:id/vessel',
+  authMiddleware,
+  requireRole(['ADMIN', 'SUPER_ADMIN', 'OPERATOR']),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { mmsi, imo, name } = req.body as { mmsi?: string; imo?: string; name?: string };
+
+      if (!mmsi || !/^\d{9}$/.test(mmsi)) {
+        return res.status(400).json({ error: 'mmsi must be a 9-digit string' });
+      }
+
+      const container = await prisma.container.findUnique({ where: { id } });
+      if (!container) {
+        return res.status(404).json({ error: 'Container not found' });
+      }
+
+      const previousMmsi = (container as any).vesselMmsi as string | null;
+
+      const updated = await prisma.container.update({
+        where: { id },
+        data: {
+          vesselMmsi: mmsi,
+          vesselImo: imo || undefined,
+          vesselName: name || undefined,
+        } as any,
+      });
+
+      if (previousMmsi && previousMmsi !== mmsi) {
+        aisstreamIntegration.untrackMmsi(previousMmsi);
+      }
+      aisstreamIntegration.trackMmsi(mmsi);
+
+      res.json(updated);
+    } catch (error: any) {
+      logger.error('Set vessel MMSI error:', error);
+      res.status(500).json({ error: error.message || 'Failed to set vessel' });
+    }
+  }
+);
 
 /**
  * GET /api/tracking/containers
@@ -155,7 +204,7 @@ router.post(
         return res.status(404).json({ error: 'Container not found' });
       }
 
-      // Call refreshTracking which uses SeaRates web integration
+      // Pulls the latest cached AIS position for the container's vessel
       const result = await trackingService.refreshTracking(id);
 
       res.json({

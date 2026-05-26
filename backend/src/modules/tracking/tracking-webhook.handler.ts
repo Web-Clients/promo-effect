@@ -1,23 +1,19 @@
 import prisma from '../../lib/prisma';
-import { searatesIntegration } from '../../integrations/searates.integration';
+import { aisstreamIntegration } from '../../integrations/aisstream.integration';
 import notificationService from '../../services/notification.service';
 import { EventTypeLabels } from './tracking.types';
 import type { TrackingEventInput } from './tracking.types';
 import logger from '../../utils/logger';
 
 // ============================================
-// WEBHOOK / EXTERNAL API REFRESH HANDLER
+// REFRESH HANDLER (AISStream-backed)
 // ============================================
 
-/**
- * Send email notification for important tracking events
- */
 export async function sendTrackingEventNotification(
   container: any,
   eventData: TrackingEventInput,
   _eventId: string
 ): Promise<void> {
-  // Important events that should trigger email notifications
   const importantEvents = [
     'VESSEL_DEPARTURE',
     'VESSEL_ARRIVAL',
@@ -27,17 +23,12 @@ export async function sendTrackingEventNotification(
     'CUSTOMS_RELEASED',
   ];
 
-  if (!importantEvents.includes(eventData.eventType)) {
-    return; // Skip notification for non-critical events
-  }
+  if (!importantEvents.includes(eventData.eventType)) return;
 
   try {
     const booking = container.booking;
-    if (!booking || !booking.client) {
-      return; // No client to notify
-    }
+    if (!booking || !booking.client) return;
 
-    // Find users associated with this client
     const clientUsers = await prisma.user.findMany({
       where: { email: booking.client.email },
     });
@@ -67,7 +58,6 @@ export async function sendTrackingEventNotification(
       });
     }
 
-    // Fallback: send to clientId if no users found
     if (usersToNotify.length === 0 && booking.client.email) {
       await notificationService.sendNotification({
         userId: booking.clientId,
@@ -80,13 +70,18 @@ export async function sendTrackingEventNotification(
     }
   } catch (error) {
     logger.error(`[TrackingWebhookHandler] Failed to send tracking event notification:`, error);
-    // Don't fail the event creation if notification fails
   }
 }
 
 /**
- * Refresh tracking data from external APIs (SeaRates).
- * Called by background jobs to sync container tracking.
+ * Pull the latest cached AIS position for the container's vessel and
+ * persist it. The cache itself is fed by the always-on AISStream
+ * WebSocket (see aisstream.integration.ts), so this call is cheap and
+ * does not make any outbound HTTP request.
+ *
+ * Carrier-side events (LOADED, DISCHARGED, etc.) are not produced by
+ * AIS — they arrive separately via the generic webhook endpoint
+ * (manual entry, Gemini email parser, or carrier API).
  */
 export async function refreshTracking(
   containerId: string
@@ -94,12 +89,10 @@ export async function refreshTracking(
   try {
     const container = await prisma.container.findUnique({
       where: { id: containerId },
-      include: {
-        booking: true,
-        trackingEvents: {
-          orderBy: { eventDate: 'desc' },
-          take: 1, // Get latest event
-        },
+      select: {
+        id: true,
+        containerNumber: true,
+        vesselMmsi: true,
       },
     });
 
@@ -109,104 +102,39 @@ export async function refreshTracking(
 
     let eventsFound = 0;
 
-    if (searatesIntegration.isConfigured()) {
-      try {
-        // Get tracking from SeaRates web integration
-        const searatesData = await searatesIntegration.getContainerTracking(
-          container.containerNumber
-        );
+    if (container.vesselMmsi) {
+      const position = aisstreamIntegration.getPosition(container.vesselMmsi);
 
-        if (searatesData) {
-          // Process events from SeaRates
-          if (searatesData.events && searatesData.events.length > 0) {
-            // Get latest event date from our database
-            const latestEvent = container.trackingEvents[0];
-            const latestEventDate = latestEvent ? new Date(latestEvent.eventDate) : new Date(0);
-
-            // Process new events
-            for (const searatesEvent of searatesData.events) {
-              const eventDate = new Date(searatesEvent.occurredAt);
-
-              // Only process events newer than our latest
-              if (eventDate > latestEventDate) {
-                const eventType = searatesIntegration.mapEventType(searatesEvent.type);
-
-                // Check if event already exists
-                const existing = await prisma.trackingEvent.findFirst({
-                  where: {
-                    containerId: container.id,
-                    eventType,
-                    eventDate,
-                    source: 'SEARATES',
-                  } as any,
-                });
-
-                if (!existing) {
-                  // Get location data - check both searatesEvent and searatesData
-                  const eventLocation = searatesEvent.location || searatesData.location;
-                  const eventLatitude =
-                    (eventLocation as any)?.latitude || searatesData.location?.latitude;
-                  const eventLongitude =
-                    (eventLocation as any)?.longitude || searatesData.location?.longitude;
-
-                  await prisma.trackingEvent.create({
-                    data: {
-                      containerId: container.id,
-                      eventType,
-                      eventDate,
-                      location: eventLocation?.name || searatesData.location?.name || 'Unknown',
-                      portName: eventLocation?.name || searatesData.location?.name,
-                      unlocode: eventLocation?.unlocode || searatesData.location?.unlocode,
-                      vessel: searatesEvent.vessel?.name || searatesData.vessel?.name,
-                      voyageNumber: searatesEvent.voyage || searatesData.voyage,
-                      latitude: eventLatitude,
-                      longitude: eventLongitude,
-                      containerStatus: searatesData.status,
-                      details: searatesEvent.description || null,
-                      source: 'SEARATES',
-                      validated: true,
-                      visibility: 'PUBLIC',
-                    } as any,
-                  });
-
-                  eventsFound++;
-                }
-              }
-            }
-          }
-
-          // Update container status and location from SeaRates (always, even without new events)
-          if (searatesData.status || searatesData.location) {
-            await prisma.container.update({
-              where: { id: containerId },
-              data: {
-                currentStatus: searatesData.status || undefined,
-                currentLocation: searatesData.location?.name || undefined,
-                currentLat: searatesData.location?.latitude || undefined,
-                currentLng: searatesData.location?.longitude || undefined,
-                eta: searatesData.eta ? new Date(searatesData.eta) : undefined,
-                actualArrival: searatesData.ata ? new Date(searatesData.ata) : undefined,
-                lastSyncAt: new Date(),
-              } as any,
-            });
-          }
-        }
-      } catch (error) {
-        logger.error(
-          `[TrackingWebhookHandler] SeaRates web integration error for container ${container.containerNumber}:`,
-          error
-        );
-        // Continue even if SeaRates fails - just update timestamp
+      if (position) {
+        await prisma.container.update({
+          where: { id: containerId },
+          data: {
+            currentLat: position.latitude,
+            currentLng: position.longitude,
+            vesselSog: position.sog,
+            vesselCog: position.cog,
+            vesselHeading: position.heading >= 511 ? null : position.heading,
+            vesselName: position.shipName || undefined,
+            vesselImo: position.imo || undefined,
+            vesselPosAt: new Date(position.timestamp),
+            lastSyncAt: new Date(),
+            apiSource: 'AISSTREAM',
+          },
+        });
+      } else {
+        // Ensure the AISStream subscription set is up to date for this MMSI.
+        aisstreamIntegration.trackMmsi(container.vesselMmsi);
+        await prisma.container.update({
+          where: { id: containerId },
+          data: { lastSyncAt: new Date() },
+        });
       }
+    } else {
+      await prisma.container.update({
+        where: { id: containerId },
+        data: { lastSyncAt: new Date() },
+      });
     }
-
-    // Update lastSyncAt timestamp
-    await prisma.container.update({
-      where: { id: containerId },
-      data: {
-        lastSyncAt: new Date(),
-      },
-    });
 
     return { success: true, eventsFound };
   } catch (error) {

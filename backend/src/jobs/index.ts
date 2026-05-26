@@ -10,6 +10,7 @@ import { startPaymentRemindersJob, stopPaymentRemindersJob } from './payment-rem
 import { startDailyReportJob, stopDailyReportJob } from './daily-report.job';
 import { startAuthCleanupJob, stopAuthCleanupJob } from './auth-cleanup.job';
 import { startEtaReminderJob, stopEtaReminderJob } from './notification-eta-reminder.job';
+import { aisstreamIntegration } from '../integrations/aisstream.integration';
 import logger from '../utils/logger';
 
 /**
@@ -18,7 +19,10 @@ import logger from '../utils/logger';
 export function startAllJobs() {
   logger.info('🚀 Starting background jobs...');
 
-  // Start all jobs
+  // Long-lived integrations
+  aisstreamIntegration.start().catch((err) => logger.error('[AISStream] start error:', err));
+
+  // Cron jobs
   startEmailFetcherJob();
   startContainerSyncJob();
   startPaymentRemindersJob();

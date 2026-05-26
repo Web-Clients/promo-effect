@@ -475,24 +475,24 @@ export class SettingsService {
   }
 
   /**
-   * Test integration (Gmail, SeaRates, etc.)
+   * Test integration (Gmail, AISStream, etc.)
    */
   async testIntegration(integrationType: string) {
     switch (integrationType.toLowerCase()) {
       case 'gmail':
         return this.testGmailConnection();
-      case 'searates':
-        return this.testSearatesConnection();
+      case 'aisstream':
+        return this.testAISStreamConnection();
       default:
         throw new Error(`Integration type ${integrationType} not supported`);
     }
   }
 
-  async testSearatesConnection(): Promise<{ success: boolean; message: string }> {
-    const apiKey = process.env.SEARATES_API_KEY;
-    if (!apiKey) {
-      return { success: false, message: 'SeaRates API key not configured' };
+  async testAISStreamConnection(): Promise<{ success: boolean; message: string }> {
+    const { aisstreamIntegration } = await import('../../integrations/aisstream.integration');
+    if (!aisstreamIntegration.isConfigured()) {
+      return { success: false, message: 'AISSTREAM_API_KEY not configured' };
     }
-    return { success: true, message: 'SeaRates API key is configured' };
+    return aisstreamIntegration.testConnection();
   }
 }

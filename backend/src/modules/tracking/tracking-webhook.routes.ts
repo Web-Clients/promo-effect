@@ -10,39 +10,29 @@ const webhookService = new TrackingWebhookService();
 
 /**
  * POST /api/tracking/webhook
- * Webhook endpoint for external tracking providers (SeaRates web integration, etc.)
- * @access Public (with signature verification)
+ * Generic tracking-event ingestion endpoint.
+ *
+ * Accepts a normalized payload (see WebhookPayload) and resolves the
+ * container by containerNumber or blNumber. Used by manual integrations
+ * or future carrier APIs (Maersk Track API, etc.). Vessel positions
+ * arrive separately via the AISStream WebSocket.
  */
 router.post('/', webhookLimiter, async (req: Request, res: Response) => {
   try {
-    // Get signature - handle both string and string[] types
-    const signatureHeader = req.headers['x-signature'] || req.headers['x-searates-signature'];
+    const signatureHeader = req.headers['x-signature'];
     const signature = Array.isArray(signatureHeader)
       ? signatureHeader[0]
       : (signatureHeader as string | undefined);
 
-    // Get provider - handle both string and string[] types
-    const providerHeader = req.headers['x-provider'] || 'SEARATES';
+    const providerHeader = req.headers['x-provider'] || 'MANUAL_ENTRY';
     const provider = Array.isArray(providerHeader) ? providerHeader[0] : (providerHeader as string);
 
     const source = Array.isArray(req.headers['x-source'])
       ? req.headers['x-source'][0]
       : (req.headers['x-source'] as string | undefined) || provider;
 
-    const payload = req.body;
-
-    // Check if this is a SeaRates webhook (has specific format)
-    let result;
-    if (provider === 'SEARATES' || payload.event || payload.container) {
-      result = await webhookService.processSeaRatesWebhook(payload, signature);
-    } else {
-      // Generic webhook format
-      const webhookPayload = {
-        ...payload,
-        source,
-      };
-      result = await webhookService.processWebhook(webhookPayload, signature, provider);
-    }
+    const webhookPayload = { ...req.body, source };
+    const result = await webhookService.processWebhook(webhookPayload, signature, provider);
 
     if (result.success) {
       res.status(200).json(result);

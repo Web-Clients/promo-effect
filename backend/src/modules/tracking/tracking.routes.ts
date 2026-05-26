@@ -6,7 +6,7 @@ import trackingService, {
   EventTypeLabels,
 } from './tracking.service';
 import { TrackingWebhookService } from './tracking-webhook.service';
-import { searatesIntegration } from '../../integrations/searates.integration';
+import { aisstreamIntegration } from '../../integrations/aisstream.integration';
 import prisma from '../../lib/prisma';
 import { webhookLimiter, emailParseLimiter } from '../../middleware/rateLimit.middleware';
 import notificationService from '../../services/notification.service';
@@ -147,34 +147,31 @@ router.delete(
 
 /**
  * GET /api/tracking/test-connection
- * Test SeaRates API connection and show status
+ * Test AISStream WebSocket connectivity.
  * @access ADMIN only
  */
 router.get(
   '/test-connection',
   authMiddleware,
   requireRole(['ADMIN', 'SUPER_ADMIN']),
-  async (req: Request, res: Response) => {
+  async (_req: Request, res: Response) => {
     try {
-      const testResult = await searatesIntegration.testConnection();
-
+      const testResult = await aisstreamIntegration.testConnection();
       res.json({
-        service: 'SeaRates API v3',
-        baseUrl: 'https://tracking.searates.com',
-        configured: searatesIntegration.isConfigured(),
-        apiKeyInfo: searatesIntegration.getApiKeyInfo(),
+        service: 'AISStream.io',
+        baseUrl: 'wss://stream.aisstream.io/v0/stream',
+        configured: aisstreamIntegration.isConfigured(),
+        apiKeyInfo: aisstreamIntegration.getApiKeyInfo(),
         connectionTest: testResult,
+        cachedPositions: aisstreamIntegration.getAllPositions().length,
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
       logger.error('Test connection error:', error);
       res.status(500).json({
-        service: 'SeaRates API v3',
-        configured: searatesIntegration.isConfigured(),
-        connectionTest: {
-          success: false,
-          message: error.message || 'Connection test failed',
-        },
+        service: 'AISStream.io',
+        configured: aisstreamIntegration.isConfigured(),
+        connectionTest: { success: false, message: error.message || 'Connection test failed' },
         timestamp: new Date().toISOString(),
       });
     }
@@ -182,60 +179,31 @@ router.get(
 );
 
 /**
- * GET /api/tracking/shipping-lines
- * Get list of supported shipping lines
- * @access Public
- */
-router.get('/shipping-lines', async (req: Request, res: Response) => {
-  try {
-    const shippingLines = await searatesIntegration.getShippingLines();
-    res.json({
-      success: true,
-      shippingLines,
-    });
-  } catch (error: any) {
-    logger.error('Get shipping lines error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to get shipping lines',
-    });
-  }
-});
-
-/**
  * GET /api/tracking/api-status
- * Get SeaRates API status and configuration
+ * Quick read of provider configuration + cache state. Does not open
+ * a new WebSocket — uses the persistent singleton.
  * @access All authenticated users
  */
-router.get('/api-status', authMiddleware, async (req: Request, res: Response) => {
+router.get('/api-status', authMiddleware, async (_req: Request, res: Response) => {
   try {
-    const isConfigured = searatesIntegration.isConfigured();
-
-    let connectionStatus = { success: false, message: 'Not tested' };
-    if (isConfigured) {
-      connectionStatus = await searatesIntegration.testConnection();
-    }
-
+    const configured = aisstreamIntegration.isConfigured();
     res.json({
-      provider: 'SeaRates',
-      version: 'v3',
-      baseUrl: 'https://tracking.searates.com',
-      configured: isConfigured,
-      status: connectionStatus.success ? 'active' : 'inactive',
-      message: connectionStatus.message,
+      provider: 'AISStream.io',
+      version: 'v0',
+      baseUrl: 'wss://stream.aisstream.io/v0/stream',
+      configured,
+      status: configured ? 'active' : 'inactive',
+      cachedPositions: aisstreamIntegration.getAllPositions().length,
       features: {
-        containerTracking: true,
-        blTracking: true,
-        bookingTracking: true,
-        routeData: true,
-        aisData: true,
-        predictedEta: true,
+        livePositions: true,
+        shipStaticData: true,
+        eventStream: false, // carrier events arrive via email parser / manual entry
       },
     });
   } catch (error: any) {
     logger.error('API status error:', error);
     res.status(500).json({
-      provider: 'SeaRates',
+      provider: 'AISStream.io',
       configured: false,
       status: 'error',
       message: error.message,

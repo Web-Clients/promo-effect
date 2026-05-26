@@ -1,60 +1,43 @@
 /**
  * Container Sync Background Job
  *
- * Syncs container tracking data from external APIs (SeaRates, etc.)
- * every 30 minutes
+ * Two responsibilities:
+ *  1. Refresh the AISStream MMSI subscription set so we receive
+ *     positions for every active container's assigned vessel.
+ *  2. Persist the latest cached AIS position back to each container
+ *     row (also done continuously by aisstreamIntegration's flush
+ *     loop — this is a belt-and-braces sweep).
  *
- * Schedule: Every 30 minutes
+ * Schedule: every 10 minutes (cheap, no outbound HTTP).
  */
 
 import cron from 'node-cron';
 import prisma from '../lib/prisma';
+import { aisstreamIntegration } from '../integrations/aisstream.integration';
 import { trackingService } from '../modules/tracking/tracking.service';
 import logger from '../utils/logger';
 
 let isRunning = false;
 
-/**
- * Start the container sync job
- */
 export function startContainerSyncJob() {
-  // Run every 30 minutes
-  cron.schedule('*/30 * * * *', async () => {
+  cron.schedule('*/10 * * * *', async () => {
     if (isRunning) {
-      logger.info('[Container Sync] Previous job still running, skipping...');
+      logger.info('[Container Sync] Previous run still in progress, skipping');
       return;
     }
-
     isRunning = true;
     const startTime = Date.now();
 
     try {
-      logger.info('[Container Sync] Starting scheduled container sync...');
+      await aisstreamIntegration.refreshSubscribedMmsis();
 
-      // Find all active containers (not delivered)
       const activeContainers = await prisma.container.findMany({
         where: {
-          currentStatus: {
-            notIn: ['DELIVERED', 'CANCELLED'],
-          },
+          currentStatus: { notIn: ['DELIVERED', 'CANCELLED'] },
+          vesselMmsi: { not: null },
         },
-        include: {
-          booking: {
-            include: {
-              client: true,
-            },
-          },
-        },
-        take: 100, // Process max 100 at a time to avoid overload
+        select: { id: true, containerNumber: true },
       });
-
-      logger.info(`[Container Sync] Found ${activeContainers.length} active containers to sync`);
-
-      if (activeContainers.length === 0) {
-        logger.info('[Container Sync] No active containers to sync');
-        isRunning = false;
-        return;
-      }
 
       let synced = 0;
       let updated = 0;
@@ -62,53 +45,30 @@ export function startContainerSyncJob() {
 
       for (const container of activeContainers) {
         try {
-          // Try to refresh tracking for this container
-          // This will call external APIs if configured
           const result = await trackingService.refreshTracking(container.id);
-
-          if (result.success && result.eventsFound > 0) {
-            updated++;
-            logger.info(
-              `[Container Sync] Updated container ${container.containerNumber}: ${result.eventsFound} new events`
-            );
-          } else if (result.success) {
-            synced++;
-          } else {
-            failed++;
-            logger.error(
-              `[Container Sync] Failed to sync container ${container.containerNumber}:`,
-              result.error
-            );
-          }
-        } catch (error) {
+          if (result.success && result.eventsFound > 0) updated++;
+          else if (result.success) synced++;
+          else failed++;
+        } catch (err) {
           failed++;
-          logger.error(
-            `[Container Sync] Error syncing container ${container.containerNumber}:`,
-            error
-          );
+          logger.error(`[Container Sync] Error on ${container.containerNumber}:`, err);
         }
-
-        // Small delay to avoid rate limiting
-        await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
       const duration = Date.now() - startTime;
       logger.info(
-        `[Container Sync] Completed in ${duration}ms: ${synced} synced, ${updated} updated, ${failed} failed`
+        `[Container Sync] ${activeContainers.length} active / ${synced} synced / ${updated} new events / ${failed} failed in ${duration}ms`
       );
-    } catch (error) {
-      logger.error('[Container Sync] Fatal error:', error);
+    } catch (err) {
+      logger.error('[Container Sync] Fatal error:', err);
     } finally {
       isRunning = false;
     }
   });
 
-  logger.info('✅ Container Sync job started (runs every 30 minutes)');
+  logger.info('Container Sync job started (every 10 minutes)');
 }
 
-/**
- * Stop the container sync job
- */
 export function stopContainerSyncJob() {
-  logger.info('⏹️ Container Sync job stopped');
+  logger.info('Container Sync job stopped');
 }

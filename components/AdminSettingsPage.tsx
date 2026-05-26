@@ -30,10 +30,10 @@ const mockSettings: SystemSettings = {
     syncInterval: 5,
   },
   trackingSettings: {
-    provider: 'SEARATES',
-    searatesApiKey: '',
+    provider: 'AISSTREAM',
+    aisstreamApiKey: '',
     enabled: true,
-    syncInterval: 60,
+    syncInterval: 10,
   },
   emailNotificationSettings: {
     provider: 'SMTP',
@@ -598,32 +598,39 @@ const AdminSettingsPage = () => {
                   updateSettings('trackingSettings.provider', e.target.value)
                 }
               >
-                <option value="SEARATES">SeaRates (Recomandat)</option>
+                <option value="AISSTREAM">AISStream.io (free, WebSocket live)</option>
               </Select>
 
-              <label className="text-sm font-medium">Cheie API SeaRates</label>
+              <label className="text-sm font-medium">Cheie API AISStream</label>
               <Input
                 type="password"
-                value={settings.trackingSettings.searatesApiKey}
-                onChange={(e) => updateSettings('trackingSettings.searatesApiKey', e.target.value)}
+                value={settings.trackingSettings.aisstreamApiKey}
+                onChange={(e) => updateSettings('trackingSettings.aisstreamApiKey', e.target.value)}
+                placeholder="Lipiți cheia obținută de la aisstream.io"
               />
 
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                <h4 className="font-medium mb-2 text-sm text-blue-800 dark:text-blue-300">
-                  URL Webhook (Configurați în SeaRates):
-                </h4>
-                <div className="flex items-center gap-2">
-                  <code className="bg-white dark:bg-neutral-800 px-2 py-1 rounded text-sm text-neutral-700 dark:text-neutral-200 line-clamp-1">{`${window.location.origin}/api/v1/tracking/webhook`}</code>
-                  <Button
-                    onClick={() =>
-                      copyToClipboard(`${window.location.origin}/api/v1/tracking/webhook`)
-                    }
-                    variant="ghost"
-                    size="icon"
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-2 text-sm text-blue-900 dark:text-blue-200">
+                <p>
+                  Înregistrare gratuită la{' '}
+                  <a
+                    href="https://aisstream.io"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline font-medium"
                   >
-                    <CopyIcon className="h-4 w-4" />
-                  </Button>
-                </div>
+                    aisstream.io
+                  </a>
+                  . Cheia se setează în <code>AISSTREAM_API_KEY</code> pe server.
+                </p>
+                <p>
+                  Pozițiile navelor sosesc în timp real prin WebSocket. Atribuiți MMSI-ul navei per
+                  container din pagina containerului (operatorul îl introduce sau este extras
+                  automat din emailul carrier-ului prin Gemini AI).
+                </p>
+                <p>
+                  Endpoint webhook pentru evenimente carrier (LOADED/DISCHARGED): nu mai este
+                  necesar — evenimentele provin din parserul de email sau intrare manuală.
+                </p>
               </div>
 
               <div className="flex gap-2">

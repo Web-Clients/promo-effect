@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { formatDateShort } from '../utils/formatters';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { getLivePositions, LiveVesselPosition } from '../services/tracking';
 
 // Fix default marker icons for Leaflet in React
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -127,6 +128,9 @@ export interface ContainerMapProps {
   eta?: string;
   className?: string;
   height?: string;
+  /** Poll the backend AIS cache every 5s when set, so the vessel marker
+   *  walks across the map in near-real-time. */
+  livePollIntervalMs?: number;
 }
 
 // Component to fit map bounds to route
@@ -154,7 +158,55 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
   eta,
   className = '',
   height = '400px',
+  livePollIntervalMs = 5000,
 }) => {
+  // Live AIS position pulled from the backend cache and refreshed on a timer.
+  const [livePos, setLivePos] = useState<LiveVesselPosition | null>(null);
+  const targetMmsi = vessel?.mmsi;
+
+  useEffect(() => {
+    if (!targetMmsi) return;
+    let cancelled = false;
+
+    const tick = async () => {
+      try {
+        const { positions } = await getLivePositions();
+        if (cancelled) return;
+        const match = positions.find((p) => p.mmsi === targetMmsi);
+        if (match) {
+          setLivePos({
+            latitude: match.latitude,
+            longitude: match.longitude,
+            sog: match.sog,
+            cog: match.cog,
+            heading: match.heading,
+            shipName: match.shipName,
+            destination: match.destination,
+            timestamp: match.timestamp,
+          });
+        }
+      } catch {
+        // silent — keep showing last known position
+      }
+    };
+
+    tick();
+    const id = setInterval(tick, livePollIntervalMs);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [targetMmsi, livePollIntervalMs]);
+
+  // Live position overrides the static currentLocation prop.
+  const effectiveLocation: ContainerLocation | undefined = livePos
+    ? {
+        name: livePos.shipName || vessel?.name || currentLocation?.name,
+        latitude: livePos.latitude,
+        longitude: livePos.longitude,
+      }
+    : currentLocation;
+
   // Convert route path from [lng, lat] to [lat, lng] for Leaflet
   const routePath = useMemo(() => {
     if (!route?.path || route.path.length === 0) return [];
@@ -166,8 +218,8 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
     const points: [number, number][] = [];
 
     // Add current location
-    if (currentLocation?.latitude && currentLocation?.longitude) {
-      points.push([currentLocation.latitude, currentLocation.longitude]);
+    if (effectiveLocation?.latitude && effectiveLocation?.longitude) {
+      points.push([effectiveLocation.latitude, effectiveLocation.longitude]);
     }
 
     // Add route points
@@ -196,8 +248,8 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
 
   // Default center (world view)
   const defaultCenter: [number, number] =
-    currentLocation?.latitude && currentLocation?.longitude
-      ? [currentLocation.latitude, currentLocation.longitude]
+    effectiveLocation?.latitude && effectiveLocation?.longitude
+      ? [effectiveLocation.latitude, effectiveLocation.longitude]
       : [25, 50]; // Middle of shipping routes
 
   // Get icon for pin type
@@ -285,6 +337,12 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
+          {/* Marine overlay: seamarks, lighthouses, traffic separation schemes */}
+          <TileLayer
+            attribution='&copy; <a href="https://www.openseamap.org">OpenSeaMap</a>'
+            url="https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png"
+            opacity={0.85}
+          />
 
           {/* Fit bounds to show all points */}
           {bounds && <FitBounds bounds={bounds} />}
@@ -336,9 +394,9 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
           ))}
 
           {/* Current container location */}
-          {currentLocation?.latitude && currentLocation?.longitude && (
+          {effectiveLocation?.latitude && effectiveLocation?.longitude && (
             <Marker
-              position={[currentLocation.latitude, currentLocation.longitude]}
+              position={[effectiveLocation.latitude, effectiveLocation.longitude]}
               icon={vessel?.name ? vesselIcon : containerIcon}
             >
               <Popup>
@@ -348,17 +406,23 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
                   <div className="space-y-1">
                     <p>
                       <span className="text-gray-500">Location:</span>{' '}
-                      {currentLocation.name || 'Unknown'}
+                      {effectiveLocation.name || 'Unknown'}
                     </p>
-                    {currentLocation.city && (
-                      <p>
-                        <span className="text-gray-500">City:</span> {currentLocation.city}
-                      </p>
-                    )}
-                    {currentLocation.country && (
-                      <p>
-                        <span className="text-gray-500">Country:</span> {currentLocation.country}
-                      </p>
+                    {livePos && (
+                      <>
+                        <p className="text-xs text-emerald-600 font-medium">● Live AIS</p>
+                        <p className="text-xs">
+                          <span className="text-gray-500">Speed:</span> {livePos.sog.toFixed(1)} kn
+                        </p>
+                        <p className="text-xs">
+                          <span className="text-gray-500">Course:</span> {livePos.cog.toFixed(0)}°
+                        </p>
+                        {livePos.destination && (
+                          <p className="text-xs">
+                            <span className="text-gray-500">Dest:</span> {livePos.destination}
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
 

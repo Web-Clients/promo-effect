@@ -185,32 +185,70 @@ export function useTracking() {
   }, []);
 
   // ── Enrich with public tracking data ───────────────────────────────────────
+  // Adapter for the AISStream-backed public response: events have
+  // {eventDate, location string, lat/lng} instead of the SeaRates-style
+  // {date, isActual, location: {latitude, longitude, name}}. We normalize
+  // here so the route/pin builders keep working unchanged.
 
-  const enrichFromPublicTracking = async (number: string, localData: Container) => {
+  const enrichFromPublicTracking = async (number: string, _localData: Container) => {
     try {
-      const publicData = await trackingService.trackPublic(number, { route: true });
+      const publicData = await trackingService.trackPublic(number);
       if (!publicData.success || !publicData.data) return;
 
-      if (publicData.data.vessel) setVesselInfo(publicData.data.vessel);
+      const data = publicData.data;
 
-      const events = publicData.data.events || [];
-      const { routePoints, pins } = buildRouteFromEvents(events);
-      const finalRoute = mergeRouteWithEvents(publicData.data.route, events, pins, routePoints);
-
-      if (events.length > 0) {
-        const sorted = [...events].sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-        );
-        const actualEvents = sorted.filter(
-          (e) => e.isActual && e.location?.latitude && e.location?.longitude
-        );
-        const location = estimateCurrentLocation(actualEvents, publicData.data);
-        if (location) setLocationInfo(location);
-      } else if (publicData.data.location) {
-        setLocationInfo(publicData.data.location);
+      if (data.vessel?.name) {
+        setVesselInfo({
+          name: data.vessel.name,
+          mmsi: data.vessel.mmsi,
+          imo: data.vessel.imo,
+        });
       }
 
-      if (finalRoute) setRouteData(finalRoute);
+      const normalizedEvents = (data.events || []).map((e) => ({
+        type: e.eventType,
+        date: e.eventDate,
+        isActual: true,
+        location:
+          e.latitude && e.longitude
+            ? {
+                name: e.location,
+                latitude: e.latitude,
+                longitude: e.longitude,
+              }
+            : undefined,
+      }));
+
+      const normalizedData = {
+        eta: data.eta,
+        location: data.currentLocation,
+      };
+
+      const { routePoints, pins } = buildRouteFromEvents(normalizedEvents);
+      const finalRoute = mergeRouteWithEvents(null, normalizedEvents, pins, routePoints);
+
+      if (normalizedEvents.length > 0) {
+        const actualEvents = [...normalizedEvents].sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
+        const location = estimateCurrentLocation(actualEvents, normalizedData);
+        if (location) setLocationInfo(location);
+      } else if (data.currentLocation) {
+        setLocationInfo(data.currentLocation);
+      }
+
+      // Live AIS position trumps interpolation
+      if (data.livePosition) {
+        setLocationInfo({
+          name: data.livePosition.shipName || data.vessel?.name || 'În mare',
+          latitude: data.livePosition.latitude,
+          longitude: data.livePosition.longitude,
+        });
+      }
+
+      if (finalRoute && finalRoute.path && finalRoute.path.length >= 2) {
+        setRouteData(finalRoute);
+      }
     } catch {
       // Ignore — local data is sufficient
     }
@@ -235,9 +273,29 @@ export function useTracking() {
       const data = await trackingService.searchContainer(number.trim().toUpperCase());
       setTrackingData(data);
 
-      if (data._route) setRouteData(data._route);
-      if (data._vessel) setVesselInfo(data._vessel);
-      if (data._location) setLocationInfo(data._location);
+      // Seed vessel info from the local container row (operator-entered MMSI/name)
+      if (data.vesselMmsi || data.vesselName) {
+        setVesselInfo({
+          mmsi: data.vesselMmsi,
+          imo: data.vesselImo,
+          name: data.vesselName,
+        });
+      }
+
+      // Seed location from the live AIS cache, falling back to last persisted lat/lng
+      if (data.livePosition) {
+        setLocationInfo({
+          name: data.livePosition.shipName || data.vesselName || 'În mare',
+          latitude: data.livePosition.latitude,
+          longitude: data.livePosition.longitude,
+        });
+      } else if (data.currentLat && data.currentLng) {
+        setLocationInfo({
+          name: data.currentLocation,
+          latitude: data.currentLat,
+          longitude: data.currentLng,
+        });
+      }
 
       await enrichFromPublicTracking(number.trim().toUpperCase(), data);
     } catch (err: unknown) {

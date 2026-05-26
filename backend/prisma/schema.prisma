@@ -628,6 +628,15 @@ model Container {
   currentLat      Float?  @map("current_lat")
   currentLng      Float?  @map("current_lng")
 
+  // Vessel identifiers (AIS) — operator-entered or email-parsed
+  vesselMmsi   String? @map("vessel_mmsi") // 9-digit MMSI, used to subscribe to AISStream
+  vesselImo    String? @map("vessel_imo")
+  vesselName   String? @map("vessel_name")
+  vesselSog    Float?  @map("vessel_sog") // last known speed over ground (knots)
+  vesselCog    Float?  @map("vessel_cog") // last known course over ground (degrees)
+  vesselHeading Float? @map("vessel_heading")
+  vesselPosAt  DateTime? @map("vessel_pos_at") // timestamp of last AIS position update
+
   // ETA
   eta           DateTime? @map("eta")
   etaOriginal   DateTime? @map("eta_original") // Original ETA for comparison
@@ -644,7 +653,7 @@ model Container {
   allocatedPrice   Float?  @map("allocated_price") // USD — per-container allocated cost (optional)
 
   // API source
-  apiSource  String?   @map("api_source") // SEARATES, MAERSK_API, MANUAL_ENTRY, EMAIL_PARSING
+  apiSource  String?   @map("api_source") // AISSTREAM, MANUAL_ENTRY, EMAIL_PARSING, MAERSK_API
   lastSyncAt DateTime? @map("last_sync_at")
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -656,6 +665,7 @@ model Container {
 
   @@index([bookingId])
   @@index([containerNumber])
+  @@index([vesselMmsi])
   @@map("containers")
 }
 

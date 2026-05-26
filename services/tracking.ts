@@ -45,10 +45,22 @@ export interface RouteData {
   pins?: RoutePin[];
 }
 
+export interface LiveVesselPosition {
+  latitude: number;
+  longitude: number;
+  sog: number; // speed over ground, knots
+  cog: number; // course over ground, degrees
+  heading: number | null; // null when not available (AIS 511)
+  shipName?: string;
+  destination?: string;
+  timestamp: string;
+}
+
 export interface Container {
   id: string;
   bookingId: string;
   containerNumber: string;
+  blNumber?: string;
   type?: string;
   sealNumber?: string;
   currentStatus: string;
@@ -59,6 +71,14 @@ export interface Container {
   actualArrival?: string;
   apiSource?: string;
   lastSyncAt?: string;
+  // Vessel identifiers (operator-entered or extracted from email)
+  vesselMmsi?: string;
+  vesselImo?: string;
+  vesselName?: string;
+  vesselSog?: number;
+  vesselCog?: number;
+  vesselHeading?: number | null;
+  vesselPosAt?: string;
   createdAt: string;
   updatedAt: string;
   booking?: {
@@ -72,16 +92,8 @@ export interface Container {
     };
   };
   trackingEvents?: TrackingEvent[];
-  // SeaRates extended data
-  _source?: string;
-  _shippingLine?: {
-    code?: string;
-    name?: string;
-  };
-  _vessel?: VesselInfo;
-  _voyage?: string;
-  _location?: ContainerLocation;
-  _route?: RouteData;
+  // Live AIS position from AISStream cache (merged in by search endpoint)
+  livePosition?: LiveVesselPosition;
 }
 
 export interface ContainerListResponse {
@@ -236,7 +248,9 @@ export async function deleteTrackingEvent(eventId: string): Promise<{ message: s
 }
 
 /**
- * Refresh container tracking from external API (SeaRates v3)
+ * Pull the latest cached AIS position for the container's vessel into the DB.
+ * Cheap — no outbound HTTP, just reads the in-memory cache fed by the
+ * AISStream WebSocket.
  */
 export async function refreshTracking(containerId: string): Promise<{
   success: boolean;
@@ -249,30 +263,15 @@ export async function refreshTracking(containerId: string): Promise<{
 }
 
 /**
- * Track container via external API (SeaRates v3) - public lookup
+ * Track container via the public endpoint (no auth required).
  */
-export async function trackExternal(containerNumber: string): Promise<ExternalTrackingResult> {
-  const response = await api.get(`/tracking/external/${encodeURIComponent(containerNumber)}`);
+export async function trackPublic(containerNumber: string): Promise<PublicTrackingResult> {
+  const response = await api.get(`/tracking/public/${encodeURIComponent(containerNumber)}`);
   return response.data;
 }
 
 /**
- * Track container via public API (no auth required)
- */
-export async function trackPublic(containerNumber: string, options?: {
-  sealine?: string;
-  route?: boolean;
-}): Promise<PublicTrackingResult> {
-  const params = new URLSearchParams();
-  if (options?.sealine) params.append('sealine', options.sealine);
-  if (options?.route !== undefined) params.append('route', String(options.route));
-
-  const response = await api.get(`/tracking/public/${encodeURIComponent(containerNumber)}?${params.toString()}`);
-  return response.data;
-}
-
-/**
- * Get SeaRates API status
+ * Read AISStream provider status (configured / cached positions count).
  */
 export async function getApiStatus(): Promise<ApiStatusResponse> {
   const response = await api.get('/tracking/api-status');
@@ -280,7 +279,7 @@ export async function getApiStatus(): Promise<ApiStatusResponse> {
 }
 
 /**
- * Test SeaRates API connection (admin only)
+ * Test AISStream WebSocket connectivity (admin only).
  */
 export async function testConnection(): Promise<ApiTestResult> {
   const response = await api.get('/tracking/test-connection');
@@ -288,150 +287,92 @@ export async function testConnection(): Promise<ApiTestResult> {
 }
 
 /**
- * Get supported shipping lines
+ * Snapshot of every vessel position currently in the backend AIS cache.
+ * Used by the live map view.
  */
-export async function getShippingLines(): Promise<{ code: string; name: string }[]> {
-  const response = await api.get('/tracking/shipping-lines');
-  return response.data.shippingLines;
-}
-
-// ============================================
-// EXTERNAL TRACKING TYPES
-// ============================================
-
-export interface ExternalTrackingResult {
-  source: string;
-  containerNumber: string;
-  blNumber?: string;
-  shippingLine?: string;
-  status?: string;
-  location?: {
-    name?: string;
-    city?: string;
-    country?: string;
-    latitude?: number;
-    longitude?: number;
-  };
-  vessel?: {
-    name?: string;
-    imo?: string;
-  };
-  voyage?: string;
-  eta?: string;
-  ata?: string;
-  events?: Array<{
-    type: string;
-    date: string;
-    location?: string;
-    vessel?: string;
-    description?: string;
-  }>;
+export async function getLivePositions(): Promise<{
+  count: number;
+  positions: Array<LiveVesselPosition & { mmsi: string; imo?: string }>;
   fetchedAt: string;
+}> {
+  const response = await api.get('/tracking/search/positions/live');
+  return response.data;
 }
+
+/**
+ * Assign the AIS MMSI for the vessel carrying this container. The next
+ * sync cycle picks up live positions automatically.
+ */
+export async function setContainerVessel(
+  containerId: string,
+  vessel: { mmsi: string; imo?: string; name?: string }
+): Promise<Container> {
+  const response = await api.patch(`/tracking/containers/${containerId}/vessel`, vessel);
+  return response.data;
+}
+
+// ============================================
+// PUBLIC / EXTERNAL TRACKING TYPES (AISStream-backed)
+// ============================================
 
 export interface PublicTrackingResult {
   success: boolean;
-  source: string;
+  source: 'AISSTREAM';
   data: {
     containerNumber: string;
     blNumber?: string;
-    bookingNumber?: string;
-    shippingLine: {
-      code?: string;
-      name?: string;
-    };
     status?: string;
-    sizeType?: string;
-    isEmpty?: boolean;
-    location?: {
+    currentLocation?: {
       name?: string;
-      city?: string;
-      country?: string;
-      unlocode?: string;
       latitude?: number;
       longitude?: number;
     };
     vessel?: {
+      mmsi?: string;
       name?: string;
       imo?: string;
-      mmsi?: string;
-      callSign?: string;
     };
-    voyage?: string;
+    livePosition?: LiveVesselPosition | null;
     eta?: string;
-    predictedEta?: string;
-    ata?: string;
-    etd?: string;
-    atd?: string;
-    events?: Array<{
-      type: string;
-      eventCode?: string;
-      eventName?: string;
-      status?: string;
-      date: string;
-      isActual: boolean;
-      location?: {
-        name?: string;
-        city?: string;
-        country?: string;
-        unlocode?: string;
-        latitude?: number;
-        longitude?: number;
-      };
-      facility?: {
-        name?: string;
-        type?: string;
-        code?: string;
-      };
-      vessel?: {
-        name?: string;
-        imo?: string;
-      };
-      voyage?: string;
+    events: Array<{
+      id: string;
+      eventType: string;
+      eventDate: string;
+      location: string;
+      portName?: string;
+      vessel?: string;
+      latitude?: number;
+      longitude?: number;
+      source: string;
     }>;
-    route?: {
-      path?: Array<[number, number]>;
-      pins?: Array<{
-        coordinates: [number, number];
-        location?: string;
-        type?: string;
-      }>;
-    };
   };
   fetchedAt: string;
 }
 
 export interface ApiStatusResponse {
-  provider: string;
+  provider: 'AISStream.io';
   version: string;
   baseUrl: string;
   configured: boolean;
   status: 'active' | 'inactive' | 'error';
-  message: string;
+  cachedPositions?: number;
   features: {
-    containerTracking: boolean;
-    blTracking: boolean;
-    bookingTracking: boolean;
-    routeData: boolean;
-    aisData: boolean;
-    predictedEta: boolean;
+    livePositions: boolean;
+    shipStaticData: boolean;
+    eventStream: boolean;
   };
 }
 
 export interface ApiTestResult {
-  service: string;
+  service: 'AISStream.io';
   baseUrl: string;
   configured: boolean;
   apiKeyInfo: string;
   connectionTest: {
     success: boolean;
     message: string;
-    apiCalls?: {
-      total: number;
-      used: number;
-      remaining: number;
-    };
   };
+  cachedPositions?: number;
   timestamp: string;
 }
 
@@ -511,11 +452,11 @@ export default {
   updateTrackingEvent,
   deleteTrackingEvent,
   refreshTracking,
-  trackExternal,
   trackPublic,
   getApiStatus,
   testConnection,
-  getShippingLines,
+  getLivePositions,
+  setContainerVessel,
   getStatusColor,
   getStatusLabel,
   getEventTypeLabel,

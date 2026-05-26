@@ -25,25 +25,43 @@ import logger from '../utils/logger';
 import { AISStreamMessage, AISStreamSubscription, VesselPosition } from './aisstream.types';
 
 const AISSTREAM_URL = 'wss://stream.aisstream.io/v0/stream';
-const GLOBAL_BBOX: Array<Array<[number, number]>> = [
+
+// Trade-route bounding box: eastern Atlantic (Gibraltar) → Mediterranean
+// → Black Sea → Red Sea → upper Arabian Sea. Captures every container ship
+// approaching Constanța from Asia via Suez. Used to populate the vessel
+// directory automatically — no operator data entry required.
+const TRADE_ROUTE_BBOX: Array<Array<[number, number]>> = [
   [
-    [-90, -180],
-    [90, 180],
+    [10, -10],
+    [48, 60],
   ],
 ];
 
 const RECONNECT_DELAYS_MS = [1_000, 2_000, 5_000, 10_000, 30_000, 60_000];
 const FLUSH_INTERVAL_MS = 60_000; // persist cache → DB every 60s
+const DIRECTORY_FLUSH_INTERVAL_MS = 30_000; // persist vessel_directory pending writes
 const RESUBSCRIBE_DEBOUNCE_MS = 2_000;
 const POSITION_STALE_MS = 1000 * 60 * 60 * 6; // drop cached positions older than 6h
+
+interface VesselDirectoryRow {
+  mmsi: string;
+  name?: string;
+  imo?: string;
+  shipType?: number;
+  callSign?: string;
+  destination?: string;
+}
 
 export class AISStreamIntegration {
   private apiKey: string;
   private ws: WebSocket | null = null;
   private positionCache: Map<string, VesselPosition> = new Map();
   private subscribedMmsis: Set<string> = new Set();
+  /** Pending vessel-directory upserts batched between flush ticks. */
+  private directoryPending: Map<string, VesselDirectoryRow> = new Map();
   private reconnectAttempt = 0;
   private flushTimer: NodeJS.Timeout | null = null;
+  private directoryFlushTimer: NodeJS.Timeout | null = null;
   private resubscribeTimer: NodeJS.Timeout | null = null;
   private connecting = false;
   private started = false;
@@ -78,6 +96,11 @@ export class AISStreamIntegration {
     this.flushTimer = setInterval(() => {
       this.flushCacheToDb().catch((err) => logger.error('[AISStream] flushCacheToDb error:', err));
     }, FLUSH_INTERVAL_MS);
+    this.directoryFlushTimer = setInterval(() => {
+      this.flushDirectoryToDb().catch((err) =>
+        logger.error('[AISStream] flushDirectoryToDb error:', err)
+      );
+    }, DIRECTORY_FLUSH_INTERVAL_MS);
   }
 
   /**
@@ -87,6 +110,8 @@ export class AISStreamIntegration {
     this.started = false;
     if (this.flushTimer) clearInterval(this.flushTimer);
     this.flushTimer = null;
+    if (this.directoryFlushTimer) clearInterval(this.directoryFlushTimer);
+    this.directoryFlushTimer = null;
     if (this.resubscribeTimer) clearTimeout(this.resubscribeTimer);
     this.resubscribeTimer = null;
     if (this.ws) {
@@ -172,7 +197,7 @@ export class AISStreamIntegration {
       ws.on('open', () => {
         const sub: AISStreamSubscription = {
           APIKey: this.apiKey,
-          BoundingBoxes: GLOBAL_BBOX,
+          BoundingBoxes: TRADE_ROUTE_BBOX,
           FilterMessageTypes: ['PositionReport'],
         };
         ws.send(JSON.stringify(sub));
@@ -256,26 +281,27 @@ export class AISStreamIntegration {
   private sendSubscription(): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
-    // AISStream requires at least one MMSI OR a bounding box. We always
-    // send the global bbox + the MMSI filter so we receive only vessels
-    // we care about (otherwise the stream is firehose-volume).
+    // We subscribe to the trade-route bbox so we receive every vessel
+    // sailing the China → Constanța corridor. This populates the vessel
+    // directory automatically (name ↔ MMSI lookup table), so when the
+    // Gemini email parser extracts a vessel name we can resolve it to
+    // an MMSI and start tracking with zero operator input.
+    //
+    // FiltersShipMMSI is omitted: per AISStream docs, when present it
+    // narrows results INSIDE the bbox, but we want everything in the
+    // bbox plus we want operator-tracked MMSIs (already inside the
+    // bbox for any realistic shipping container).
     const sub: AISStreamSubscription = {
       APIKey: this.apiKey,
-      BoundingBoxes: GLOBAL_BBOX,
+      BoundingBoxes: TRADE_ROUTE_BBOX,
       FilterMessageTypes: ['PositionReport', 'ShipStaticData'],
     };
 
-    if (this.subscribedMmsis.size > 0) {
-      sub.FiltersShipMMSI = [...this.subscribedMmsis];
-    } else {
-      // No active containers with MMSI yet — subscribe to a tiny placeholder
-      // MMSI so AISStream doesn't flood us with the whole world.
-      sub.FiltersShipMMSI = ['000000000'];
-    }
-
     try {
       this.ws.send(JSON.stringify(sub));
-      logger.info(`[AISStream] Subscribed to ${this.subscribedMmsis.size} MMSI(s)`);
+      logger.info(
+        `[AISStream] Subscribed to trade-route bbox (tracking ${this.subscribedMmsis.size} container MMSI(s))`
+      );
     } catch (err) {
       logger.error('[AISStream] Failed to send subscription:', err);
     }
@@ -288,6 +314,38 @@ export class AISStreamIntegration {
   private handleMessage(msg: AISStreamMessage): void {
     const mmsi = String(msg.MetaData?.MMSI ?? '');
     if (!mmsi || mmsi === '0') return;
+
+    // ShipStaticData → vessel_directory (every vessel in the bbox).
+    // The directory is what lets the email parser resolve a vessel name
+    // to an MMSI without operator data entry.
+    if (msg.MessageType === 'ShipStaticData' && msg.Message.ShipStaticData) {
+      const s = msg.Message.ShipStaticData;
+      this.directoryPending.set(mmsi, {
+        mmsi,
+        name: s.Name?.trim() || msg.MetaData?.ShipName?.trim(),
+        imo: s.ImoNumber ? String(s.ImoNumber) : undefined,
+        shipType: s.ShipType,
+        callSign: s.CallSign?.trim(),
+        destination: s.Destination?.trim(),
+      });
+    } else if (msg.MetaData?.ShipName) {
+      // PositionReports also carry ShipName in metadata. Seed a partial
+      // directory row so name lookups work even before we catch the
+      // full ShipStaticData message (sent every ~6 min per vessel).
+      const existingPending = this.directoryPending.get(mmsi);
+      if (!existingPending || !existingPending.name) {
+        this.directoryPending.set(mmsi, {
+          ...(existingPending || {}),
+          mmsi,
+          name: msg.MetaData.ShipName.trim(),
+        });
+      }
+    }
+
+    // Position cache is restricted to MMSIs we actually track on a
+    // container — otherwise the cache would balloon to thousands of
+    // unrelated vessels in the bbox.
+    if (!this.subscribedMmsis.has(mmsi)) return;
 
     const existing = this.positionCache.get(mmsi);
 
@@ -360,7 +418,50 @@ export class AISStreamIntegration {
   }
 
   // ============================================
-  // INTERNAL: persist cache → DB
+  // INTERNAL: persist vessel_directory pending → DB
+  // ============================================
+
+  private async flushDirectoryToDb(): Promise<void> {
+    if (this.directoryPending.size === 0) return;
+
+    const batch = [...this.directoryPending.values()];
+    this.directoryPending.clear();
+
+    let upserted = 0;
+    for (const row of batch) {
+      try {
+        await prisma.vesselDirectory.upsert({
+          where: { mmsi: row.mmsi },
+          create: {
+            mmsi: row.mmsi,
+            name: row.name,
+            imo: row.imo,
+            shipType: row.shipType,
+            callSign: row.callSign,
+            destination: row.destination,
+          },
+          update: {
+            name: row.name || undefined,
+            imo: row.imo || undefined,
+            shipType: row.shipType ?? undefined,
+            callSign: row.callSign || undefined,
+            destination: row.destination || undefined,
+            lastSeen: new Date(),
+          },
+        });
+        upserted++;
+      } catch (err) {
+        logger.warn(`[AISStream] vessel_directory upsert failed for ${row.mmsi}:`, err);
+      }
+    }
+
+    if (upserted > 0) {
+      logger.info(`[AISStream] vessel_directory: upserted ${upserted} entries`);
+    }
+  }
+
+  // ============================================
+  // INTERNAL: persist position cache → DB
   // ============================================
 
   private async flushCacheToDb(): Promise<void> {

@@ -184,8 +184,8 @@ export async function processAgentReply(email: ParsedEmail, bookingId: string): 
       where: { bookingId: bookingId },
     });
 
+    let containerId: string;
     if (existingContainer) {
-      // Update existing container
       await prisma.container.update({
         where: { id: existingContainer.id },
         data: {
@@ -193,11 +193,12 @@ export async function processAgentReply(email: ParsedEmail, bookingId: string): 
           blNumber: extracted.blNumber?.toUpperCase() || existingContainer.blNumber,
           eta: extracted.eta || existingContainer.eta,
           currentStatus: 'LOADED',
+          vesselName: extracted?.vesselName || (existingContainer as any).vesselName,
         } as any,
       });
+      containerId = existingContainer.id;
     } else {
-      // Create container record
-      await prisma.container.create({
+      const created = await prisma.container.create({
         data: {
           bookingId: bookingId,
           containerNumber: containerNum,
@@ -207,18 +208,34 @@ export async function processAgentReply(email: ParsedEmail, bookingId: string): 
           currentStatus: 'LOADED',
           urgent: false,
           delayed: false,
+          vesselName: extracted?.vesselName,
         } as any,
       });
+      containerId = created.id;
+    }
+
+    // Try to resolve vessel name → MMSI from the AISStream-populated
+    // directory. Best-effort; container still works without MMSI, the
+    // operator can set it later via PATCH /containers/:id/vessel.
+    if (extracted?.vesselName) {
+      try {
+        const { resolveAndAttachToContainer } =
+          await import('../../services/vessel-resolver.service');
+        await resolveAndAttachToContainer(containerId, extracted.vesselName);
+      } catch (err) {
+        logger.warn('[AgentReply] vessel resolver failed (non-fatal):', err);
+      }
     }
 
     // Add tracking event
     await prisma.trackingEvent
       .create({
         data: {
-          containerId: existingContainer?.id || containerNum, // fallback to number if no id yet
+          containerId,
           eventType: 'LOADED',
           eventDate: new Date(),
           location: extracted.portOrigin || booking.portOrigin || 'China',
+          vessel: extracted?.vesselName,
           source: 'EMAIL_PARSING',
           validated: false,
           visibility: 'PUBLIC',

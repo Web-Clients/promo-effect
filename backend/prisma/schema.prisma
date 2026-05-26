@@ -669,6 +669,25 @@ model Container {
   @@map("containers")
 }
 
+// Cache of vessel identity discovered from AISStream ShipStaticData messages.
+// Populated continuously by the AISStream WebSocket subscription on the user's
+// trade-route bounding box. Used to resolve operator-supplied vessel names
+// (e.g. from parsed carrier emails) to the AIS MMSI needed for live tracking.
+model VesselDirectory {
+  mmsi        String   @id
+  name        String?
+  imo         String?
+  shipType    Int?     @map("ship_type")
+  callSign    String?  @map("call_sign")
+  destination String?
+  firstSeen   DateTime @default(now()) @map("first_seen")
+  lastSeen    DateTime @default(now()) @map("last_seen")
+
+  @@index([name])
+  @@index([imo])
+  @@map("vessel_directory")
+}
+
 model TrackingEvent {
   id          String @id @default(uuid())
   containerId String @map("container_id")

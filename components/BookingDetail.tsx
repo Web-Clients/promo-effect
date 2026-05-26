@@ -161,6 +161,12 @@ const mapToCreateData = (formData: BookingFormState): CreateBookingData => {
 
 // Map form state to API update format
 const mapToUpdateData = (formData: BookingFormState): UpdateBookingData => {
+  // cargoWeight is REQUIRED — backend uses it to auto-select the land transport
+  // tariff from LandTransportRate. Same guard as mapToCreateData so UPDATE
+  // cannot silently strip the field and leave a booking without weight.
+  if (!formData.cargoWeight || !formData.cargoWeight.trim()) {
+    throw new Error('Greutate marfă (tone) este obligatorie');
+  }
   return {
     status: formData.status,
     agentId: formData.agentId || undefined,
@@ -173,6 +179,7 @@ const mapToUpdateData = (formData: BookingFormState): UpdateBookingData => {
     eta: formData.estimated_arrival_date,
     containerNumber: formData.container_number || undefined,
     blNumber: formData.bl_number || undefined,
+    cargoWeight: formData.cargoWeight,
   };
 };
 
@@ -709,12 +716,14 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
             </label>
             <Input
               type="text"
+              required
               pattern="^(\d+(\.\d+)?(\s*-\s*\d+(\.\d+)?)?\s*(tone|t|kg|ton|tons))$"
               placeholder="Ex: 10-15 tone"
-              title="Format acceptat: '10-15 tone', '24.5 ton', '24350 kg'. Fără valută."
+              title="Format acceptat: '10-15 tone', '24.5 ton', '24350 kg'. Fără valută. Câmp obligatoriu."
               value={bookingData.cargoWeight || ''}
               onChange={(e) => setBookingData({ ...bookingData, cargoWeight: e.target.value })}
               disabled={isReadOnly}
+              aria-required="true"
             />
           </div>
           <div>

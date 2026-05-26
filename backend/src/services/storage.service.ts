@@ -10,8 +10,10 @@ import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '../utils/logger';
 
+export type StorageProvider = 'LOCAL_FILESYSTEM' | 'AWS_S3' | 'AZURE_BLOB' | 'GOOGLE_CLOUD_STORAGE';
+
 export interface StorageConfig {
-  provider: 'LOCAL_FILESYSTEM' | 'AWS_S3' | 'AZURE_BLOB' | 'GOOGLE_CLOUD_STORAGE';
+  provider: StorageProvider;
   localStoragePath?: string;
   awsAccessKeyId?: string;
   awsSecretAccessKey?: string;
@@ -20,19 +22,87 @@ export interface StorageConfig {
   baseUrl?: string; // Base URL for file access (e.g., https://cdn.promo-efect.md)
 }
 
+/**
+ * Normalize provider string from env (accept lowercase aliases like "local",
+ * "s3", "azure", "gcs") into the canonical enum used by the switch statement.
+ * This fixes the "Unsupported storage provider: local" spam from email cron.
+ */
+function normalizeProvider(raw: string | undefined): StorageProvider {
+  if (!raw) return 'LOCAL_FILESYSTEM';
+  const v = raw.trim().toLowerCase();
+  switch (v) {
+    case 'local':
+    case 'local_filesystem':
+    case 'filesystem':
+    case 'fs':
+    case 'disk':
+      return 'LOCAL_FILESYSTEM';
+    case 's3':
+    case 'aws':
+    case 'aws_s3':
+      return 'AWS_S3';
+    case 'azure':
+    case 'azure_blob':
+    case 'blob':
+      return 'AZURE_BLOB';
+    case 'gcs':
+    case 'gcp':
+    case 'google':
+    case 'google_cloud_storage':
+      return 'GOOGLE_CLOUD_STORAGE';
+    default:
+      // Try uppercase match against canonical enum
+      const upper = raw.trim().toUpperCase();
+      if (
+        upper === 'LOCAL_FILESYSTEM' ||
+        upper === 'AWS_S3' ||
+        upper === 'AZURE_BLOB' ||
+        upper === 'GOOGLE_CLOUD_STORAGE'
+      ) {
+        return upper as StorageProvider;
+      }
+      logger.warn(`Unknown STORAGE_PROVIDER='${raw}', falling back to LOCAL_FILESYSTEM`);
+      return 'LOCAL_FILESYSTEM';
+  }
+}
+
+/**
+ * Sanitize a file name to prevent path traversal attacks.
+ * Strips directory separators, null bytes, and leading dots.
+ */
+function sanitizeFileName(fileName: string): string {
+  return (
+    fileName.replace(/[\\/]/g, '_').replace(/\0/g, '').replace(/^\.+/, '').slice(0, 255) || 'file'
+  );
+}
+
 class StorageService {
   private config: StorageConfig;
 
   constructor() {
     this.config = {
-      provider: (process.env.STORAGE_PROVIDER as any) || 'LOCAL_FILESYSTEM',
-      localStoragePath: process.env.LOCAL_STORAGE_PATH || './storage',
+      provider: normalizeProvider(process.env.STORAGE_PROVIDER),
+      localStoragePath:
+        process.env.STORAGE_LOCAL_PATH ||
+        process.env.LOCAL_STORAGE_PATH ||
+        '/opt/promo-effect/backend/uploads',
+      awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      awsRegion: process.env.AWS_REGION,
+      awsS3Bucket: process.env.AWS_S3_BUCKET,
       baseUrl: process.env.STORAGE_BASE_URL || process.env.API_URL || 'http://localhost:3001',
     };
 
     // Initialize local storage directory if using local filesystem
     if (this.config.provider === 'LOCAL_FILESYSTEM' && this.config.localStoragePath) {
-      this.ensureDirectoryExists(this.config.localStoragePath);
+      try {
+        this.ensureDirectoryExists(this.config.localStoragePath);
+      } catch (err) {
+        logger.error(
+          `Failed to create local storage dir ${this.config.localStoragePath}:`,
+          (err as Error).message
+        );
+      }
     }
   }
 
@@ -53,9 +123,11 @@ class StorageService {
    * @returns URL to access the file
    */
   async uploadFile(buffer: Buffer, fileName: string, folder: string = 'files'): Promise<string> {
-    const fileExtension = path.extname(fileName);
+    const safeName = sanitizeFileName(fileName);
+    const safeFolder = sanitizeFileName(folder);
+    const fileExtension = path.extname(safeName);
     const uniqueFileName = `${uuidv4()}${fileExtension}`;
-    const filePath = path.join(folder, uniqueFileName);
+    const filePath = path.join(safeFolder, uniqueFileName);
 
     switch (this.config.provider) {
       case 'LOCAL_FILESYSTEM':
@@ -73,6 +145,43 @@ class StorageService {
       default:
         throw new Error(`Unsupported storage provider: ${this.config.provider}`);
     }
+  }
+
+  /**
+   * Resolve a stored file URL/path back to an absolute on-disk path,
+   * protecting against directory traversal.
+   * Accepts:
+   *   - full URL like http://host/storage/folder/abc.pdf
+   *   - file:// URL
+   *   - relative paths like /storage/folder/abc.pdf or folder/abc.pdf
+   * Returns absolute path inside localStoragePath, or null if outside.
+   */
+  private resolveLocalPath(fileUrl: string): string | null {
+    if (!fileUrl || !this.config.localStoragePath) return null;
+    let relativePath = fileUrl;
+    try {
+      // Strip protocol+host if present
+      if (/^[a-z]+:\/\//i.test(fileUrl)) {
+        const u = new URL(fileUrl);
+        relativePath = u.pathname;
+      }
+    } catch {
+      // not a URL, treat as path
+    }
+    // Strip known prefixes
+    relativePath = relativePath
+      .replace(/^\/+storage\/+/, '')
+      .replace(/^\/+uploads\/+/, '')
+      .replace(/^\/+/, '');
+
+    const base = path.resolve(this.config.localStoragePath);
+    const full = path.resolve(base, relativePath);
+    // Path traversal guard
+    if (!full.startsWith(base + path.sep) && full !== base) {
+      logger.warn(`Path traversal attempt blocked: ${fileUrl}`);
+      return null;
+    }
+    return full;
   }
 
   /**
@@ -164,12 +273,8 @@ class StorageService {
   async deleteFile(fileUrl: string): Promise<boolean> {
     try {
       if (this.config.provider === 'LOCAL_FILESYSTEM') {
-        // Extract relative path from URL
-        const urlPath = new URL(fileUrl).pathname;
-        const relativePath = urlPath.replace('/storage/', '');
-        const fullPath = path.join(this.config.localStoragePath!, relativePath);
-
-        if (fs.existsSync(fullPath)) {
+        const fullPath = this.resolveLocalPath(fileUrl);
+        if (fullPath && fs.existsSync(fullPath)) {
           fs.unlinkSync(fullPath);
           return true;
         }
@@ -215,12 +320,8 @@ class StorageService {
   async getFile(fileUrl: string): Promise<Buffer | null> {
     try {
       if (this.config.provider === 'LOCAL_FILESYSTEM') {
-        // Extract relative path from URL
-        const urlPath = new URL(fileUrl).pathname;
-        const relativePath = urlPath.replace('/storage/', '');
-        const fullPath = path.join(this.config.localStoragePath!, relativePath);
-
-        if (fs.existsSync(fullPath)) {
+        const fullPath = this.resolveLocalPath(fileUrl);
+        if (fullPath && fs.existsSync(fullPath)) {
           return fs.readFileSync(fullPath);
         }
       } else if (this.config.provider === 'AWS_S3') {

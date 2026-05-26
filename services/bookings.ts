@@ -49,6 +49,7 @@ export interface UpdateBookingData {
   internalNotes?: string;
   containerNumber?: string;
   blNumber?: string;
+  cargoWeight?: string;
 }
 
 export interface BookingFilters {
@@ -59,6 +60,30 @@ export interface BookingFilters {
   search?: string;
   limit?: number;
   offset?: number;
+}
+
+/**
+ * Container as returned by booking detail endpoint. Minimal typing — only
+ * fields used in the UI. Keep optional/nullable to match backend (which may
+ * not yet have these fields populated for older bookings).
+ */
+export interface BookingContainer {
+  id?: string;
+  containerNumber?: string | null;
+  blNumber?: string | null;
+  type?: string | null;
+  weightGross?: number | string | null;
+  weightNet?: number | string | null;
+  status?: string | null;
+  currentStatus?: string | null;
+}
+
+export interface BookingDocument {
+  id?: string;
+  name?: string;
+  url?: string;
+  type?: string;
+  uploadedAt?: string;
 }
 
 export interface BookingResponse {
@@ -107,8 +132,8 @@ export interface BookingResponse {
   selectedPrice?: unknown;
   containerNumber?: string | null;
   blNumber?: string | null;
-  containers?: unknown[];
-  documents?: unknown[];
+  containers?: BookingContainer[];
+  documents?: BookingDocument[];
   invoices?: unknown[];
   notifications?: unknown[];
   telexRelease?: boolean;

@@ -9,7 +9,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { User } from '../types';
 import { Button } from './ui/Button';
@@ -102,7 +102,21 @@ const BookingsList = ({ user }: { user: User }) => {
   const { addToast } = useToast();
   const { confirm: confirmDialog, ConfirmDialogNode } = useConfirm();
 
-  const [activeTab, setActiveTab] = useState<TabKey>('all');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const validTabKeys = BOOKING_TABS.map((t) => t.key) as readonly TabKey[];
+  const urlTab = searchParams.get('tab');
+  const initialTab: TabKey =
+    urlTab && (validTabKeys as readonly string[]).includes(urlTab) ? (urlTab as TabKey) : 'all';
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+
+  // Sync tab when URL changes (e.g. via Navigate redirect)
+  useEffect(() => {
+    const t = searchParams.get('tab');
+    if (t && (validTabKeys as readonly string[]).includes(t) && t !== activeTab) {
+      setActiveTab(t as TabKey);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
@@ -196,7 +210,6 @@ const BookingsList = ({ user }: { user: User }) => {
         addToast(`Acțiunea '${action}' nu este implementată încă.`, 'info');
       }
       setSelectedRows([]);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
     [confirmDialog, selectedRows, bookings, addToast, t]
   );
@@ -241,6 +254,11 @@ const BookingsList = ({ user }: { user: User }) => {
         onTabChange={(tab) => {
           setActiveTab(tab);
           setSelectedRows([]);
+          // Reflect tab in URL so deep-links and back/forward work
+          const next = new URLSearchParams(searchParams);
+          if (tab === 'all') next.delete('tab');
+          else next.set('tab', tab);
+          setSearchParams(next, { replace: true });
         }}
         searchInput={searchInput}
         onSearchChange={setSearchInput}

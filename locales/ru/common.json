@@ -49,7 +49,8 @@
     "newBooking": "Новое бронирование",
     "tracking": "ОТСЛЕЖИВАНИЕ",
     "portalAccess": "ДОСТУП К ПОРТАЛУ",
-    "saving": "Сохранение..."
+    "saving": "Сохранение...",
+    "more": "Ещё"
   },
   "auth": {
     "login": "Войти",
@@ -309,7 +310,19 @@
       "saveSuccess": "Цены успешно сохранены",
       "saveError": "Ошибка при сохранении цен",
       "savePrice": "Сохранить цену"
+    },
+    "form": {
+      "beneficiarySection": "Бенефициар (Клиент)",
+      "companyLabel": "Компания *",
+      "companySearchPlaceholder": "Поиск клиента по названию компании...",
+      "supplierSection": "Поставщик (Китай)",
+      "agentSection": "Агент в Китае"
     }
+  },
+  "adminSettingsTabs": {
+    "stats": "Статистика",
+    "users": "Пользователи",
+    "reports": "Отчёты"
   },
   "tracking": {
     "title": "Отслеживание контейнеров",

@@ -233,6 +233,9 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
 
   const isReadOnly = !isNew && isClient;
   const isAdmin = [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.MANAGER].includes(user.role);
+  // Backend GET /agents is restricted to ADMIN/SUPER_ADMIN; MANAGER hits 403 silently.
+  // Show Agent section (autocomplete + fields) only to roles that can fetch /agents.
+  const showAgentSection = [UserRole.ADMIN, UserRole.SUPER_ADMIN].includes(user.role);
 
   // Initialize form for new booking
   useEffect(() => {
@@ -654,7 +657,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
           {bookingData.client_name && (
             <div>
               <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
-                Beneficiar (Client)
+                {t('bookings.form.beneficiarySection')}
               </label>
               <p className="mt-1 text-sm text-neutral-800 dark:text-neutral-200 font-medium">
                 {bookingData.client_name}
@@ -813,12 +816,12 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
         {!isClient && (
           <div>
             <h4 className="text-base font-semibold text-neutral-700 dark:text-neutral-200 border-b border-neutral-200 dark:border-neutral-700 pb-2 mb-4">
-              Beneficiar (Client)
+              {t('bookings.form.beneficiarySection')}
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <EntityAutocomplete<Client>
-                label="Companie *"
-                placeholder="Caută client după nume companie..."
+                label={t('bookings.form.companyLabel')}
+                placeholder={t('bookings.form.companySearchPlaceholder')}
                 value={bookingData.clientCompanyName || bookingData.client_name || ''}
                 onTextChange={(text) =>
                   setBookingData((prev) => ({
@@ -922,7 +925,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
         {/* ── Furnizor (Supplier China) ───────────────────────────── */}
         <div>
           <h4 className="text-base font-semibold text-neutral-700 dark:text-neutral-200 border-b border-neutral-200 dark:border-neutral-700 pb-2 mb-4">
-            Furnizor (China)
+            {t('bookings.form.supplierSection')}
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <EntityAutocomplete<Supplier>
@@ -994,11 +997,11 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
           </div>
         </div>
 
-        {/* ── Agent China ─────────────────────────────────────────── */}
-        {isAdmin && (
+        {/* ── Agent China — only roles that can call GET /agents ─── */}
+        {showAgentSection && (
           <div>
             <h4 className="text-base font-semibold text-neutral-700 dark:text-neutral-200 border-b border-neutral-200 dark:border-neutral-700 pb-2 mb-4">
-              Agent China
+              {t('bookings.form.agentSection')}
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <EntityAutocomplete<Agent>

@@ -49,7 +49,8 @@
     "newBooking": "New Booking",
     "tracking": "TRACKING",
     "portalAccess": "PORTAL ACCESS",
-    "saving": "Saving..."
+    "saving": "Saving...",
+    "more": "More"
   },
   "auth": {
     "login": "Login",
@@ -309,7 +310,19 @@
       "saveSuccess": "Prices saved successfully",
       "saveError": "Error saving prices",
       "savePrice": "Save Price"
+    },
+    "form": {
+      "beneficiarySection": "Beneficiary (Client)",
+      "companyLabel": "Company *",
+      "companySearchPlaceholder": "Search client by company name...",
+      "supplierSection": "Supplier (China)",
+      "agentSection": "China Agent"
     }
+  },
+  "adminSettingsTabs": {
+    "stats": "Statistics",
+    "users": "Users",
+    "reports": "Reports"
   },
   "tracking": {
     "title": "Container Tracking",

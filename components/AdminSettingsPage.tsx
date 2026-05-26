@@ -197,11 +197,21 @@ type TabValue = (typeof VALID_TABS)[number];
 
 const AdminSettingsPage = () => {
   const { t } = useTranslation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = ((): TabValue => {
     const p = searchParams.get('tab');
     return (VALID_TABS as readonly string[]).includes(p ?? '') ? (p as TabValue) : 'email';
   })();
+  const [tab, setTab] = useState<TabValue>(initialTab);
+
+  // Keep state in sync if URL changes externally (e.g. nav click)
+  useEffect(() => {
+    const p = searchParams.get('tab');
+    if (p && (VALID_TABS as readonly string[]).includes(p) && p !== tab) {
+      setTab(p as TabValue);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const currentUser = getStoredUser();
   const [settings, setSettings] = useState<SystemSettings>(mockSettings);
   const [testResults, setTestResults] = useState<Record<string, 'success' | 'error' | 'pending'>>(
@@ -343,16 +353,25 @@ const AdminSettingsPage = () => {
         </p>
       </div>
 
-      <Tabs key={initialTab} defaultValue={initialTab}>
+      <Tabs
+        value={tab}
+        onValueChange={(v) => {
+          const next = v as TabValue;
+          setTab(next);
+          const params = new URLSearchParams(searchParams);
+          params.set('tab', next);
+          setSearchParams(params, { replace: true });
+        }}
+      >
         <TabsList>
           <TabsTrigger value="email">Email</TabsTrigger>
           <TabsTrigger value="tracking">Urmărire</TabsTrigger>
           <TabsTrigger value="notifications">Notificări</TabsTrigger>
           <TabsTrigger value="integrations">Integrări</TabsTrigger>
           <TabsTrigger value="system">Sistem</TabsTrigger>
-          <TabsTrigger value="admin">Statistici</TabsTrigger>
-          <TabsTrigger value="users">Utilizatori</TabsTrigger>
-          <TabsTrigger value="reports">Rapoarte</TabsTrigger>
+          <TabsTrigger value="admin">{t('adminSettingsTabs.stats')}</TabsTrigger>
+          <TabsTrigger value="users">{t('adminSettingsTabs.users')}</TabsTrigger>
+          <TabsTrigger value="reports">{t('adminSettingsTabs.reports')}</TabsTrigger>
           <TabsTrigger value="emailParser">{t('nav.aiParser')}</TabsTrigger>
         </TabsList>
 

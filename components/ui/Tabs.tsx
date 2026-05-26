@@ -8,8 +8,27 @@ interface TabsContextProps {
 
 const TabsContext = createContext<TabsContextProps | null>(null);
 
-export const Tabs = ({ defaultValue, children, className }: React.PropsWithChildren<{ defaultValue: string; className?: string; }>) => {
-  const [activeTab, setActiveTab] = useState(defaultValue);
+interface TabsProps {
+  defaultValue?: string;
+  value?: string;
+  onValueChange?: (value: string) => void;
+  className?: string;
+}
+
+export const Tabs = ({
+  defaultValue,
+  value,
+  onValueChange,
+  children,
+  className,
+}: React.PropsWithChildren<TabsProps>) => {
+  const [internal, setInternal] = useState<string>(defaultValue ?? value ?? '');
+  const isControlled = value !== undefined;
+  const activeTab = isControlled ? (value as string) : internal;
+  const setActiveTab = (v: string) => {
+    if (!isControlled) setInternal(v);
+    onValueChange?.(v);
+  };
   return (
     <TabsContext.Provider value={{ activeTab, setActiveTab }}>
       <div className={cn(className)}>{children}</div>
@@ -17,20 +36,26 @@ export const Tabs = ({ defaultValue, children, className }: React.PropsWithChild
   );
 };
 
-export const TabsList = ({ children, className }: React.PropsWithChildren<{ className?: string; }>) => {
+export const TabsList = ({
+  children,
+  className,
+}: React.PropsWithChildren<{ className?: string }>) => {
   return (
-    <div className={cn("border-b border-neutral-200 dark:border-neutral-700", className)}>
-      <nav className="-mb-px flex space-x-6 sm:space-x-8 overflow-x-auto px-1 sm:px-0" aria-label="Tabs">
+    <div className={cn('border-b border-neutral-200 dark:border-neutral-700', className)}>
+      <nav
+        className="-mb-px flex space-x-6 sm:space-x-8 overflow-x-auto px-1 sm:px-0"
+        aria-label="Tabs"
+      >
         {children}
       </nav>
     </div>
   );
 };
 
-export const TabsTrigger = ({ value, children }: React.PropsWithChildren<{ value: string; }>) => {
+export const TabsTrigger = ({ value, children }: React.PropsWithChildren<{ value: string }>) => {
   const context = useContext(TabsContext);
-  if (!context) throw new Error("TabsTrigger must be used within a Tabs component");
-  
+  if (!context) throw new Error('TabsTrigger must be used within a Tabs component');
+
   const isActive = context.activeTab === value;
 
   return (
@@ -48,9 +73,9 @@ export const TabsTrigger = ({ value, children }: React.PropsWithChildren<{ value
   );
 };
 
-export const TabsContent = ({ value, children }: React.PropsWithChildren<{ value: string; }>) => {
+export const TabsContent = ({ value, children }: React.PropsWithChildren<{ value: string }>) => {
   const context = useContext(TabsContext);
-  if (!context) throw new Error("TabsContent must be used within a Tabs component");
-  
+  if (!context) throw new Error('TabsContent must be used within a Tabs component');
+
   return context.activeTab === value ? <div className="mt-5">{children}</div> : null;
 };

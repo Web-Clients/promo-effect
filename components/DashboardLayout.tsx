@@ -25,6 +25,8 @@ import {
   AnchorIcon,
   MapPinIcon,
   TruckIcon,
+  MoreHorizontalIcon,
+  XIcon,
 } from './icons';
 import NotificationsDropdown from './NotificationsDropdown';
 import { LanguageSwitcher } from './shared/LanguageSwitcher';
@@ -68,6 +70,7 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
   const { t } = useTranslation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -347,33 +350,107 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
 
       {/* Mobile Bottom Navigation - Flexport Style */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0A2540] border-t border-white/10 z-50 safe-area-pb">
-        <div className="grid grid-cols-5 gap-1 p-2">
-          {navigation
-            .filter((n) => n.visible)
-            .slice(0, 5)
-            .map((item) => {
-              const Icon = item.icon;
-              return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  end={item.end}
-                  className={({ isActive }) =>
-                    cn(
-                      'flex flex-col items-center justify-center py-2 px-1 rounded-lg text-center transition-all',
-                      isActive ? 'bg-white/15 text-white' : 'text-white/60'
-                    )
-                  }
+        {(() => {
+          const visibleNav = navigation.filter((n) => n.visible);
+          const PRIMARY = 4;
+          const primary = visibleNav.slice(0, PRIMARY);
+          const overflow = visibleNav.slice(PRIMARY);
+          return (
+            <div className="grid grid-cols-5 gap-1 p-2">
+              {primary.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    end={item.end}
+                    className={({ isActive }) =>
+                      cn(
+                        'flex flex-col items-center justify-center py-2 px-1 rounded-lg text-center transition-all',
+                        isActive ? 'bg-white/15 text-white' : 'text-white/60'
+                      )
+                    }
+                  >
+                    <Icon className="h-5 w-5" />
+                    <span className="text-[10px] leading-tight mt-1 line-clamp-1 font-medium">
+                      {item.name}
+                    </span>
+                  </NavLink>
+                );
+              })}
+              {overflow.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setMobileMoreOpen(true)}
+                  className="flex flex-col items-center justify-center py-2 px-1 rounded-lg text-center transition-all text-white/60 hover:text-white"
+                  aria-label={t('actions.more', { defaultValue: 'Mai mult' })}
                 >
-                  <Icon className="h-5 w-5" />
-                  <span className="text-[10px] leading-tight mt-1 line-clamp-1 font-medium">
-                    {item.name}
+                  <MoreHorizontalIcon className="h-5 w-5" />
+                  <span className="text-[10px] leading-tight mt-1 font-medium">
+                    {t('actions.more', { defaultValue: 'Mai mult' })}
                   </span>
-                </NavLink>
-              );
-            })}
-        </div>
+                </button>
+              ) : null}
+            </div>
+          );
+        })()}
       </nav>
+
+      {/* Mobile overflow sheet — opens from bottom on tap "More" */}
+      {mobileMoreOpen && (
+        <div className="md:hidden fixed inset-0 z-[60]">
+          {/* Backdrop */}
+          <button
+            type="button"
+            aria-label="Close"
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setMobileMoreOpen(false)}
+          />
+          {/* Sheet */}
+          <div className="absolute bottom-0 left-0 right-0 bg-[#0A2540] rounded-t-2xl shadow-xl p-4 max-h-[75vh] overflow-y-auto safe-area-pb">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-white">
+                {t('actions.more', { defaultValue: 'Mai mult' })}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setMobileMoreOpen(false)}
+                className="text-white/70 hover:text-white p-1"
+                aria-label="Close"
+              >
+                <XIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {navigation
+                .filter((n) => n.visible)
+                .slice(4)
+                .map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      end={item.end}
+                      onClick={() => setMobileMoreOpen(false)}
+                      className={({ isActive }) =>
+                        cn(
+                          'flex flex-col items-center justify-center py-3 px-2 rounded-lg text-center transition-all',
+                          isActive ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10'
+                        )
+                      }
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span className="text-[11px] leading-tight mt-1 line-clamp-2 font-medium">
+                        {item.name}
+                      </span>
+                    </NavLink>
+                  );
+                })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

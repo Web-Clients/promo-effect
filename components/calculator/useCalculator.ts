@@ -126,9 +126,9 @@ export function useCalculator(user?: User): UseCalculatorReturn {
       return;
     }
 
-    // CFR requires shipping line selection
-    if (params.incoterm === 'CFR' && !params.shippingLine) {
-      setError('Pentru CFR selectați linia maritimă');
+    // CFR / CIF require shipping line selection
+    if ((params.incoterm === 'CFR' || params.incoterm === 'CIF') && !params.shippingLine) {
+      setError('Pentru CFR/CIF selectați linia maritimă');
       setIsLoading(false);
       return;
     }

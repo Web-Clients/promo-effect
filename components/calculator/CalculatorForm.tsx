@@ -11,6 +11,7 @@ const INCOTERM_TOOLTIPS: Record<Incoterm, string> = {
   FOB: 'Free On Board — Vânzătorul livrează marfa la bordul vasului. Cumpărătorul suportă navlul și livrarea la destinație.',
   EXW: 'Ex Works — Vânzătorul pune marfa la dispoziție la fabrică. Cumpărătorul suportă toate costurile: transport China, vamă export, navlu, livrare.',
   CFR: 'Cost and Freight — Vânzătorul plătește navlul până la portul de destinație. Cumpărătorul selectează linia maritimă.',
+  CIF: 'Cost, Insurance and Freight — Vânzătorul plătește navlul și asigurarea până la portul de destinație. Cumpărătorul selectează linia maritimă.',
 };
 
 // Final destination options beyond port
@@ -70,7 +71,7 @@ export const CalculatorForm = ({
   // Persist last incoterm in localStorage
   useEffect(() => {
     const saved = localStorage.getItem('lastIncoterm') as Incoterm | null;
-    if (saved && ['FOB', 'EXW', 'CFR'].includes(saved)) {
+    if (saved && ['FOB', 'EXW', 'CFR', 'CIF'].includes(saved)) {
       setParams((prev) => ({ ...prev, incoterm: saved }));
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -181,7 +182,7 @@ export const CalculatorForm = ({
           >
             {/* Radio group */}
             <div className="flex gap-2">
-              {(['FOB', 'EXW', 'CFR'] as Incoterm[]).map((inc) => (
+              {(['FOB', 'EXW', 'CFR', 'CIF'] as Incoterm[]).map((inc) => (
                 <button
                   key={inc}
                   type="button"
@@ -235,10 +236,17 @@ export const CalculatorForm = ({
                 </p>
               </div>
             )}
+            {params.incoterm === 'CIF' && (
+              <div className="mt-2 p-2.5 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-700/30 rounded-lg">
+                <p className="text-xs text-teal-700 dark:text-teal-300 font-medium">
+                  CIF: Maritim + asigurare incluse de furnizor. Selectați linia maritimă.
+                </p>
+              </div>
+            )}
           </FormField>
 
-          {/* CFR: Shipping Line selector (required) */}
-          {params.incoterm === 'CFR' && (
+          {/* CFR / CIF: Shipping Line selector (required) */}
+          {(params.incoterm === 'CFR' || params.incoterm === 'CIF') && (
             <FormField label="Linie Maritimă" required>
               <CalcSelect
                 value={params.shippingLine || ''}

@@ -17,7 +17,7 @@ export type {
   AgentSummary,
 };
 
-export type Incoterm = 'FOB' | 'EXW' | 'CFR';
+export type Incoterm = 'FOB' | 'EXW' | 'CFR' | 'CIF';
 export type FinalDestination =
   | 'constanta'
   | 'chisinau'

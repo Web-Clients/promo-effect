@@ -269,7 +269,7 @@ export function AdminPricingPanel() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Prețuri Terestru
+              {t('nav.adminPricingLand')}
             </button>
           )}
           {!isAgent && (

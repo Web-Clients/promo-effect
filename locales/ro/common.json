@@ -49,7 +49,8 @@
     "newBooking": "Rezervare Nouă",
     "tracking": "TRACKING",
     "portalAccess": "ACCES PORTAL",
-    "saving": "Se salvează..."
+    "saving": "Se salvează...",
+    "more": "Mai mult"
   },
   "auth": {
     "login": "Autentificare",
@@ -309,7 +310,19 @@
       "saveSuccess": "Prețuri salvate cu succes",
       "saveError": "Eroare la salvarea prețurilor",
       "savePrice": "Salvează Prețul"
+    },
+    "form": {
+      "beneficiarySection": "Beneficiar (Client)",
+      "companyLabel": "Companie *",
+      "companySearchPlaceholder": "Caută client după nume companie...",
+      "supplierSection": "Furnizor (China)",
+      "agentSection": "Agent China"
     }
+  },
+  "adminSettingsTabs": {
+    "stats": "Statistici",
+    "users": "Utilizatori",
+    "reports": "Rapoarte"
   },
   "tracking": {
     "title": "Urmărire Containere",

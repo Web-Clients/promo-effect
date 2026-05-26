@@ -53,21 +53,16 @@ const computeTotalPrice = (
     total += getEXWTotal();
   }
 
-  // Rata 1: Maritime without portTaxes (portTaxes moved to Rata 3)
-  if (incoterm !== 'CFR') {
+  // Rata 1: Maritime — paid by buyer in FOB/EXW, included by supplier in CFR/CIF
+  const supplierCoversMaritime = incoterm === 'CFR' || incoterm === 'CIF';
+  if (!supplierCoversMaritime) {
     total += getMaritimeTotal(offer);
   }
 
-  // Rata 2: Land leg (portIntermediate→portFinal) — portTaxes included here in total but shown in Rata 3
-  // terrestrialTransport + customsTaxes + portTaxes + insurance (no commission — moved to Rata 3)
-  if (incoterm !== 'CFR') {
-    total +=
-      offer.terrestrialTransport + offer.customsTaxes + offer.portTaxes + (offer.insurance || 0);
-  }
-  if (incoterm === 'CFR') {
-    total +=
-      offer.terrestrialTransport + offer.customsTaxes + offer.portTaxes + (offer.insurance || 0);
-  }
+  // Rata 2: Land leg (portIntermediate→portFinal) — same for all incoterms.
+  // CIF additionally guarantees insurance is paid by supplier (already counted via offer.insurance).
+  total +=
+    offer.terrestrialTransport + offer.customsTaxes + offer.portTaxes + (offer.insurance || 0);
 
   // Rata 3: Land transport Constanta -> Chisinau (includes commission + portTaxes as cheltuieliLocale)
   if (finalDestination === 'chisinau') {
@@ -98,6 +93,9 @@ export const OfferCard = ({
   const [commissionValue, setCommissionValue] = useState<string>(String(defaultCommission));
   const commissionOverride = parseFloat(commissionValue) || 0;
 
+  // CIF behaves like CFR for routing logic (supplier covers maritime). Insurance is
+  // already counted via offer.insurance regardless of incoterm.
+  const supplierCoversMaritime = incoterm === 'CFR' || incoterm === 'CIF';
   const adjustedTotal = computeTotalPrice(offer, incoterm, finalDestination, commissionOverride);
   // Approximate MDL using ratio from original offer
   const mdlRate = offer.totalPriceMDL / offer.totalPriceUSD;
@@ -215,8 +213,8 @@ export const OfferCard = ({
                 </div>
               )}
 
-              {/* Admin: Rata 1 - Maritime (hidden for CFR) — no portTaxes here */}
-              {incoterm !== 'CFR' && (
+              {/* Admin: Rata 1 - Maritime (hidden for CFR/CIF) — no portTaxes here */}
+              {!supplierCoversMaritime && (
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <h5 className="text-sm font-semibold text-primary-800 dark:text-white">
@@ -243,12 +241,13 @@ export const OfferCard = ({
                 </div>
               )}
 
-              {/* Admin: CFR note */}
-              {incoterm === 'CFR' && (
+              {/* Admin: CFR/CIF note */}
+              {supplierCoversMaritime && (
                 <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/30 rounded-lg">
                   <p className="text-sm text-blue-700 dark:text-blue-400">
-                    CFR: Transportul maritim este inclus în prețul furnizorului (
-                    {offer.shippingLine})
+                    {incoterm}: Transportul maritim
+                    {incoterm === 'CIF' ? ' + asigurarea sunt incluse' : ' este inclus'} în prețul
+                    furnizorului ({offer.shippingLine})
                   </p>
                 </div>
               )}
@@ -257,7 +256,7 @@ export const OfferCard = ({
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-2">
                   <h5 className="text-sm font-semibold text-primary-800 dark:text-white">
-                    {incoterm === 'CFR' ? 'Rata 1' : 'Rata 2'}: {offer.portIntermediate} →{' '}
+                    {supplierCoversMaritime ? 'Rata 1' : 'Rata 2'}: {offer.portIntermediate} →{' '}
                     {offer.portFinal}
                   </h5>
                   <span className="text-sm font-bold text-accent-500">
@@ -293,7 +292,7 @@ export const OfferCard = ({
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <h5 className="text-sm font-semibold text-primary-800 dark:text-white">
-                      {incoterm === 'CFR' ? 'Rata 2' : 'Rata 3'}: Constanța → Chișinău
+                      {supplierCoversMaritime ? 'Rata 2' : 'Rata 3'}: Constanța → Chișinău
                     </h5>
                     <span className="text-sm font-bold text-accent-500">
                       ${getLandTransportTotal(commissionOverride).toFixed(2)}
@@ -366,7 +365,7 @@ export const OfferCard = ({
               )}
 
               {/* FOB — Maritime China → Constanța/Odessa */}
-              {incoterm !== 'CFR' ? (
+              {!supplierCoversMaritime ? (
                 <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-100 dark:border-blue-800/30">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="px-2 py-0.5 text-xs font-bold text-white bg-blue-500 rounded">
@@ -387,14 +386,17 @@ export const OfferCard = ({
                 <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-100 dark:border-blue-800/30">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="px-2 py-0.5 text-xs font-bold text-white bg-blue-500 rounded">
-                      CFR
+                      {incoterm}
                     </span>
                     <h5 className="text-sm font-semibold text-blue-800 dark:text-blue-300">
-                      Maritim inclus în prețul furnizorului
+                      {incoterm === 'CIF'
+                        ? 'Maritim + asigurare incluse în prețul furnizorului'
+                        : 'Maritim inclus în prețul furnizorului'}
                     </h5>
                   </div>
                   <p className="text-sm text-blue-600 dark:text-blue-400">
-                    Transportul maritim până la {offer.portIntermediate} este inclus de furnizor (
+                    Transportul maritim până la {offer.portIntermediate}
+                    {incoterm === 'CIF' ? ' (cu asigurare)' : ''} este inclus de furnizor (
                     {offer.shippingLine})
                   </p>
                 </div>
@@ -415,13 +417,14 @@ export const OfferCard = ({
                   $
                   {(
                     getLandLegSubtotal(offer) +
+                    offer.portTaxes +
                     (finalDestination === 'chisinau'
                       ? getLandTransportTotal(commissionOverride)
                       : commissionOverride)
                   ).toFixed(0)}
                 </p>
                 <p className="text-xs text-green-500 mt-1">
-                  Transport terestru + vamă + comision (totul inclus)
+                  Transport terestru + vamă + cheltuieli locale port + comision (totul inclus)
                 </p>
               </div>
 
@@ -440,7 +443,9 @@ export const OfferCard = ({
                     ? 'EXW + FOB + CFR/CIF'
                     : incoterm === 'FOB'
                       ? 'FOB + CFR/CIF'
-                      : 'CFR/CIF (maritim inclus de furnizor)'}
+                      : incoterm === 'CIF'
+                        ? 'CIF (maritim + asigurare incluse de furnizor)'
+                        : 'CFR (maritim inclus de furnizor)'}
                 </p>
               </div>
             </div>

@@ -231,8 +231,22 @@ export class EmailService {
               parseFloat(extractedData.cargoWeight.replace(/[^0-9.]/g, '')) || undefined;
           if (extractedData.cargoDescription) updateData.content = extractedData.cargoDescription;
           if (extractedData.portOrigin) updateData.currentLocation = extractedData.portOrigin;
+          if (extractedData.vesselName && !(existingContainer as any).vesselName)
+            updateData.vesselName = extractedData.vesselName;
 
           await prisma.container.update({ where: { id: existingContainer.id }, data: updateData });
+
+          // Resolve vessel name → MMSI from the AISStream-populated directory.
+          // Idempotent: if container already has MMSI or no match, no-op.
+          if (extractedData.vesselName && !(existingContainer as any).vesselMmsi) {
+            try {
+              const { resolveAndAttachToContainer } =
+                await import('../../services/vessel-resolver.service');
+              await resolveAndAttachToContainer(existingContainer.id, extractedData.vesselName);
+            } catch (err) {
+              logger.warn('[EmailService] vessel resolver failed (non-fatal):', err);
+            }
+          }
 
           const bookingRecord = (existingContainer as any).booking;
           if (extractedData.blNumber && bookingRecord) {
@@ -419,9 +433,21 @@ export class EmailService {
                 eta: extractedData.eta ? new Date(extractedData.eta) : undefined,
                 urgent: false,
                 delayed: false,
+                vesselName: extractedData.vesselName,
               } as any,
             });
             containerId = container.id;
+
+            // Auto-resolve vessel name → MMSI from the AISStream directory.
+            if (extractedData.vesselName) {
+              try {
+                const { resolveAndAttachToContainer } =
+                  await import('../../services/vessel-resolver.service');
+                await resolveAndAttachToContainer(container.id, extractedData.vesselName);
+              } catch (err) {
+                logger.warn('[EmailService] vessel resolver failed (non-fatal):', err);
+              }
+            }
 
             await prisma.trackingEvent.create({
               data: {
@@ -429,6 +455,7 @@ export class EmailService {
                 eventType: 'BOOKING_CONFIRMED',
                 eventDate: new Date(),
                 location: extractedData.portOrigin || 'Unknown',
+                vessel: extractedData.vesselName,
                 source: 'EMAIL_PARSING',
                 validated: false,
                 visibility: 'INTERNAL',

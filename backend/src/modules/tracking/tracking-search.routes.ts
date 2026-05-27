@@ -441,6 +441,26 @@ router.get('/fleet/live', authMiddleware, async (_req: Request, res: Response) =
 });
 
 /**
+ * GET /api/tracking/aisstream/health
+ * Operations endpoint — exposes the AISStream integration's internal
+ * state for monitoring and debugging (WebSocket state, cache size,
+ * last-message timestamp, total messages received).
+ * Status:
+ *   - ok        — WS open + last message <5 min ago
+ *   - degraded  — WS closed or stale
+ *   - off       — AISSTREAM_API_KEY not configured
+ */
+router.get('/aisstream/health', authMiddleware, async (_req: Request, res: Response) => {
+  const h = aisstreamIntegration.health();
+  const httpCode = h.status === 'ok' ? 200 : h.status === 'degraded' ? 503 : 404;
+  res.status(httpCode).json({
+    ...h,
+    directorySize: await prisma.vesselDirectory.count().catch(() => 0),
+    checkedAt: new Date().toISOString(),
+  });
+});
+
+/**
  * GET /api/tracking/vessel-directory/search?q=<name>
  * Autocomplete over the AISStream-populated vessel directory.
  * Used by the operator UI when assigning a vessel to a container

@@ -33,7 +33,8 @@ function normalize(name: string): string {
  * Generate a small set of variants to try in order from most-specific to
  * most-lenient. Returns the first non-empty entry from the list.
  */
-function variants(name: string): string[] {
+// Exported for unit tests; not part of the public API.
+export function variants(name: string): string[] {
   const out = new Set<string>();
   const base = normalize(name);
   out.add(base);

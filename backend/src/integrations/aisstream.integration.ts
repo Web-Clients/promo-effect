@@ -26,14 +26,25 @@ import { AISStreamMessage, AISStreamSubscription, VesselPosition } from './aisst
 
 const AISSTREAM_URL = 'wss://stream.aisstream.io/v0/stream';
 
-// Trade-route bounding box: eastern Atlantic (Gibraltar) → Mediterranean
-// → Black Sea → Red Sea → upper Arabian Sea. Captures every container ship
-// approaching Constanța from Asia via Suez. Used to populate the vessel
-// directory automatically — no operator data entry required.
+// Trade-route bounding boxes. Three regions covering the full
+// China → Constanța corridor so AISStream populates the vessel
+// directory for every ship the user is likely to receive cargo on:
+//   1. West region: North Atlantic + Mediterranean + Black Sea
+//   2. Suez/Indian: Red Sea + Arabian Sea + Indian Ocean
+//   3. East Asia: South China Sea + Yellow Sea + Sea of Japan
+//      (captures every Chinese POL: Shanghai, Ningbo, Qingdao, etc.)
 const TRADE_ROUTE_BBOX: Array<Array<[number, number]>> = [
   [
-    [10, -10],
-    [48, 60],
+    [25, -25], // SW: Canaries-Atlantic
+    [55, 45], // NE: Caucasus/Caspian
+  ],
+  [
+    [-10, 30], // SW: Mozambique channel
+    [30, 80], // NE: Pakistan/India
+  ],
+  [
+    [0, 95], // SW: Indonesia
+    [45, 145], // NE: Kamchatka/Japan
   ],
 ];
 
@@ -65,6 +76,8 @@ export class AISStreamIntegration {
   private resubscribeTimer: NodeJS.Timeout | null = null;
   private connecting = false;
   private started = false;
+  private lastMessageAt: Date | null = null;
+  private totalMessages = 0;
 
   constructor() {
     this.apiKey = process.env.AISSTREAM_API_KEY || '';
@@ -176,6 +189,61 @@ export class AISStreamIntegration {
   }
 
   /**
+   * Snapshot of the integration's internal state for /aisstream/health.
+   * Returns "degraded" if WebSocket is closed or last message older than
+   * 5 minutes; "ok" otherwise; "off" if not configured.
+   */
+  health(): {
+    status: 'ok' | 'degraded' | 'off';
+    configured: boolean;
+    wsState: string;
+    reconnectAttempts: number;
+    subscribedMmsis: number;
+    cachedPositions: number;
+    pendingDirectoryWrites: number;
+    totalMessagesReceived: number;
+    lastMessageAt: string | null;
+    secondsSinceLastMessage: number | null;
+  } {
+    if (!this.isConfigured()) {
+      return {
+        status: 'off',
+        configured: false,
+        wsState: 'unconfigured',
+        reconnectAttempts: 0,
+        subscribedMmsis: 0,
+        cachedPositions: 0,
+        pendingDirectoryWrites: 0,
+        totalMessagesReceived: 0,
+        lastMessageAt: null,
+        secondsSinceLastMessage: null,
+      };
+    }
+    const wsStateNum = this.ws?.readyState;
+    const wsState =
+      wsStateNum === undefined
+        ? 'null'
+        : ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][wsStateNum] || 'unknown';
+    const sinceLast = this.lastMessageAt
+      ? Math.round((Date.now() - this.lastMessageAt.getTime()) / 1000)
+      : null;
+    const status: 'ok' | 'degraded' =
+      wsState === 'OPEN' && sinceLast !== null && sinceLast < 300 ? 'ok' : 'degraded';
+    return {
+      status,
+      configured: true,
+      wsState,
+      reconnectAttempts: this.reconnectAttempt,
+      subscribedMmsis: this.subscribedMmsis.size,
+      cachedPositions: this.positionCache.size,
+      pendingDirectoryWrites: this.directoryPending.size,
+      totalMessagesReceived: this.totalMessages,
+      lastMessageAt: this.lastMessageAt?.toISOString() || null,
+      secondsSinceLastMessage: sinceLast,
+    };
+  }
+
+  /**
    * One-shot connectivity check. Opens a temp WebSocket, waits for the
    * subscription ack (first message) or a timeout, then closes.
    */
@@ -239,6 +307,8 @@ export class AISStreamIntegration {
     });
 
     ws.on('message', (raw) => {
+      this.lastMessageAt = new Date();
+      this.totalMessages++;
       try {
         const msg: AISStreamMessage = JSON.parse(raw.toString());
         this.handleMessage(msg);

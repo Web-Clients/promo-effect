@@ -115,13 +115,13 @@ const FleetMap: React.FC = () => {
 
   return (
     <div className="h-[calc(100vh-80px)] flex flex-col">
-      {/* HUD */}
-      <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-3 border-b border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900">
-        <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold text-neutral-800 dark:text-neutral-100">
-            🚢 Hartă Flotă — Live
+      {/* HUD — wraps to multiple rows on mobile */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-2 sm:py-3 border-b border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4 min-w-0">
+          <h1 className="text-base sm:text-xl font-bold text-neutral-800 dark:text-neutral-100 whitespace-nowrap">
+            🚢 Hartă Flotă <span className="hidden sm:inline">— Live</span>
           </h1>
-          <div className="flex items-center gap-2 text-xs flex-wrap">
+          <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs flex-wrap">
             <span className="px-2 py-1 rounded bg-emerald-50 text-emerald-700 font-medium">
               ● {liveCount} live AIS
             </span>
@@ -146,7 +146,7 @@ const FleetMap: React.FC = () => {
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-3 text-xs text-neutral-600 dark:text-neutral-400">
+        <div className="flex items-center gap-3 text-xs text-neutral-600 dark:text-neutral-400 flex-shrink-0">
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -154,9 +154,14 @@ const FleetMap: React.FC = () => {
               onChange={(e) => setShowAmbient(e.target.checked)}
               className="rounded"
             />
-            <span>Afișează tot traficul AIS</span>
+            <span className="hidden sm:inline">Afișează tot traficul AIS</span>
+            <span className="sm:hidden">AIS global</span>
           </label>
-          {fetchedAt && <span>Actualizat: {new Date(fetchedAt).toLocaleTimeString('ro-RO')}</span>}
+          {fetchedAt && (
+            <span className="hidden md:inline">
+              Actualizat: {new Date(fetchedAt).toLocaleTimeString('ro-RO')}
+            </span>
+          )}
         </div>
       </div>
 

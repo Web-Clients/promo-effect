@@ -412,10 +412,14 @@ router.get('/fleet/live', authMiddleware, async (_req: Request, res: Response) =
     });
 
     // Background visualization: every cached AIS position we know about
-    // in the trade-route bbox (typically thousands). Sent as a thin
-    // payload — just MMSI + lat/lng + shipName — to keep the response
-    // small enough for a single round-trip every few seconds.
-    const allPositions = aisstreamIntegration.getAllPositions().map((p) => ({
+    // in the trade-route bbox. Capped at AMBIENT_MAX to keep the
+    // response payload bounded — at 5s poll the network cost matters.
+    const AMBIENT_MAX = 1500;
+    const allCached = aisstreamIntegration.getAllPositions();
+    const sortedRecent = allCached.sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+    const allPositions = sortedRecent.slice(0, AMBIENT_MAX).map((p) => ({
       mmsi: p.mmsi,
       name: p.shipName,
       lat: p.latitude,

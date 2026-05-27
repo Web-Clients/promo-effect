@@ -342,11 +342,10 @@ export class AISStreamIntegration {
       }
     }
 
-    // Position cache is restricted to MMSIs we actually track on a
-    // container — otherwise the cache would balloon to thousands of
-    // unrelated vessels in the bbox.
-    if (!this.subscribedMmsis.has(mmsi)) return;
-
+    // Cache every position we receive in the bbox — this powers the
+    // "ambient ships" layer on the Fleet Map (shows live trade
+    // activity). DB persistence is gated separately in
+    // flushCacheToDb() so only operator-tracked MMSIs hit the DB.
     const existing = this.positionCache.get(mmsi);
 
     if (msg.MessageType === 'PositionReport' && msg.Message.PositionReport) {
@@ -467,12 +466,18 @@ export class AISStreamIntegration {
   private async flushCacheToDb(): Promise<void> {
     if (this.positionCache.size === 0) return;
 
+    // Evict stale entries and pick only operator-tracked MMSIs for DB
+    // persistence — the rest stay in the in-memory cache to feed the
+    // "ambient ships" map layer.
     const now = Date.now();
     const toFlush: VesselPosition[] = [];
     for (const pos of this.positionCache.values()) {
       const age = now - new Date(pos.timestamp).getTime();
-      if (age < POSITION_STALE_MS) toFlush.push(pos);
-      else this.positionCache.delete(pos.mmsi);
+      if (age >= POSITION_STALE_MS) {
+        this.positionCache.delete(pos.mmsi);
+        continue;
+      }
+      if (this.subscribedMmsis.has(pos.mmsi)) toFlush.push(pos);
     }
 
     if (toFlush.length === 0) return;
@@ -499,7 +504,9 @@ export class AISStreamIntegration {
       }
     }
 
-    logger.info(`[AISStream] Flushed ${toFlush.length} vessel positions to DB`);
+    logger.info(
+      `[AISStream] Flushed ${toFlush.length}/${this.positionCache.size} positions to DB (cache holds rest for ambient layer)`
+    );
   }
 }
 

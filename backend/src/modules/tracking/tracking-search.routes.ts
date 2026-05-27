@@ -276,8 +276,17 @@ router.get('/positions/live', authMiddleware, async (_req: Request, res: Respons
  */
 router.get('/fleet/live', authMiddleware, async (_req: Request, res: Response) => {
   try {
+    const { geocodePort } = await import('../../services/port-geocoder.service');
+
+    // Pull every active container — not just those with an MMSI — so the
+    // map shows the operator's full inventory at a glance. Containers
+    // without AIS still get a position via current_lat/lng, then via
+    // port geocoding of the most recent tracking event location, then
+    // via booking port destination/origin.
     const containers = await prisma.container.findMany({
-      where: { vesselMmsi: { not: null } } as any,
+      where: {
+        OR: [{ currentStatus: { notIn: ['DELIVERED', 'CANCELLED'] } }, { currentStatus: null }],
+      },
       include: {
         booking: {
           select: {
@@ -290,15 +299,88 @@ router.get('/fleet/live', authMiddleware, async (_req: Request, res: Response) =
         trackingEvents: {
           orderBy: { eventDate: 'desc' },
           take: 1,
-          select: { eventType: true, eventDate: true, location: true },
+          select: {
+            eventType: true,
+            eventDate: true,
+            location: true,
+            portName: true,
+            unlocode: true,
+            vessel: true,
+            latitude: true,
+            longitude: true,
+          },
         },
       },
+      take: 500,
     });
 
     const fleet = containers.map((c) => {
       const cAny = c as any;
-      const live = aisstreamIntegration.getPosition(cAny.vesselMmsi);
-      const hasLive = !!live;
+      const live = cAny.vesselMmsi ? aisstreamIntegration.getPosition(cAny.vesselMmsi) : null;
+      const lastEvent = c.trackingEvents[0];
+
+      let position: any = null;
+      if (live) {
+        position = {
+          latitude: live.latitude,
+          longitude: live.longitude,
+          sog: live.sog,
+          cog: live.cog,
+          heading: live.heading >= 511 ? null : live.heading,
+          destination: live.destination,
+          timestamp: live.timestamp,
+          source: 'AIS_LIVE',
+        };
+      } else if (c.currentLat != null && c.currentLng != null) {
+        position = {
+          latitude: c.currentLat,
+          longitude: c.currentLng,
+          sog: null,
+          cog: null,
+          heading: null,
+          destination: null,
+          timestamp: cAny.vesselPosAt || c.lastSyncAt,
+          source: 'LAST_KNOWN',
+        };
+      } else if (lastEvent?.latitude != null && lastEvent?.longitude != null) {
+        position = {
+          latitude: lastEvent.latitude,
+          longitude: lastEvent.longitude,
+          sog: null,
+          cog: null,
+          heading: null,
+          destination: null,
+          timestamp: lastEvent.eventDate,
+          source: 'LAST_EVENT',
+        };
+      } else {
+        // Port fallback chain: last event unlocode/port → booking destination → origin
+        const portCandidates = [
+          lastEvent?.unlocode,
+          lastEvent?.portName,
+          lastEvent?.location,
+          c.booking?.portDestination,
+          c.booking?.portOrigin,
+        ];
+        for (const candidate of portCandidates) {
+          const geo = geocodePort(candidate);
+          if (geo) {
+            position = {
+              latitude: geo.lat,
+              longitude: geo.lng,
+              sog: null,
+              cog: null,
+              heading: null,
+              destination: null,
+              timestamp: lastEvent?.eventDate || c.updatedAt,
+              source: 'PORT_FALLBACK',
+              portName: geo.name,
+            };
+            break;
+          }
+        }
+      }
+
       return {
         containerId: c.id,
         containerNumber: c.containerNumber,
@@ -306,33 +388,11 @@ router.get('/fleet/live', authMiddleware, async (_req: Request, res: Response) =
         currentStatus: c.currentStatus,
         eta: c.eta,
         vessel: {
-          mmsi: cAny.vesselMmsi,
-          name: cAny.vesselName || live?.shipName,
-          imo: cAny.vesselImo || live?.imo,
+          mmsi: cAny.vesselMmsi || null,
+          name: cAny.vesselName || live?.shipName || lastEvent?.vessel,
+          imo: cAny.vesselImo || live?.imo || null,
         },
-        position: hasLive
-          ? {
-              latitude: live.latitude,
-              longitude: live.longitude,
-              sog: live.sog,
-              cog: live.cog,
-              heading: live.heading >= 511 ? null : live.heading,
-              destination: live.destination,
-              timestamp: live.timestamp,
-              source: 'AIS_LIVE',
-            }
-          : c.currentLat && c.currentLng
-            ? {
-                latitude: c.currentLat,
-                longitude: c.currentLng,
-                sog: null,
-                cog: null,
-                heading: null,
-                destination: null,
-                timestamp: cAny.vesselPosAt || c.lastSyncAt,
-                source: 'LAST_KNOWN',
-              }
-            : null,
+        position,
         booking: c.booking
           ? {
               id: c.booking.id,
@@ -341,7 +401,13 @@ router.get('/fleet/live', authMiddleware, async (_req: Request, res: Response) =
               destination: c.booking.portDestination,
             }
           : null,
-        lastEvent: c.trackingEvents[0] || null,
+        lastEvent: lastEvent
+          ? {
+              eventType: lastEvent.eventType,
+              eventDate: lastEvent.eventDate,
+              location: lastEvent.location,
+            }
+          : null,
       };
     });
 

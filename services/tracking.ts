@@ -326,7 +326,8 @@ export interface FleetContainer {
     heading: number | null;
     destination: string | null;
     timestamp: string | null;
-    source: 'AIS_LIVE' | 'LAST_KNOWN';
+    source: 'AIS_LIVE' | 'LAST_KNOWN' | 'LAST_EVENT' | 'PORT_FALLBACK';
+    portName?: string;
   } | null;
   booking: {
     id: string;

@@ -11,19 +11,30 @@ const POLL_MS = 5000;
  * Container marker — distinct, branded, with rotation by heading/cog
  * so the operator can tell at a glance which way the vessel is heading.
  */
-function containerIcon(rotation: number, isLive: boolean): L.DivIcon {
-  const color = isLive ? '#0d9488' : '#64748b';
-  const ring = isLive ? '#5eead4' : '#cbd5e1';
+function containerIcon(rotation: number, source: string): L.DivIcon {
+  // Visual hierarchy:
+  //  - AIS_LIVE   → bright teal, full opacity, rotated triangle (live arrow)
+  //  - LAST_KNOWN → slate, rotated arrow
+  //  - LAST_EVENT → indigo, rotated arrow
+  //  - PORT_FALLBACK → amber dot (no rotation — at port)
+  const styles: Record<string, { color: string; ring: string }> = {
+    AIS_LIVE: { color: '#0d9488', ring: '#5eead4' },
+    LAST_KNOWN: { color: '#64748b', ring: '#cbd5e1' },
+    LAST_EVENT: { color: '#6366f1', ring: '#c7d2fe' },
+    PORT_FALLBACK: { color: '#d97706', ring: '#fcd34d' },
+  };
+  const { color, ring } = styles[source] || styles.LAST_KNOWN;
+  const rot = source === 'PORT_FALLBACK' ? 0 : rotation;
   return new L.DivIcon({
     className: '',
-    html: `<div style="transform: rotate(${rotation}deg); filter: drop-shadow(0 2px 4px rgba(0,0,0,.3));">
-      <svg width="34" height="34" viewBox="0 0 34 34" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="17" cy="17" r="14" fill="${color}" stroke="${ring}" stroke-width="2"/>
-        <path d="M17 5 L23 18 L17 15 L11 18 Z" fill="white"/>
+    html: `<div style="transform: rotate(${rot}deg); filter: drop-shadow(0 2px 4px rgba(0,0,0,.3));">
+      <svg width="28" height="28" viewBox="0 0 34 34" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="17" cy="17" r="13" fill="${color}" stroke="${ring}" stroke-width="2"/>
+        <path d="M17 6 L23 19 L17 16 L11 19 Z" fill="white"/>
       </svg>
     </div>`,
-    iconSize: [34, 34],
-    iconAnchor: [17, 17],
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
   });
 }
 
@@ -88,7 +99,10 @@ const FleetMap: React.FC = () => {
   }, []);
 
   const liveCount = fleet.filter((c) => c.position?.source === 'AIS_LIVE').length;
-  const lastKnownCount = fleet.filter((c) => c.position?.source === 'LAST_KNOWN').length;
+  const lastKnownCount = fleet.filter(
+    (c) => c.position?.source === 'LAST_KNOWN' || c.position?.source === 'LAST_EVENT'
+  ).length;
+  const portFallbackCount = fleet.filter((c) => c.position?.source === 'PORT_FALLBACK').length;
   const noPositionCount = fleet.filter((c) => !c.position).length;
 
   const fleetPoints = useMemo(
@@ -107,20 +121,28 @@ const FleetMap: React.FC = () => {
           <h1 className="text-xl font-bold text-neutral-800 dark:text-neutral-100">
             🚢 Hartă Flotă — Live
           </h1>
-          <div className="flex items-center gap-3 text-xs">
+          <div className="flex items-center gap-2 text-xs flex-wrap">
             <span className="px-2 py-1 rounded bg-emerald-50 text-emerald-700 font-medium">
-              ● {liveCount} LIVE AIS
+              ● {liveCount} live AIS
             </span>
             <span className="px-2 py-1 rounded bg-slate-100 text-slate-700 font-medium">
-              ● {lastKnownCount} ultima poziție cunoscută
+              ● {lastKnownCount} ultima poziție
             </span>
-            {noPositionCount > 0 && (
+            {portFallbackCount > 0 && (
               <span className="px-2 py-1 rounded bg-amber-50 text-amber-700 font-medium">
+                ● {portFallbackCount} la port (fallback)
+              </span>
+            )}
+            {noPositionCount > 0 && (
+              <span className="px-2 py-1 rounded bg-red-50 text-red-700 font-medium">
                 ● {noPositionCount} fără poziție
               </span>
             )}
             <span className="px-2 py-1 rounded bg-sky-50 text-sky-700 font-medium">
               ● {ambient.length} nave globale în zonă
+            </span>
+            <span className="px-2 py-1 rounded bg-neutral-100 text-neutral-700 font-medium">
+              Total flotă: {fleet.length}
             </span>
           </div>
         </div>
@@ -205,7 +227,7 @@ const FleetMap: React.FC = () => {
                 <Marker
                   key={c.containerId}
                   position={[c.position!.latitude, c.position!.longitude]}
-                  icon={containerIcon(rotation, isLive)}
+                  icon={containerIcon(rotation, c.position!.source)}
                 >
                   <Popup minWidth={260}>
                     <div className="text-sm space-y-2 min-w-[240px]">
@@ -252,9 +274,19 @@ const FleetMap: React.FC = () => {
                             )}
                           </div>
                         </div>
+                      ) : c.position!.source === 'PORT_FALLBACK' ? (
+                        <div className="bg-amber-50 dark:bg-amber-900/20 rounded px-2 py-1 text-xs text-amber-700 dark:text-amber-300">
+                          ● La port: {c.position!.portName || '?'}
+                          <div className="text-amber-600/70 mt-0.5">
+                            (poziție aproximativă — atribuie MMSI pentru tracking live)
+                          </div>
+                        </div>
                       ) : (
                         <div className="bg-slate-50 dark:bg-slate-800 rounded px-2 py-1 text-xs text-slate-600 dark:text-slate-300">
-                          ● Ultima poziție cunoscută
+                          ●{' '}
+                          {c.position!.source === 'LAST_EVENT'
+                            ? 'Ultimul eveniment înregistrat'
+                            : 'Ultima poziție cunoscută'}
                           {c.position!.timestamp && (
                             <span className="ml-1 text-slate-400">
                               ({new Date(c.position!.timestamp).toLocaleString('ro-RO')})

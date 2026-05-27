@@ -265,6 +265,112 @@ router.get('/positions/live', authMiddleware, async (_req: Request, res: Respons
 });
 
 /**
+ * GET /api/tracking/fleet/live
+ * Returns every container that has a vessel MMSI assigned, with:
+ *   - the latest cached AIS position (if vessel is currently transmitting)
+ *   - the persisted last-known position from the container row
+ *   - full booking + client + tracking summary for the map popup
+ *
+ * Used by the FleetMap admin view to render all client containers
+ * on a single live map.
+ */
+router.get('/fleet/live', authMiddleware, async (_req: Request, res: Response) => {
+  try {
+    const containers = await prisma.container.findMany({
+      where: { vesselMmsi: { not: null } } as any,
+      include: {
+        booking: {
+          select: {
+            id: true,
+            portOrigin: true,
+            portDestination: true,
+            client: { select: { id: true, companyName: true } },
+          },
+        },
+        trackingEvents: {
+          orderBy: { eventDate: 'desc' },
+          take: 1,
+          select: { eventType: true, eventDate: true, location: true },
+        },
+      },
+    });
+
+    const fleet = containers.map((c) => {
+      const cAny = c as any;
+      const live = aisstreamIntegration.getPosition(cAny.vesselMmsi);
+      const hasLive = !!live;
+      return {
+        containerId: c.id,
+        containerNumber: c.containerNumber,
+        blNumber: c.blNumber,
+        currentStatus: c.currentStatus,
+        eta: c.eta,
+        vessel: {
+          mmsi: cAny.vesselMmsi,
+          name: cAny.vesselName || live?.shipName,
+          imo: cAny.vesselImo || live?.imo,
+        },
+        position: hasLive
+          ? {
+              latitude: live.latitude,
+              longitude: live.longitude,
+              sog: live.sog,
+              cog: live.cog,
+              heading: live.heading >= 511 ? null : live.heading,
+              destination: live.destination,
+              timestamp: live.timestamp,
+              source: 'AIS_LIVE',
+            }
+          : c.currentLat && c.currentLng
+            ? {
+                latitude: c.currentLat,
+                longitude: c.currentLng,
+                sog: null,
+                cog: null,
+                heading: null,
+                destination: null,
+                timestamp: cAny.vesselPosAt || c.lastSyncAt,
+                source: 'LAST_KNOWN',
+              }
+            : null,
+        booking: c.booking
+          ? {
+              id: c.booking.id,
+              client: c.booking.client?.companyName,
+              origin: c.booking.portOrigin,
+              destination: c.booking.portDestination,
+            }
+          : null,
+        lastEvent: c.trackingEvents[0] || null,
+      };
+    });
+
+    // Background visualization: every cached AIS position we know about
+    // in the trade-route bbox (typically thousands). Sent as a thin
+    // payload — just MMSI + lat/lng + shipName — to keep the response
+    // small enough for a single round-trip every few seconds.
+    const allPositions = aisstreamIntegration.getAllPositions().map((p) => ({
+      mmsi: p.mmsi,
+      name: p.shipName,
+      lat: p.latitude,
+      lng: p.longitude,
+      cog: p.cog,
+      heading: p.heading >= 511 ? null : p.heading,
+      sog: p.sog,
+    }));
+
+    res.json({
+      fleet,
+      ambient: allPositions, // background ships moving live
+      fetchedAt: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    logger.error('Fleet live error:', err);
+    res.status(500).json({ error: err.message || 'Failed to load fleet' });
+  }
+});
+
+/**
  * GET /api/tracking/vessel-directory/search?q=<name>
  * Autocomplete over the AISStream-populated vessel directory.
  * Used by the operator UI when assigning a vessel to a container

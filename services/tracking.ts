@@ -311,6 +311,53 @@ export async function setContainerVessel(
   return response.data;
 }
 
+export interface FleetContainer {
+  containerId: string;
+  containerNumber: string;
+  blNumber?: string | null;
+  currentStatus: string | null;
+  eta?: string | null;
+  vessel: { mmsi: string; name?: string | null; imo?: string | null };
+  position: {
+    latitude: number;
+    longitude: number;
+    sog: number | null;
+    cog: number | null;
+    heading: number | null;
+    destination: string | null;
+    timestamp: string | null;
+    source: 'AIS_LIVE' | 'LAST_KNOWN';
+  } | null;
+  booking: {
+    id: string;
+    client?: string | null;
+    origin?: string | null;
+    destination?: string | null;
+  } | null;
+  lastEvent: { eventType: string; eventDate: string; location: string } | null;
+}
+
+export interface AmbientVessel {
+  mmsi: string;
+  name?: string;
+  lat: number;
+  lng: number;
+  cog: number;
+  heading: number | null;
+  sog: number;
+}
+
+export interface FleetLiveResponse {
+  fleet: FleetContainer[];
+  ambient: AmbientVessel[];
+  fetchedAt: string;
+}
+
+export async function getFleetLive(): Promise<FleetLiveResponse> {
+  const response = await api.get('/tracking/search/fleet/live');
+  return response.data;
+}
+
 export interface VesselDirectoryEntry {
   mmsi: string;
   name?: string | null;
@@ -479,6 +526,7 @@ export default {
   getLivePositions,
   setContainerVessel,
   searchVesselDirectory,
+  getFleetLive,
   getStatusColor,
   getStatusLabel,
   getEventTypeLabel,

@@ -28,6 +28,7 @@ import RecentContainers from './RecentContainers';
 import { useTracking } from './useTracking';
 
 const ContainerMap = lazy(() => import('../ContainerMap'));
+const VesselPicker = lazy(() => import('./VesselPicker'));
 
 const TrackingView: React.FC = () => {
   const {
@@ -231,6 +232,16 @@ const TrackingView: React.FC = () => {
                       />
                     </Suspense>
                   )}
+
+                  {/* Operator-only: assign or change the AIS vessel on this container */}
+                  <Suspense fallback={null}>
+                    <VesselPicker
+                      containerId={trackingData.id}
+                      currentMmsi={trackingData.vesselMmsi}
+                      currentName={trackingData.vesselName || vesselInfo?.name}
+                      onAssigned={() => handleRefresh()}
+                    />
+                  </Suspense>
                 </div>
               ) : null}
 

@@ -264,4 +264,36 @@ router.get('/positions/live', authMiddleware, async (_req: Request, res: Respons
   });
 });
 
+/**
+ * GET /api/tracking/vessel-directory/search?q=<name>
+ * Autocomplete over the AISStream-populated vessel directory.
+ * Used by the operator UI when assigning a vessel to a container
+ * and the automatic resolver couldn't find a match.
+ */
+router.get('/vessel-directory/search', authMiddleware, async (req: Request, res: Response) => {
+  const q = (req.query.q as string | undefined)?.trim();
+  if (!q || q.length < 2) {
+    return res.json({ results: [] });
+  }
+
+  const needle = q.toUpperCase();
+  const results = await prisma.vesselDirectory.findMany({
+    where: {
+      OR: [{ name: { contains: needle, mode: 'insensitive' } }, { imo: needle }, { mmsi: needle }],
+    },
+    orderBy: { lastSeen: 'desc' },
+    take: 12,
+    select: {
+      mmsi: true,
+      name: true,
+      imo: true,
+      shipType: true,
+      destination: true,
+      lastSeen: true,
+    },
+  });
+
+  res.json({ results });
+});
+
 export default router;

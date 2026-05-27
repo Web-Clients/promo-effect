@@ -311,6 +311,27 @@ export async function setContainerVessel(
   return response.data;
 }
 
+export interface VesselDirectoryEntry {
+  mmsi: string;
+  name?: string | null;
+  imo?: string | null;
+  shipType?: number | null;
+  destination?: string | null;
+  lastSeen: string;
+}
+
+/**
+ * Autocomplete query against the live AIS vessel directory.
+ * Returns up to 12 most-recently-seen matches.
+ */
+export async function searchVesselDirectory(q: string): Promise<VesselDirectoryEntry[]> {
+  if (!q || q.trim().length < 2) return [];
+  const response = await api.get(
+    `/tracking/search/vessel-directory/search?q=${encodeURIComponent(q.trim())}`
+  );
+  return response.data.results || [];
+}
+
 // ============================================
 // PUBLIC / EXTERNAL TRACKING TYPES (AISStream-backed)
 // ============================================
@@ -457,6 +478,7 @@ export default {
   testConnection,
   getLivePositions,
   setContainerVessel,
+  searchVesselDirectory,
   getStatusColor,
   getStatusLabel,
   getEventTypeLabel,

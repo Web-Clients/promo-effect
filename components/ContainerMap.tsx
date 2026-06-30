@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { formatDateShort } from '../utils/formatters';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -133,13 +133,17 @@ export interface ContainerMapProps {
   livePollIntervalMs?: number;
 }
 
-// Component to fit map bounds to route
+// Component to fit map bounds to route — ONCE. Live polling moves the
+// vessel marker every few seconds; re-fitting on each update would yank
+// the viewport and make the map unusable while inspecting a vessel.
 const FitBounds: React.FC<{ bounds: L.LatLngBoundsExpression | null }> = ({ bounds }) => {
   const map = useMap();
+  const fitted = useRef(false);
 
   useEffect(() => {
-    if (bounds) {
+    if (bounds && !fitted.current) {
       map.fitBounds(bounds, { padding: [50, 50] });
+      fitted.current = true;
     }
   }, [map, bounds]);
 
@@ -288,6 +292,8 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
     <div
       className={`rounded-xl overflow-hidden shadow-lg border border-neutral-200 dark:border-neutral-700 ${className}`}
     >
+      {/* Smooth glide for the vessel marker between 5s live updates */}
+      <style>{`.leaflet-marker-icon{transition:transform 1500ms ease-out;}`}</style>
       {/* Map Header */}
       <div className="bg-white dark:bg-neutral-800 px-4 py-3 border-b border-neutral-200 dark:border-neutral-700">
         <div className="flex items-center justify-between">

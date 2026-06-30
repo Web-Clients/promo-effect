@@ -6,6 +6,37 @@ import trackingService, { FleetContainer, AmbientVessel } from '../services/trac
 import { formatDateShort } from '../utils/formatters';
 
 const POLL_MS = 5000;
+const ANIM_MS = 1000; // dead-reckoning animation tick
+
+/**
+ * Dead-reckoning: project a vessel's position forward from its last AIS
+ * fix using speed-over-ground + course-over-ground. This is what makes
+ * ships glide smoothly between AIS reports (which arrive every ~30s–3min)
+ * instead of teleporting on each poll — the same visual trick MarineTraffic
+ * and VesselFinder use.
+ */
+function project(
+  lat: number,
+  lng: number,
+  sogKnots: number,
+  cogDeg: number,
+  elapsedSec: number
+): [number, number] {
+  if (!sogKnots || sogKnots < 0.3 || cogDeg == null) return [lat, lng];
+  const distanceNm = sogKnots * (elapsedSec / 3600);
+  const dLatDeg = (distanceNm / 60) * Math.cos((cogDeg * Math.PI) / 180);
+  const cosLat = Math.cos((lat * Math.PI) / 180) || 1e-6;
+  const dLngDeg = ((distanceNm / 60) * Math.sin((cogDeg * Math.PI) / 180)) / cosLat;
+  return [lat + dLatDeg, lng + dLngDeg];
+}
+
+interface DRBaseline {
+  lat: number;
+  lng: number;
+  sog: number;
+  cog: number;
+  t0: number; // ms when this fix was observed locally
+}
 
 /**
  * Container marker — distinct, branded, with rotation by heading/cog
@@ -54,16 +85,25 @@ function statusColor(status?: string | null): string {
   }
 }
 
-const FitToFleet: React.FC<{ points: Array<[number, number]> }> = ({ points }) => {
+// Fits the map to the fleet ONCE on first data load. After that the
+// presenter stays in control of pan/zoom — the 5s polling refresh must
+// never yank the viewport back (that would make the map unusable during
+// a live demo while zoomed into a specific ship).
+const FitToFleet: React.FC<{ points: Array<[number, number]>; onDone: () => void }> = ({
+  points,
+  onDone,
+}) => {
   const map = useMap();
   useEffect(() => {
     if (points.length === 0) return;
     if (points.length === 1) {
       map.setView(points[0], 5);
-      return;
+    } else {
+      map.fitBounds(L.latLngBounds(points), { padding: [60, 60] });
     }
-    map.fitBounds(L.latLngBounds(points), { padding: [60, 60] });
-  }, [map, points]);
+    onDone();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return null;
 };
 
@@ -74,7 +114,13 @@ const FleetMap: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [fetchedAt, setFetchedAt] = useState<string | null>(null);
   const [showAmbient, setShowAmbient] = useState(true);
+  const [hasFitted, setHasFitted] = useState(false);
+  // Dead-reckoning projected display positions: containerId -> [lat,lng]
+  const [drPositions, setDrPositions] = useState<Record<string, [number, number]>>({});
   const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const animRef = useRef<NodeJS.Timeout | null>(null);
+  // Per-vessel baseline used to project motion between AIS fixes
+  const baselines = useRef<Record<string, DRBaseline>>({});
 
   const load = async () => {
     try {
@@ -83,6 +129,33 @@ const FleetMap: React.FC = () => {
       setAmbient(data.ambient);
       setFetchedAt(data.fetchedAt);
       setError(null);
+
+      // Refresh dead-reckoning baselines for live vessels. Reset t0 only
+      // when the underlying AIS fix actually changed, so projection stays
+      // continuous across polls that returned the same fix.
+      const now = Date.now();
+      const next = { ...baselines.current };
+      for (const f of data.fleet) {
+        const p = f.position;
+        if (!p || p.source !== 'AIS_LIVE' || p.sog == null) continue;
+        const prev = next[f.containerId];
+        const fixChanged = !prev || prev.lat !== p.latitude || prev.lng !== p.longitude;
+        if (fixChanged) {
+          next[f.containerId] = {
+            lat: p.latitude,
+            lng: p.longitude,
+            sog: p.sog || 0,
+            cog: p.cog ?? p.heading ?? 0,
+            t0: now,
+          };
+        }
+      }
+      // Drop baselines for vessels no longer live
+      const liveIds = new Set(
+        data.fleet.filter((f) => f.position?.source === 'AIS_LIVE').map((f) => f.containerId)
+      );
+      for (const id of Object.keys(next)) if (!liveIds.has(id)) delete next[id];
+      baselines.current = next;
     } catch (e: any) {
       setError(e?.response?.data?.error || 'Eroare la încărcarea flotei');
     } finally {
@@ -93,8 +166,18 @@ const FleetMap: React.FC = () => {
   useEffect(() => {
     load();
     pollRef.current = setInterval(load, POLL_MS);
+    // Animation loop: project each live vessel forward every second
+    animRef.current = setInterval(() => {
+      const now = Date.now();
+      const projected: Record<string, [number, number]> = {};
+      for (const [id, b] of Object.entries(baselines.current)) {
+        projected[id] = project(b.lat, b.lng, b.sog, b.cog, (now - b.t0) / 1000);
+      }
+      setDrPositions(projected);
+    }, ANIM_MS);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
+      if (animRef.current) clearInterval(animRef.current);
     };
   }, []);
 
@@ -115,6 +198,8 @@ const FleetMap: React.FC = () => {
 
   return (
     <div className="h-[calc(100vh-80px)] flex flex-col">
+      {/* Smooth glide for live vessel markers (matches the 1s DR tick) */}
+      <style>{`.leaflet-marker-icon{transition:transform ${ANIM_MS}ms linear;}`}</style>
       {/* HUD — wraps to multiple rows on mobile */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-2 sm:py-3 border-b border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900">
         <div className="flex flex-wrap items-center gap-3 sm:gap-4 min-w-0">
@@ -183,6 +268,7 @@ const FleetMap: React.FC = () => {
           zoom={4}
           style={{ height: '100%', width: '100%' }}
           scrollWheelZoom
+          preferCanvas
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -194,7 +280,9 @@ const FleetMap: React.FC = () => {
             opacity={0.85}
           />
 
-          {fleetPoints.length > 0 && <FitToFleet points={fleetPoints} />}
+          {fleetPoints.length > 0 && !hasFitted && (
+            <FitToFleet points={fleetPoints} onDone={() => setHasFitted(true)} />
+          )}
 
           {/* Background: every active AIS vessel in the trade-route bbox */}
           {showAmbient &&
@@ -228,10 +316,17 @@ const FleetMap: React.FC = () => {
             .map((c) => {
               const isLive = c.position!.source === 'AIS_LIVE';
               const rotation = c.position!.heading ?? c.position!.cog ?? 0;
+              // Use the dead-reckoning projected position for live vessels so
+              // they glide smoothly; fall back to the raw AIS fix otherwise.
+              const dr = isLive ? drPositions[c.containerId] : undefined;
+              const markerPos: [number, number] = dr || [
+                c.position!.latitude,
+                c.position!.longitude,
+              ];
               return (
                 <Marker
                   key={c.containerId}
-                  position={[c.position!.latitude, c.position!.longitude]}
+                  position={markerPos}
                   icon={containerIcon(rotation, c.position!.source)}
                 >
                   <Popup minWidth={260}>
@@ -336,12 +431,14 @@ const FleetMap: React.FC = () => {
                         </div>
                       )}
 
-                      <a
-                        href={`/?tab=tracking&container=${c.containerNumber}`}
-                        className="block text-xs text-primary-600 hover:text-primary-700 font-medium pt-1"
-                      >
-                        Vezi detalii complete →
-                      </a>
+                      {c.booking?.id && (
+                        <a
+                          href={`/dashboard/bookings/${c.booking.id}`}
+                          className="block text-xs text-primary-600 hover:text-primary-700 font-medium pt-1"
+                        >
+                          Vezi rezervarea →
+                        </a>
+                      )}
                     </div>
                   </Popup>
                 </Marker>

@@ -271,7 +271,6 @@ export function PortPricingMatrixTab() {
         setCellMeta_(port, ct, { state: 'saved' });
         // Clear "saved" indicator after 1.5s
         setTimeout(() => {
-          setCellMeta_((p: string, c: string) => p, ct);
           setCellMeta((prev) => {
             const next = { ...prev };
             const k = cellKey(port, ct);

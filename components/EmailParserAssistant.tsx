@@ -96,10 +96,11 @@ const EmailParserAssistant = ({ onBookingCreate }: EmailParserAssistantProps) =>
   const handleCreateBooking = () => {
     if (!parsedObject) return;
 
+    const str = (v: unknown): string | undefined => (v == null ? undefined : String(v));
     const mappedData: Partial<Booking> = {
-      container_number: parsedObject.containerNumber,
-      origin_port: parsedObject.portOfLoading,
-      estimated_arrival_date: parsedObject.eta,
+      container_number: str(parsedObject.containerNumber),
+      origin_port: str(parsedObject.portOfLoading),
+      estimated_arrival_date: str(parsedObject.eta),
     };
     onBookingCreate(mappedData);
   };

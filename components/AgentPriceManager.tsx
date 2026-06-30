@@ -99,10 +99,10 @@ export function AgentPriceManager({ agent, onClose }: Props) {
     e.preventDefault();
     try {
       if (editingPrice) {
-        await updateAgentPrice(agent.id, editingPrice.id, formData);
+        await updateAgentPrice(agent.id, editingPrice.id, { ...formData });
         addToast(t('agents.prices.updated'), 'success');
       } else {
-        await createAgentPrice(agent.id, formData);
+        await createAgentPrice(agent.id, { ...formData });
         addToast(t('agents.prices.created'), 'success');
       }
       setShowForm(false);

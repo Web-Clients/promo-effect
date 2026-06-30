@@ -16,6 +16,7 @@ import invoicesService, {
   PaymentInput,
 } from '../../services/invoices';
 import clientsService, { Client } from '../../services/clients';
+import { BookingResponse } from '../../services/bookings';
 import { statusVariantMap, statusTextMap } from './types';
 import CreateInvoiceModal from './CreateInvoiceModal';
 import PaymentModal from './PaymentModal';
@@ -30,7 +31,7 @@ const InvoicesList: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [stats, setStats] = useState<InvoiceStats | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
-  const [bookings] = useState<unknown[]>([]);
+  const [bookings] = useState<BookingResponse[]>([]);
 
   // UI states
   const [isLoading, setIsLoading] = useState(true);

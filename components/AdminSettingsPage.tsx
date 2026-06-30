@@ -252,7 +252,7 @@ const AdminSettingsPage = () => {
         current = current[keys[i]] as Record<string, unknown>;
       }
       current[keys[keys.length - 1]] = value;
-      return newState as typeof prev;
+      return newState as unknown as typeof prev;
     });
   };
 

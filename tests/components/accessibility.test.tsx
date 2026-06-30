@@ -13,6 +13,18 @@ import React from 'react';
 // Configure axe for vitest (jest-axe uses expect.extend)
 import * as jestAxe from 'jest-axe';
 
+// Module augmentation — this file is a module (has imports), so `declare
+// module 'vitest'` MERGES the matcher onto the real Assertion type.
+declare module 'vitest' {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  interface Assertion<T = any> {
+    toHaveNoViolations(): T;
+  }
+  interface AsymmetricMatchersContaining {
+    toHaveNoViolations(): void;
+  }
+}
+
 // ─── Extend expect with axe matcher ──────────────────────────────────────────
 
 beforeAll(() => {

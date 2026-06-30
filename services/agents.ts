@@ -121,10 +121,7 @@ export async function getAgentPrices(agentId: string): Promise<AgentPrice[]> {
   return response.data.prices;
 }
 
-export async function createAgentPrice(
-  agentId: string,
-  data: Record<string, unknown>
-): Promise<AgentPrice> {
+export async function createAgentPrice(agentId: string, data: object): Promise<AgentPrice> {
   const response = await api.post(`/agents/${agentId}/prices`, data);
   return response.data;
 }
@@ -132,7 +129,7 @@ export async function createAgentPrice(
 export async function updateAgentPrice(
   agentId: string,
   priceId: string,
-  data: Record<string, unknown>
+  data: object
 ): Promise<AgentPrice> {
   const response = await api.put(`/agents/${agentId}/prices/${priceId}`, data);
   return response.data;

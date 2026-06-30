@@ -97,7 +97,8 @@ function makeDefaultProps(overrides: Partial<React.ComponentProps<typeof Calcula
     finalDestination: 'constanta' as FinalDestination,
     incoterm: 'FOB' as Incoterm,
     cargoReadyDate: '2026-06-01',
-    includeInsurance: false,
+    cargoWeight: '1000',
+    cargoCategory: 'general',
     shippingLine: '',
   };
 
@@ -172,7 +173,8 @@ describe('CalculatorForm', () => {
           finalDestination: 'constanta',
           incoterm: 'FOB',
           cargoReadyDate: '2026-06-01',
-          includeInsurance: false,
+          cargoWeight: '1000',
+          cargoCategory: 'general',
           shippingLine: '',
         },
       });
@@ -224,7 +226,8 @@ describe('CalculatorForm', () => {
           finalDestination: 'constanta',
           incoterm: 'CFR',
           cargoReadyDate: '2026-06-01',
-          includeInsurance: false,
+          cargoWeight: '1000',
+          cargoCategory: 'general',
           shippingLine: '',
         },
       });

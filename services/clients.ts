@@ -14,6 +14,16 @@ function getErrorMessage(error: unknown, fallback: string): string {
 }
 
 // Types
+export interface ClientContact {
+  id?: string;
+  name: string;
+  role?: string;
+  email?: string;
+  phone?: string;
+  subscribed?: boolean;
+  isPrimary?: boolean;
+}
+
 export interface Client {
   id: string;
   companyName: string;
@@ -23,6 +33,10 @@ export interface Client {
   address?: string;
   taxId?: string;
   bankAccount?: string;
+  vatCode?: string;
+  bankName?: string;
+  swift?: string;
+  contacts?: ClientContact[];
   totalBookings: number;
   totalRevenue: number;
   status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
@@ -43,6 +57,10 @@ export interface CreateClientData {
   address?: string;
   taxId?: string;
   bankAccount?: string;
+  vatCode?: string;
+  bankName?: string;
+  swift?: string;
+  contacts?: ClientContact[];
 }
 
 export interface UpdateClientData extends Partial<CreateClientData> {

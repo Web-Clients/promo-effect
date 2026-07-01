@@ -151,7 +151,7 @@ const AdminDashboard = () => {
             Panou Admin
           </h1>
           <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-            Bun venit, Ion! Iată un rezumat al platformei.
+            Iată un rezumat al platformei.
           </p>
         </div>
         <Button variant="outline" onClick={loadData} className="flex items-center gap-2">

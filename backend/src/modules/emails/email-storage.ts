@@ -178,10 +178,18 @@ export async function getIncomingEmails(
 export async function markEmailProcessed(
   messageId: string,
   status: 'PROCESSED' | 'FAILED',
-  _error?: string
+  _error?: string,
+  extractedData?: unknown,
+  bookingId?: string
 ): Promise<void> {
-  await (prisma as any).incomingEmail.update({
-    where: { messageId },
-    data: { status, processedAt: new Date() },
-  });
+  // Persist the extraction + booking link so operators can SEE and correct what
+  // the AI/regex read. Previously only status/date were saved → extracted_data
+  // was empty for every email (no audit trail — the root of "reads wrong").
+  const data: Record<string, unknown> = { status, processedAt: new Date() };
+  if (extractedData != null) {
+    data.extractedData =
+      typeof extractedData === 'string' ? extractedData : JSON.stringify(extractedData);
+  }
+  if (bookingId) data.bookingId = bookingId;
+  await (prisma as any).incomingEmail.update({ where: { messageId }, data });
 }

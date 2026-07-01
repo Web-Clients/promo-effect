@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { User, UserRole, Booking } from '../types';
 import { cn } from '../lib/utils';
@@ -71,6 +71,8 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -289,14 +291,23 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
         <header className="sticky top-0 z-30 bg-white/95 dark:bg-neutral-800/95 backdrop-blur-md border-b border-neutral-200 dark:border-neutral-700">
           <div className="flex items-center justify-between h-16 px-6">
             <div className="flex-1 max-w-xl">
-              <div className="relative">
+              <form
+                className="relative"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const q = searchQuery.trim();
+                  if (q) navigate(`/dashboard/bookings?search=${encodeURIComponent(q)}`);
+                }}
+              >
                 <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-400" />
                 <input
                   type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t('common.searchPlaceholder')}
                   className="w-full pl-10 pr-4 py-2.5 bg-neutral-100 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-sm"
                 />
-              </div>
+              </form>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">

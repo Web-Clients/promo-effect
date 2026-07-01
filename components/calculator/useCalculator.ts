@@ -84,7 +84,7 @@ export function useCalculator(user?: User): UseCalculatorReturn {
         if (destinations.length > 0)
           setParams((prev) => ({ ...prev, portDestination: destinations[0] }));
         if (types.length > 0) setContainers([{ type: types[0], quantity: 1 }]);
-        if (weights.length > 0) setParams((prev) => ({ ...prev, cargoWeight: weights[0] }));
+        // cargoWeight is now a free kg input — no dropdown default to prefill.
       } catch (err: unknown) {
         console.error('Failed to load calculator options:', err);
       }

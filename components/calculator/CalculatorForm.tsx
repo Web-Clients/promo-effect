@@ -339,20 +339,22 @@ export const CalculatorForm = ({
             )}
           </div>
 
-          <FormField label={t('calculator.cargoWeight')} required>
-            <CalcSelect
+          <FormField
+            label={t('calculator.cargoWeight')}
+            required
+            hint="Scrie greutatea în kg (ex. 23500)"
+          >
+            <CalcInput
+              type="number"
+              min={1}
+              step={1}
               value={params.cargoWeight}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 setParams({ ...params, cargoWeight: e.target.value })
               }
+              placeholder="ex. 23500"
               required
-            >
-              {availableWeightRanges.map((w) => (
-                <option key={w} value={w}>
-                  {w}
-                </option>
-              ))}
-            </CalcSelect>
+            />
           </FormField>
 
           <FormField label={t('calculator.hsCategory')} hint={t('calculator.hsCategoryHint')}>

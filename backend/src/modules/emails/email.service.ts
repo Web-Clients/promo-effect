@@ -638,9 +638,11 @@ export class EmailService {
   async markEmailProcessed(
     messageId: string,
     status: 'PROCESSED' | 'FAILED',
-    error?: string
+    error?: string,
+    extractedData?: unknown,
+    bookingId?: string
   ): Promise<void> {
-    return markEmailProcessed(messageId, status, error);
+    return markEmailProcessed(messageId, status, error, extractedData, bookingId);
   }
 }
 

@@ -114,7 +114,10 @@ model Client {
 
   // Business info
   taxId       String? @unique @map("tax_id")
-  bankAccount String? @map("bank_account")
+  bankAccount String? @map("bank_account") // IBAN
+  vatCode     String? @map("vat_code") // Cod TVA
+  bankName    String? @map("bank_name") // Banca
+  swift       String? @map("swift") // Cod SWIFT/BIC
 
   // Stats
   totalBookings Int   @default(0) @map("total_bookings")
@@ -144,10 +147,31 @@ model Client {
   bookings Booking[]
   invoices Invoice[]
   payments Payment[]
+  contacts ClientContact[]
 
   @@index([email])
   @@index([status])
   @@map("clients")
+}
+
+// A company can have several people we deal with (director, logistician,
+// accountant…). Each has own email/phone and a `subscribed` flag that decides
+// whether we send them container-status notifications.
+model ClientContact {
+  id         String   @id @default(uuid())
+  clientId   String   @map("client_id")
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name       String
+  role       String? // Director, Logist, Contabil, etc.
+  email      String?
+  phone      String?
+  subscribed Boolean  @default(true)
+  isPrimary  Boolean  @default(false) @map("is_primary")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([clientId])
+  @@map("client_contacts")
 }
 
 model Agent {

@@ -27,6 +27,7 @@ import {
   computeFromAgentPrices,
   finalizeOffers,
   getExchangeRate,
+  parseWeightKg,
   ExtendedCalculatorInput,
 } from './calculator-engine';
 import { validateCalculatorInput } from './calculator-validation';
@@ -93,13 +94,19 @@ export class CalculatorService {
     let terrestrialSurcharge = 0;
     try {
       const weightRanges = JSON.parse(settings.weightRanges || '[]');
-      if (Array.isArray(weightRanges) && extInput.cargoWeight) {
+      // Match by numeric band (tonnes), not by exact label — the weight field is
+      // now a free kg input ("25500"), so label equality no longer works. Bands
+      // carry min/max in tonnes; parseWeightKg normalizes kg/tonnes → tonnes.
+      const weightT = parseWeightKg(extInput.cargoWeight || '');
+      if (Array.isArray(weightRanges) && weightT > 0) {
         const matchedRange = weightRanges.find(
-          (r: any) => r.enabled && r.label === extInput.cargoWeight
+          (r: any) => r.enabled && weightT > Number(r.min) && weightT <= Number(r.max)
         );
         if (matchedRange) {
           freightSurcharge = matchedRange.freightSurcharge || 0;
-          terrestrialSurcharge = matchedRange.terrestrialSurcharge || 0;
+          // JSON field is `landSurcharge` (older code read the wrong name).
+          terrestrialSurcharge =
+            matchedRange.landSurcharge ?? matchedRange.terrestrialSurcharge ?? 0;
         }
       }
     } catch {

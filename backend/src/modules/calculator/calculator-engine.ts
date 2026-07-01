@@ -141,16 +141,25 @@ export async function getExchangeRate(from: string, to: string): Promise<number>
  * Parse a weight range string like "10-15 tone" and return the upper bound as a number.
  * Falls back to parsing the first number found.
  */
-export function parseWeightKg(weightRange: string): number {
-  if (!weightRange) return 0;
-  // Match pattern like "10-15 tone" — use upper bound (15)
-  const rangeMatch = weightRange.match(/(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)/);
-  if (rangeMatch) {
-    return parseFloat(rangeMatch[2]);
-  }
-  // e.g. "<23 mt" or "23 tone"
-  const singleMatch = weightRange.match(/(\d+(?:\.\d+)?)/);
-  return singleMatch ? parseFloat(singleMatch[1]) : 0;
+export function parseWeightKg(weight: string): number {
+  // NOTE: returns weight in TONNES (the DB bands are in tonnes). Name kept for
+  // backward-compat. Accepts free kg input now:
+  //   "5-10 tone" → 10 ; "25" → 25 ; "25500"/"25,500"/"25500 kg" → 25.5
+  // Heuristic (per client): a plain number ≥ 1000 is kilograms → /1000; a small
+  // number is tonnes. "25 000 → banda 25-26" ; "25 → tone".
+  if (!weight) return 0;
+  const s = String(weight).toLowerCase();
+  // Range like "5-10 tone" — use the upper bound (already tonnes).
+  const rangeMatch = s.match(/(\d+(?:[.,]\d+)?)\s*[-–]\s*(\d+(?:[.,]\d+)?)/);
+  if (rangeMatch) return parseFloat(rangeMatch[2].replace(',', '.'));
+  // Single value. Drop spaces; treat a comma before exactly 3 digits as a
+  // thousands separator ("25,500" → "25500"), otherwise as a decimal comma.
+  const cleaned = s.replace(/\s/g, '').replace(/,(?=\d{3}(\D|$))/g, '');
+  const m = cleaned.match(/(\d+(?:[.,]\d+)?)/);
+  if (!m) return 0;
+  let n = parseFloat(m[1].replace(',', '.'));
+  if (n >= 1000) n = n / 1000; // kilograms → tonnes
+  return n;
 }
 
 /**
@@ -162,16 +171,47 @@ export async function getLandTransportRate(
   city: string,
   weightKg: number
 ): Promise<number | undefined> {
-  const rate = await prisma.landTransportRate.findFirst({
+  // Diacritic-insensitive city match. The frontend sends "chisinau" (no
+  // diacritics) but the table stores "Chișinău", so a plain `contains` never
+  // matched → the calc fell back to the generic 600 setting instead of the real
+  // IMPORT rate (1550/1650...). Fetch by weight band, match city in JS.
+  const strip = (s: string) =>
+    (s || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[șş]/g, 's')
+      .replace(/[țţ]/g, 't');
+  const target = strip(city);
+  const rates = await prisma.landTransportRate.findMany({
     where: {
       direction,
-      city: { contains: city, mode: 'insensitive' },
       weightMin: { lte: weightKg },
       weightMax: { gte: weightKg },
       active: true,
     },
   });
-  return rate?.priceUSD;
+  const match = rates.find((r) => {
+    const c = strip(r.city);
+    return c === target || c.includes(target) || target.includes(c);
+  });
+  return match?.priceUSD;
+}
+
+/**
+ * Normalize container-type aliases so lookups match across tables.
+ * base_prices use "40HQ" while shipping_line_containers use "40HC" (same size),
+ * which meant the per-line port tax never matched → fell back to the generic
+ * setting. HQ≡HC (high cube), DV≡DC/GP (dry). Strips quotes/spaces/case.
+ */
+export function normContainerType(t: string): string {
+  if (!t) return '';
+  return t
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .replace('HQ', 'HC')
+    .replace('DV', 'DC')
+    .replace('GP', 'DC');
 }
 
 /**
@@ -194,23 +234,36 @@ export async function computeFromBasePrices(
   const isConstanta = isConstantaDestination(portDestination);
   const containerTypes = [...new Set(containers.map((c) => c.type))];
 
-  const basePrices = await prisma.basePrice.findMany({
-    where: {
-      portOrigin: input.portOrigin,
-      ...(isConstanta
-        ? {
-            OR: [
-              { portDestination: { contains: 'Constanta', mode: 'insensitive' } },
-              { portDestination: { contains: 'Constanța', mode: 'insensitive' } },
-            ],
-          }
-        : { portDestination: { contains: 'Odessa', mode: 'insensitive' } }),
-      containerType: { in: containerTypes },
-      isActive: true,
-      validFrom: { lte: readyDate },
-      validUntil: { gte: readyDate },
-    },
+  const destWhere = isConstanta
+    ? {
+        OR: [
+          { portDestination: { contains: 'Constanta', mode: 'insensitive' as const } },
+          { portDestination: { contains: 'Constanța', mode: 'insensitive' as const } },
+        ],
+      }
+    : { portDestination: { contains: 'Odessa', mode: 'insensitive' as const } };
+
+  const baseWhere = (origin: string) => ({
+    portOrigin: { equals: origin, mode: 'insensitive' as const },
+    ...destWhere,
+    containerType: { in: containerTypes },
+    isActive: true,
+    validFrom: { lte: readyDate },
+    validUntil: { gte: readyDate },
   });
+
+  let basePrices = await prisma.basePrice.findMany({ where: baseWhere(input.portOrigin) });
+
+  // Reference-port logic: Shanghai is the reference port. If the selected origin
+  // (e.g. Ningbo) has no own base price, use Shanghai's base price — the origin's
+  // PortPricingMatrix adjustment (e.g. Ningbo +100) is applied on top below.
+  const REFERENCE_PORT = 'Shanghai';
+  if (
+    basePrices.length === 0 &&
+    (input.portOrigin || '').trim().toLowerCase() !== REFERENCE_PORT.toLowerCase()
+  ) {
+    basePrices = await prisma.basePrice.findMany({ where: baseWhere(REFERENCE_PORT) });
+  }
 
   if (basePrices.length === 0) return [];
 
@@ -239,7 +292,10 @@ export async function computeFromBasePrices(
   });
   const slcMap = new Map<string, number>();
   for (const slc of shippingLineContainers) {
-    slcMap.set(`${slc.shippingLine}__${slc.containerType}`, slc.portTaxes);
+    slcMap.set(
+      `${slc.shippingLine.toLowerCase()}__${normContainerType(slc.containerType)}`,
+      slc.portTaxes
+    );
   }
 
   // Preload TransportRate configs
@@ -319,7 +375,9 @@ export async function computeFromBasePrices(
     const firstPrice = prices[0];
     const primaryContainerType = containers[0]?.type || containerTypes[0];
 
-    const slcPortTaxes = slcMap.get(`${shippingLine}__${primaryContainerType}`);
+    const slcPortTaxes = slcMap.get(
+      `${shippingLine.toLowerCase()}__${normContainerType(primaryContainerType)}`
+    );
     const linePortTaxes = firstPrice.portTaxes ?? slcPortTaxes ?? portTaxes;
 
     const trRate = trMap.get(`${primaryContainerType}__${input.cargoWeight}`);
@@ -396,7 +454,7 @@ export async function computeFromAgentPrices(
 
   const agentPrices = await prisma.agentPrice.findMany({
     where: {
-      portOrigin: input.portOrigin,
+      portOrigin: { equals: input.portOrigin, mode: 'insensitive' },
       containerType: { in: containerTypes },
       weightRange: input.cargoWeight,
     },

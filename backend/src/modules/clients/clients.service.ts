@@ -15,10 +15,14 @@ export interface CreateClientDTO {
   address?: string;
   taxId?: string;
   bankAccount?: string;
+  vatCode?: string;
+  bankName?: string;
+  swift?: string;
   paymentTerms?: number;
   creditLimit?: number;
   discount?: number;
   rating?: number;
+  contacts?: ContactInput[];
 }
 
 export interface UpdateClientDTO {
@@ -29,11 +33,25 @@ export interface UpdateClientDTO {
   address?: string;
   taxId?: string;
   bankAccount?: string;
+  vatCode?: string;
+  bankName?: string;
+  swift?: string;
   status?: string;
   paymentTerms?: number;
   creditLimit?: number;
   discount?: number;
   rating?: number;
+  contacts?: ContactInput[];
+}
+
+export interface ContactInput {
+  id?: string;
+  name: string;
+  role?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  subscribed?: boolean;
+  isPrimary?: boolean;
 }
 
 export interface ClientFilters {
@@ -103,6 +121,7 @@ export class ClientsService {
         take: limit,
         skip,
         include: {
+          contacts: { orderBy: { isPrimary: 'desc' } },
           _count: {
             select: { bookings: true, invoices: true },
           },
@@ -127,6 +146,7 @@ export class ClientsService {
     const client = await prisma.client.findUnique({
       where: { id },
       include: {
+        contacts: { orderBy: { isPrimary: 'desc' } },
         bookings: {
           take: 10,
           orderBy: { createdAt: 'desc' },
@@ -197,6 +217,9 @@ export class ClientsService {
         address: data.address,
         taxId: data.taxId,
         bankAccount: data.bankAccount ? encrypt(data.bankAccount) : data.bankAccount,
+        vatCode: data.vatCode,
+        bankName: data.bankName,
+        swift: data.swift,
         paymentTerms: data.paymentTerms || 30,
         creditLimit: data.creditLimit || 0,
         discount: data.discount || 0,
@@ -205,6 +228,11 @@ export class ClientsService {
         status: 'ACTIVE',
       } as any,
     });
+
+    // Create contact persons (director, logist, etc.)
+    if (data.contacts?.length) {
+      await this.replaceContacts(client.id, data.contacts);
+    }
 
     // Audit log
     await prisma.auditLog.create({
@@ -276,6 +304,11 @@ export class ClientsService {
       data: updateData,
     });
 
+    // Replace contact persons if provided (undefined = leave untouched).
+    if (data.contacts !== undefined) {
+      await this.replaceContacts(id, data.contacts);
+    }
+
     // Audit log
     await prisma.auditLog.create({
       data: {
@@ -288,6 +321,24 @@ export class ClientsService {
     });
 
     return this.decryptClient(client);
+  }
+
+  /** Replace all contact persons for a client (director, logist, etc.). */
+  private async replaceContacts(clientId: string, contacts: ContactInput[]) {
+    await (prisma as any).clientContact.deleteMany({ where: { clientId } });
+    const valid = (contacts || []).filter((c) => c && c.name && c.name.trim());
+    if (valid.length === 0) return;
+    await (prisma as any).clientContact.createMany({
+      data: valid.map((c) => ({
+        clientId,
+        name: c.name.trim(),
+        role: c.role || null,
+        email: c.email || null,
+        phone: c.phone || null,
+        subscribed: c.subscribed ?? true,
+        isPrimary: c.isPrimary ?? false,
+      })),
+    });
   }
 
   /**

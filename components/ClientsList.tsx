@@ -7,7 +7,12 @@ import { Input } from './ui/Input';
 import { Badge } from './ui/Badge';
 import { PlusIcon, SearchIcon, EditIcon, TrashIcon, RefreshCwIcon, XIcon } from './icons';
 import { useToast } from './ui/Toast';
-import clientsService, { Client, CreateClientData, UpdateClientData } from '../services/clients';
+import clientsService, {
+  Client,
+  ClientContact,
+  CreateClientData,
+  UpdateClientData,
+} from '../services/clients';
 import { getErrorMessage } from '../utils/formatters';
 
 // Client Modal Component
@@ -35,6 +40,10 @@ const ClientModal: React.FC<ClientModalProps> = ({
     address: '',
     taxId: '',
     bankAccount: '',
+    vatCode: '',
+    bankName: '',
+    swift: '',
+    contacts: [],
   });
 
   useEffect(() => {
@@ -47,6 +56,10 @@ const ClientModal: React.FC<ClientModalProps> = ({
         address: client.address || '',
         taxId: client.taxId || '',
         bankAccount: client.bankAccount || '',
+        vatCode: client.vatCode || '',
+        bankName: client.bankName || '',
+        swift: client.swift || '',
+        contacts: client.contacts || [],
       });
     } else {
       setFormData({
@@ -57,9 +70,21 @@ const ClientModal: React.FC<ClientModalProps> = ({
         address: '',
         taxId: '',
         bankAccount: '',
+        vatCode: '',
+        bankName: '',
+        swift: '',
+        contacts: [],
       });
     }
   }, [client, isOpen]);
+
+  const contacts: ClientContact[] = formData.contacts || [];
+  const setContacts = (next: ClientContact[]) => setFormData({ ...formData, contacts: next });
+  const addContact = (role: string) =>
+    setContacts([...contacts, { name: '', role, email: '', phone: '', subscribed: true }]);
+  const updateContact = (i: number, patch: Partial<ClientContact>) =>
+    setContacts(contacts.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
+  const removeContact = (i: number) => setContacts(contacts.filter((_, idx) => idx !== i));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,13 +184,133 @@ const ClientModal: React.FC<ClientModalProps> = ({
 
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                  {t('clients.bankAccount')}
+                  Cont bancar (IBAN)
                 </label>
                 <Input
                   value={formData.bankAccount}
                   onChange={(e) => setFormData({ ...formData, bankAccount: e.target.value })}
                   placeholder="MD12ABCD..."
                 />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                  Cod TVA
+                </label>
+                <Input
+                  value={formData.vatCode}
+                  onChange={(e) => setFormData({ ...formData, vatCode: e.target.value })}
+                  placeholder="0123456"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                  Banca
+                </label>
+                <Input
+                  value={formData.bankName}
+                  onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
+                  placeholder='BC "..." S.A.'
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                  SWIFT / BIC
+                </label>
+                <Input
+                  value={formData.swift}
+                  onChange={(e) => setFormData({ ...formData, swift: e.target.value })}
+                  placeholder="AGRNMD2X"
+                />
+              </div>
+            </div>
+
+            {/* Contact persons (Director, Logist…) with a "receives messages" flag */}
+            <div className="pt-4 border-t border-neutral-200 dark:border-neutral-700">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                  Persoane de contact
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => addContact('Director')}
+                    className="text-xs px-2 py-1 rounded bg-primary-600 text-white hover:bg-primary-700"
+                  >
+                    + Director
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => addContact('Logist')}
+                    className="text-xs px-2 py-1 rounded bg-primary-600 text-white hover:bg-primary-700"
+                  >
+                    + Logist
+                  </button>
+                </div>
+              </div>
+              {contacts.length === 0 && (
+                <p className="text-xs text-neutral-400 mb-2">
+                  Nicio persoană. Adaugă Director/Logist. Bifa „mesaje" = primește statusul
+                  containerului.
+                </p>
+              )}
+              <div className="space-y-2">
+                {contacts.map((c, i) => (
+                  <div
+                    key={i}
+                    className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center bg-neutral-50 dark:bg-neutral-700/40 p-2 rounded-lg"
+                  >
+                    <div className="md:col-span-3">
+                      <Input
+                        value={c.name}
+                        onChange={(e) => updateContact(i, { name: e.target.value })}
+                        placeholder="Nume"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Input
+                        value={c.role || ''}
+                        onChange={(e) => updateContact(i, { role: e.target.value })}
+                        placeholder="Rol"
+                      />
+                    </div>
+                    <div className="md:col-span-3">
+                      <Input
+                        value={c.email || ''}
+                        onChange={(e) => updateContact(i, { email: e.target.value })}
+                        placeholder="Email"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Input
+                        value={c.phone || ''}
+                        onChange={(e) => updateContact(i, { phone: e.target.value })}
+                        placeholder="Telefon"
+                      />
+                    </div>
+                    <label
+                      className="md:col-span-1 flex items-center gap-1 text-xs text-neutral-600 dark:text-neutral-300"
+                      title="Primește mesaje despre statusul containerului"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={c.subscribed ?? true}
+                        onChange={(e) => updateContact(i, { subscribed: e.target.checked })}
+                      />
+                      mesaje
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => removeContact(i)}
+                      className="md:col-span-1 text-error-500 hover:text-error-600 text-lg"
+                      title="Șterge contact"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
 

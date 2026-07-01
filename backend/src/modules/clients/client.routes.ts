@@ -84,7 +84,19 @@ router.post(
       return res.status(400).json({ success: false, errors: parsed.error.flatten().fieldErrors });
     }
     try {
-      const { companyName, contactPerson, email, phone, address, taxId, bankAccount } = parsed.data;
+      const {
+        companyName,
+        contactPerson,
+        email,
+        phone,
+        address,
+        taxId,
+        bankAccount,
+        vatCode,
+        bankName,
+        swift,
+        contacts,
+      } = parsed.data;
 
       const client = await clientsService.create(
         {
@@ -95,6 +107,10 @@ router.post(
           address: address?.trim(),
           taxId: taxId?.trim(),
           bankAccount: bankAccount?.trim(),
+          vatCode: vatCode?.trim(),
+          bankName: bankName?.trim(),
+          swift: swift?.trim(),
+          contacts,
         },
         req.user!.userId
       );
@@ -127,8 +143,20 @@ router.put(
       return res.status(400).json({ success: false, errors: parsed.error.flatten().fieldErrors });
     }
     try {
-      const { companyName, contactPerson, email, phone, address, taxId, bankAccount, status } =
-        parsed.data;
+      const {
+        companyName,
+        contactPerson,
+        email,
+        phone,
+        address,
+        taxId,
+        bankAccount,
+        vatCode,
+        bankName,
+        swift,
+        contacts,
+        status,
+      } = parsed.data;
 
       const client = await clientsService.update(
         req.params.id,
@@ -140,6 +168,10 @@ router.put(
           address: address?.trim(),
           taxId: taxId?.trim(),
           bankAccount: bankAccount?.trim(),
+          vatCode: vatCode?.trim(),
+          bankName: bankName?.trim(),
+          swift: swift?.trim(),
+          contacts,
           status,
         },
         req.user!.userId

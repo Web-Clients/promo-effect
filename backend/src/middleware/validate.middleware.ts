@@ -62,6 +62,16 @@ export const createBookingSchema = z.object({
 
 // ===== CLIENT SCHEMAS =====
 
+const clientContactSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1),
+  role: z.string().optional().nullable(),
+  email: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
+  subscribed: z.boolean().optional(),
+  isPrimary: z.boolean().optional(),
+});
+
 export const createClientSchema = z.object({
   companyName: z.string().min(2, 'Company name must be at least 2 characters'),
   contactPerson: z.string().min(2, 'Contact person must be at least 2 characters'),
@@ -70,6 +80,10 @@ export const createClientSchema = z.object({
   address: z.string().optional(),
   taxId: z.string().optional(),
   bankAccount: z.string().optional(),
+  vatCode: z.string().optional(),
+  bankName: z.string().optional(),
+  swift: z.string().optional(),
+  contacts: z.array(clientContactSchema).optional(),
 });
 
 export const updateClientSchema = z.object({
@@ -80,6 +94,10 @@ export const updateClientSchema = z.object({
   address: z.string().optional(),
   taxId: z.string().optional(),
   bankAccount: z.string().optional(),
+  vatCode: z.string().optional(),
+  bankName: z.string().optional(),
+  swift: z.string().optional(),
+  contacts: z.array(clientContactSchema).optional(),
   status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED']).optional(),
 });
 

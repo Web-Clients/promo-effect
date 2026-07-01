@@ -43,36 +43,29 @@ const getLandLegSubtotal = (offer: PriceOffer) =>
 const computeTotalPrice = (
   offer: PriceOffer,
   incoterm: Incoterm,
-  finalDestination: FinalDestination,
+  _finalDestination: FinalDestination,
   commissionOverride?: number
 ) => {
-  let total = 0;
+  // TRUST the backend total. offer.totalPriceUSD already = freight + portAdjustment
+  // + portTaxes + terrestrialTransport + customsTaxes + commission + insurance,
+  // computed once from the real tables. The old code re-derived it with hardcoded
+  // LAND_TRANSPORT_CHISINAU constants ON TOP of offer.terrestrialTransport, which
+  // double-counted the land leg and inflated the price (client's "calculează greșit").
+  let total = offer.totalPriceUSD;
 
-  // Rata 0: EXW costs
+  // Commission override (admin) replaces the backend commission.
+  if (commissionOverride !== undefined) {
+    total += commissionOverride - (offer.commission || 0);
+  }
+
+  // EXW: buyer also pays China local export costs (not known to the backend).
   if (incoterm === 'EXW') {
     total += getEXWTotal();
   }
 
-  // Rata 1: Maritime — paid by buyer in FOB/EXW, included by supplier in CFR/CIF
-  const supplierCoversMaritime = incoterm === 'CFR' || incoterm === 'CIF';
-  if (!supplierCoversMaritime) {
-    total += getMaritimeTotal(offer);
-  }
-
-  // Rata 2: Land leg (portIntermediate→portFinal) — same for all incoterms.
-  // CIF additionally guarantees insurance is paid by supplier (already counted via offer.insurance).
-  total +=
-    offer.terrestrialTransport + offer.customsTaxes + offer.portTaxes + (offer.insurance || 0);
-
-  // Rata 3: Land transport Constanta -> Chisinau (includes commission + portTaxes as cheltuieliLocale)
-  if (finalDestination === 'chisinau') {
-    const commission =
-      commissionOverride !== undefined ? commissionOverride : LAND_TRANSPORT_CHISINAU.commission;
-    total += LAND_TRANSPORT_CHISINAU.transport + LAND_TRANSPORT_CHISINAU.customs + commission;
-  } else {
-    // When no Rata 3: add commission to total from Rata 2 leg
-    const commission = commissionOverride !== undefined ? commissionOverride : offer.commission;
-    total += commission;
+  // CFR/CIF: the supplier covers the maritime leg → exclude it from the buyer's total.
+  if (incoterm === 'CFR' || incoterm === 'CIF') {
+    total -= offer.freightPrice + offer.portAdjustment;
   }
 
   return total;
@@ -88,8 +81,9 @@ export const OfferCard = ({
   onToggle,
   onSelectOffer,
 }: OfferCardProps) => {
-  const defaultCommission =
-    finalDestination === 'chisinau' ? LAND_TRANSPORT_CHISINAU.commission : offer.commission;
+  // Default commission = the real backend commission (was a hardcoded constant for
+  // chisinau, which shifted the total away from offer.totalPriceUSD).
+  const defaultCommission = offer.commission;
   const [commissionValue, setCommissionValue] = useState<string>(String(defaultCommission));
   const commissionOverride = parseFloat(commissionValue) || 0;
 
@@ -97,8 +91,8 @@ export const OfferCard = ({
   // already counted via offer.insurance regardless of incoterm.
   const supplierCoversMaritime = incoterm === 'CFR' || incoterm === 'CIF';
   const adjustedTotal = computeTotalPrice(offer, incoterm, finalDestination, commissionOverride);
-  // Approximate MDL using ratio from original offer
-  const mdlRate = offer.totalPriceMDL / offer.totalPriceUSD;
+  // Approximate MDL using ratio from original offer (guard div-by-zero → no NaN MDL)
+  const mdlRate = offer.totalPriceUSD > 0 ? offer.totalPriceMDL / offer.totalPriceUSD : 0;
   const adjustedTotalMDL = adjustedTotal * mdlRate;
 
   // cheltuieliLocale = portTaxes (moved from Rata 1)
@@ -416,15 +410,14 @@ export const OfferCard = ({
                 <p className="text-2xl font-bold text-green-700 dark:text-green-400">
                   $
                   {(
-                    getLandLegSubtotal(offer) +
-                    offer.portTaxes +
-                    (finalDestination === 'chisinau'
-                      ? getLandTransportTotal(commissionOverride)
-                      : commissionOverride)
+                    offer.terrestrialTransport +
+                    offer.customsTaxes +
+                    commissionOverride +
+                    (offer.insurance || 0)
                   ).toFixed(0)}
                 </p>
                 <p className="text-xs text-green-500 mt-1">
-                  Transport terestru + vamă + cheltuieli locale port + comision (totul inclus)
+                  Transport terestru + vamă + comision (totul inclus)
                 </p>
               </div>
 

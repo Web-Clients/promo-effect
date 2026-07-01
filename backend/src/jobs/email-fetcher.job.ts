@@ -135,7 +135,9 @@ export function startEmailFetcherJob() {
           await emailService.markEmailProcessed(
             email.id,
             result.status === 'FAILED' ? 'FAILED' : 'PROCESSED',
-            result.error
+            result.error,
+            result.extractedData,
+            result.bookingId
           );
 
           // NOTE: Intentionally NOT marking emails as read in Gmail

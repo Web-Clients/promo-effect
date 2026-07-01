@@ -418,10 +418,12 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
                       <>
                         <p className="text-xs text-emerald-600 font-medium">● Live AIS</p>
                         <p className="text-xs">
-                          <span className="text-gray-500">Speed:</span> {livePos.sog.toFixed(1)} kn
+                          <span className="text-gray-500">Speed:</span>{' '}
+                          {livePos.sog != null ? `${livePos.sog.toFixed(1)} kn` : '—'}
                         </p>
                         <p className="text-xs">
-                          <span className="text-gray-500">Course:</span> {livePos.cog.toFixed(0)}°
+                          <span className="text-gray-500">Course:</span>{' '}
+                          {livePos.cog != null ? `${livePos.cog.toFixed(0)}°` : '—'}
                         </p>
                         {livePos.destination && (
                           <p className="text-xs">

@@ -425,6 +425,7 @@ export class CalculatorService {
         portOrigin: calculatorInput.portOrigin,
         portDestination: offer.portIntermediate,
         containerType: calculatorInput.containerType, // Primary container type
+        incoterm: (calculatorInput as any).incoterm || undefined,
         cargoCategory: calculatorInput.cargoCategory,
         cargoWeight: calculatorInput.cargoWeight,
         cargoReadyDate: new Date(calculatorInput.cargoReadyDate),

@@ -68,11 +68,7 @@ export class AdminPricingService {
 
     return prisma.basePrice.findMany({
       where,
-      orderBy: [
-        { shippingLine: 'asc' },
-        { portOrigin: 'asc' },
-        { containerType: 'asc' },
-      ],
+      orderBy: [{ shippingLine: 'asc' }, { portOrigin: 'asc' }, { containerType: 'asc' }],
     });
   }
 
@@ -89,21 +85,38 @@ export class AdminPricingService {
    * Create new base price
    */
   async createBasePrice(data: BasePriceInput, createdBy?: string) {
-    return prisma.basePrice.create({
-      data: {
+    // The combo (shippingLine, portOrigin, portDestination, containerType) is
+    // UNIQUE. A plain create() throws P2002 when the combo already exists —
+    // including when the existing row is marked inactive. Admins expect "add"
+    // to just work: if the combo exists we update it (and reactivate), so a
+    // superseded/inactive line can be replaced with a fresh price.
+    const commonData = {
+      basePrice: data.basePrice,
+      transitDays: data.transitDays,
+      validFrom: data.validFrom,
+      validUntil: data.validUntil,
+      isActive: data.isActive ?? true,
+      portTaxes: data.portTaxes ?? null,
+      terrestrialTransport: data.terrestrialTransport ?? null,
+      customsTaxes: data.customsTaxes ?? null,
+      commission: data.commission ?? null,
+    };
+    return prisma.basePrice.upsert({
+      where: {
+        shippingLine_portOrigin_portDestination_containerType: {
+          shippingLine: data.shippingLine,
+          portOrigin: data.portOrigin,
+          portDestination: data.portDestination,
+          containerType: data.containerType,
+        },
+      },
+      update: commonData,
+      create: {
         shippingLine: data.shippingLine,
         portOrigin: data.portOrigin,
         portDestination: data.portDestination,
         containerType: data.containerType,
-        basePrice: data.basePrice,
-        transitDays: data.transitDays,
-        validFrom: data.validFrom,
-        validUntil: data.validUntil,
-        isActive: data.isActive ?? true,
-        portTaxes: data.portTaxes ?? null,
-        terrestrialTransport: data.terrestrialTransport ?? null,
-        customsTaxes: data.customsTaxes ?? null,
-        commission: data.commission ?? null,
+        ...commonData,
         createdBy,
       },
     });
@@ -126,7 +139,9 @@ export class AdminPricingService {
         ...(data.validUntil && { validUntil: data.validUntil }),
         ...(data.isActive !== undefined && { isActive: data.isActive }),
         ...(data.portTaxes !== undefined && { portTaxes: data.portTaxes }),
-        ...(data.terrestrialTransport !== undefined && { terrestrialTransport: data.terrestrialTransport }),
+        ...(data.terrestrialTransport !== undefined && {
+          terrestrialTransport: data.terrestrialTransport,
+        }),
         ...(data.customsTaxes !== undefined && { customsTaxes: data.customsTaxes }),
         ...(data.commission !== undefined && { commission: data.commission }),
       },
@@ -284,10 +299,10 @@ export class AdminPricingService {
           insuranceCost: 50.0,
           profitMarginPercent: 10.0,
           weightRanges: JSON.stringify([
-            { label: "1-10 tone", min: 1, max: 10, enabled: true },
-            { label: "10-20 tone", min: 10, max: 20, enabled: true },
-            { label: "20-23 tone", min: 20, max: 23, enabled: true },
-            { label: "23-24 tone", min: 23, max: 24, enabled: true }
+            { label: '1-10 tone', min: 1, max: 10, enabled: true },
+            { label: '10-20 tone', min: 10, max: 20, enabled: true },
+            { label: '20-23 tone', min: 20, max: 23, enabled: true },
+            { label: '23-24 tone', min: 23, max: 24, enabled: true },
           ]),
         },
       });
@@ -306,18 +321,28 @@ export class AdminPricingService {
     return prisma.adminSettings.update({
       where: { id: 1 },
       data: {
-        ...(data.portTaxesConstanta !== undefined && { portTaxesConstanta: data.portTaxesConstanta }),
-        ...(data.terrestrialTransportConstanta !== undefined && { terrestrialTransportConstanta: data.terrestrialTransportConstanta }),
+        ...(data.portTaxesConstanta !== undefined && {
+          portTaxesConstanta: data.portTaxesConstanta,
+        }),
+        ...(data.terrestrialTransportConstanta !== undefined && {
+          terrestrialTransportConstanta: data.terrestrialTransportConstanta,
+        }),
         ...(data.portTaxesOdessa !== undefined && { portTaxesOdessa: data.portTaxesOdessa }),
-        ...(data.terrestrialTransportOdessa !== undefined && { terrestrialTransportOdessa: data.terrestrialTransportOdessa }),
+        ...(data.terrestrialTransportOdessa !== undefined && {
+          terrestrialTransportOdessa: data.terrestrialTransportOdessa,
+        }),
         ...(data.customsTaxes !== undefined && { customsTaxes: data.customsTaxes }),
         ...(data.commission !== undefined && { commission: data.commission }),
         ...(data.insuranceCost !== undefined && { insuranceCost: data.insuranceCost }),
-        ...(data.profitMarginPercent !== undefined && { profitMarginPercent: data.profitMarginPercent }),
+        ...(data.profitMarginPercent !== undefined && {
+          profitMarginPercent: data.profitMarginPercent,
+        }),
         ...(data.weightRanges !== undefined && { weightRanges: data.weightRanges }),
         // Also update legacy fields for backward compatibility
         ...(data.portTaxesConstanta !== undefined && { portTaxes: data.portTaxesConstanta }),
-        ...(data.terrestrialTransportConstanta !== undefined && { terrestrialTransport: data.terrestrialTransportConstanta }),
+        ...(data.terrestrialTransportConstanta !== undefined && {
+          terrestrialTransport: data.terrestrialTransportConstanta,
+        }),
       },
     });
   }
@@ -330,17 +355,13 @@ export class AdminPricingService {
    * Get pricing statistics for dashboard
    */
   async getPricingStats() {
-    const [
-      totalBasePrices,
-      activeBasePrices,
-      totalPortAdjustments,
-      shippingLinesCount,
-    ] = await Promise.all([
-      prisma.basePrice.count(),
-      prisma.basePrice.count({ where: { isActive: true } }),
-      prisma.portAdjustment.count(),
-      prisma.basePrice.findMany({ distinct: ['shippingLine'] }).then((r) => r.length),
-    ]);
+    const [totalBasePrices, activeBasePrices, totalPortAdjustments, shippingLinesCount] =
+      await Promise.all([
+        prisma.basePrice.count(),
+        prisma.basePrice.count({ where: { isActive: true } }),
+        prisma.portAdjustment.count(),
+        prisma.basePrice.findMany({ distinct: ['shippingLine'] }).then((r) => r.length),
+      ]);
 
     return {
       totalBasePrices,

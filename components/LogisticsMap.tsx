@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 
 // Robust world map path (simplified but high-fidelity Eurasia focus)
@@ -20,11 +20,7 @@ interface PortNodeProps {
 const PortNode = ({ x, y, label, code }: PortNodeProps) => {
   const [isHovered, setIsHovered] = useState(false);
   return (
-    <g
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className="cursor-none"
-    >
+    <g onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
       {/* Port Signal Pulse */}
       <motion.circle
         cx={x}
@@ -52,7 +48,7 @@ const PortNode = ({ x, y, label, code }: PortNodeProps) => {
         y={y + 8}
         className="text-[7px] font-bold uppercase tracking-widest fill-neutral-500"
       >
-        {code} | 31.23°N
+        {code}
       </text>
 
       {/* Advanced HUD Tooltip */}
@@ -87,22 +83,22 @@ const PortNode = ({ x, y, label, code }: PortNodeProps) => {
               y={y - 62}
               className="text-[9px] font-black fill-primary-500 uppercase tracking-widest"
             >
-              LIVE VESSEL FEED
+              {label}
             </text>
             <rect x={x + 22} y={y - 55} width="140" height="0.5" fill="white" fillOpacity="0.1" />
 
             <text x={x + 22} y={y - 42} className="text-[8px] font-bold fill-neutral-300 uppercase">
-              LOAD FACTOR: 94%
+              PORT: {code}
             </text>
             <text x={x + 22} y={y - 30} className="text-[8px] font-bold fill-neutral-300 uppercase">
-              TRANSIT: 21 DAYS
+              RUTĂ: CHINA → CONSTANȚA
             </text>
             <text
               x={x + 22}
               y={y - 18}
               className="text-[8px] font-bold fill-neutral-500 uppercase italic"
             >
-              Vessel: PROMO-MAERSK VI
+              Transport maritim + terestru
             </text>
 
             <motion.rect
@@ -121,15 +117,7 @@ const PortNode = ({ x, y, label, code }: PortNodeProps) => {
   );
 };
 
-const VesselTracker = ({
-  path,
-  delay,
-  vesselName,
-}: {
-  path: string;
-  delay: number;
-  vesselName: string;
-}) => (
+const VesselTracker = ({ path, delay }: { path: string; delay: number }) => (
   <motion.g
     initial={{ offsetDistance: '0%', opacity: 0 }}
     animate={{
@@ -152,17 +140,20 @@ const VesselTracker = ({
       animate={{ r: [6, 12], opacity: [0.5, 0] }}
       transition={{ repeat: Infinity, duration: 2 }}
     />
-    <text
-      y="-10"
-      className="text-[6px] font-black fill-primary-500 uppercase tracking-widest pointer-events-none"
-    >
-      {vesselName}
-    </text>
   </motion.g>
 );
 
 export const LogisticsMap = () => {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Live UTC clock for the HUD (was a frozen hardcoded string).
+  const [clock, setClock] = useState('');
+  useEffect(() => {
+    const tick = () => setClock(`${new Date().toISOString().slice(11, 19)} UTC`);
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
 
   // Parallax Logic
   const mouseX = useMotionValue(0);
@@ -193,7 +184,7 @@ export const LogisticsMap = () => {
     <div
       ref={containerRef}
       onMouseMove={handleMouseMove}
-      className="relative w-full aspect-[21/9] bg-[#020305] rounded-[2rem] border border-white/10 overflow-hidden group perspective-1000 cursor-none"
+      className="relative w-full aspect-[21/9] bg-[#020305] rounded-[2rem] border border-white/10 overflow-hidden group [perspective:1000px]"
     >
       <motion.div
         style={{ rotateX, rotateY, scale: 1.05 }}
@@ -261,7 +252,7 @@ export const LogisticsMap = () => {
             y="480"
             className="text-[6px] fill-neutral-600 font-black tracking-widest uppercase align-right"
           >
-            SYS_CLOCK: 12:55:03_UTC
+            {clock}
           </text>
 
           {/* Animated Trade Paths */}
@@ -275,8 +266,8 @@ export const LogisticsMap = () => {
                 fill="none"
                 strokeDasharray="5 5"
               />
-              <VesselTracker path={path} delay={i * 3.5} vesselName={`VESSEL_${1024 + i}`} />
-              <VesselTracker path={path} delay={i * 3.5 + 7} vesselName={`CARGO_${204 + i}`} />
+              <VesselTracker path={path} delay={i * 3.5} />
+              <VesselTracker path={path} delay={i * 3.5 + 7} />
             </React.Fragment>
           ))}
 
@@ -304,15 +295,15 @@ export const LogisticsMap = () => {
         <div className="absolute top-8 left-8 w-48 p-4 bg-black/80 border-l border-primary-500/50 backdrop-blur-md">
           <div className="flex justify-between items-center mb-4">
             <span className="text-[8px] font-black text-white uppercase tracking-widest">
-              Global Status
+              Rute principale
             </span>
             <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
           </div>
           <div className="space-y-4">
             {[
-              { label: 'Active Vessels', val: '142' },
-              { label: 'Avg Transit', val: '22 d' },
-              { label: 'Network Load', val: '86.4%' },
+              { label: 'Shanghai → Constanța', val: '~30 zile', bar: '90%' },
+              { label: 'Ningbo → Constanța', val: '~32 zile', bar: '80%' },
+              { label: 'Shenzhen → Constanța', val: '~34 zile', bar: '70%' },
             ].map((item, i) => (
               <div key={i}>
                 <div className="text-[6px] text-neutral-500 uppercase tracking-widest leading-none mb-1">
@@ -322,7 +313,7 @@ export const LogisticsMap = () => {
                 <div className="h-0.5 w-full bg-white/5 mt-1 overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
-                    animate={{ width: `${Math.random() * 60 + 40}%` }}
+                    animate={{ width: item.bar }}
                     className="h-full bg-primary-600"
                   />
                 </div>
@@ -333,16 +324,16 @@ export const LogisticsMap = () => {
 
         <div className="absolute bottom-8 right-8 w-64 p-4 bg-black/80 border-r border-primary-500/50 backdrop-blur-md">
           <div className="text-[7px] text-primary-500 font-black mb-3 uppercase tracking-[0.3em]">
-            Neural Route Optimizer v2
+            Serviciu complet
           </div>
           <div className="text-[6px] text-neutral-500 font-sans leading-relaxed uppercase">
-            {'>>'} CALCULATING OPTIMAL PATHS FOR Q2_2026
+            {'>>'} TRANSPORT MARITIM CHINA → CONSTANȚA
             <br />
-            {'>>'} WEATHER_ANOMALY DETECTED IN SOUTH CHINA SEA
+            {'>>'} URMĂRIRE LIVE A NAVELOR PE HARTĂ
             <br />
-            {'>>'} RE-ROUTING 4 VESSELS THROUGH MALACCA_STRAIT
+            {'>>'} VĂMUIRE ȘI FORMALITĂȚI INCLUSE
             <br />
-            {'>>'} LATENCY: 12ms | SYNC: STABLE
+            {'>>'} LIVRARE TERESTRĂ → CHIȘINĂU
           </div>
         </div>
 

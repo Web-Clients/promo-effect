@@ -29,7 +29,7 @@ const Cariere = ({ onLoginRedirect }: { onLoginRedirect: () => void }) => (
         ].map((benefit, i) => (
           <SolidCard
             key={i}
-            className="bg-white/2 border-white/5 p-8 hover:bg-white/5 transition-colors"
+            className="bg-white/5 border-white/5 p-8 hover:bg-white/5 transition-colors"
           >
             <h4 className="text-primary-500 font-bold italic uppercase text-xs tracking-widest mb-4">
               {benefit.t}

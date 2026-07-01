@@ -121,7 +121,7 @@ const LCLGrupaj = ({ onLoginRedirect }: { onLoginRedirect: () => void }) => (
                 ].map((p) => (
                   <div
                     key={p.t}
-                    className="p-4 rounded-xl border border-white/5 bg-white/2 hover:border-primary-500/20 transition-all"
+                    className="p-4 rounded-xl border border-white/5 bg-white/5 hover:border-primary-500/20 transition-all"
                   >
                     <h5 className="text-white font-bold italic text-xs tracking-widest uppercase mb-1">
                       {p.t}

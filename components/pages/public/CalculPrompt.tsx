@@ -92,7 +92,7 @@ const CalculPrompt = ({ onLoginRedirect }: { onLoginRedirect: () => void }) => (
         ].map((v, i) => (
           <div
             key={i}
-            className="p-8 border border-white/5 rounded-3xl bg-white/2 hover:border-primary-500/20 transition-all"
+            className="p-8 border border-white/5 rounded-3xl bg-white/5 hover:border-primary-500/20 transition-all"
           >
             <h4 className="text-white font-black italic uppercase text-xs tracking-widest mb-4">
               {v.t}

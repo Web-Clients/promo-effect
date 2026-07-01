@@ -38,7 +38,7 @@ const Depozitare = ({ onLoginRedirect }: { onLoginRedirect: () => void }) => (
             ].map((item, i) => (
               <div
                 key={i}
-                className="flex gap-4 p-6 rounded-2xl bg-white/2 border border-white/5 hover:border-primary-500/10 transition-all"
+                className="flex gap-4 p-6 rounded-2xl bg-white/5 border border-white/5 hover:border-primary-500/10 transition-all"
               >
                 <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-primary-600/10 flex items-center justify-center text-primary-500 font-black italic">
                   0{i + 1}
@@ -86,7 +86,7 @@ const Depozitare = ({ onLoginRedirect }: { onLoginRedirect: () => void }) => (
         ].map((spec, i) => (
           <div
             key={i}
-            className="p-10 border border-white/5 bg-[#0A0C10] rounded-[2rem] text-center space-y-4 hover:bg-white/2 transition-colors"
+            className="p-10 border border-white/5 bg-[#0A0C10] rounded-[2rem] text-center space-y-4 hover:bg-white/5 transition-colors"
           >
             {spec.v && (
               <div className="text-2xl font-black text-white italic tracking-tighter">{spec.v}</div>
@@ -100,7 +100,7 @@ const Depozitare = ({ onLoginRedirect }: { onLoginRedirect: () => void }) => (
       </div>
 
       {/* Region Mapping */}
-      <div className="p-12 md:p-20 border border-white/5 bg-white/2 rounded-[4rem] text-center space-y-12">
+      <div className="p-12 md:p-20 border border-white/5 bg-white/5 rounded-[4rem] text-center space-y-12">
         <div className="space-y-4">
           <h2 className="text-3xl font-bold text-white uppercase italic tracking-tight">
             Noduri Strategice de Distribuție

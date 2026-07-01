@@ -75,7 +75,7 @@ const Preturi = ({ onLoginRedirect }: { onLoginRedirect: () => void }) => (
             ].map((v) => (
               <div
                 key={v.n}
-                className="flex items-center gap-4 p-4 rounded-xl bg-white/2 border border-white/5"
+                className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/5"
               >
                 <span className="text-primary-500 font-black italic text-xs underline underline-offset-4 decoration-primary-500/20">
                   {v.n}

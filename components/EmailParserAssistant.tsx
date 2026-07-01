@@ -51,6 +51,33 @@ interface EmailParserAssistantProps {
   onBookingCreate: (data: Partial<Booking>) => void;
 }
 
+// Romanian labels for the fields the AI extracts, so the operator sees a clean
+// form instead of raw JSON with English keys.
+const FIELD_LABELS: Record<string, string> = {
+  containerNumber: 'Număr container',
+  blNumber: 'Număr B/L',
+  vessel: 'Navă',
+  vesselName: 'Navă',
+  shippingLine: 'Linie maritimă',
+  portOfLoading: 'Port încărcare (POL)',
+  portOfDischarge: 'Port descărcare (POD)',
+  departureDate: 'Dată plecare',
+  eta: 'ETA (sosire estimată)',
+  cargoWeight: 'Greutate marfă',
+  weight: 'Greutate',
+  volume: 'Volum',
+  clientName: 'Client',
+  commodity: 'Marfă',
+  incoterm: 'Incoterm',
+  quantity: 'Cantitate',
+};
+
+const formatFieldValue = (v: unknown): string => {
+  if (v == null || v === '') return '—';
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+};
+
 const EmailParserAssistant = ({ onBookingCreate }: EmailParserAssistantProps) => {
   const { t } = useTranslation();
   const [emailContent, setEmailContent] = useState('');
@@ -58,6 +85,7 @@ const EmailParserAssistant = ({ onBookingCreate }: EmailParserAssistantProps) =>
   const [parsedObject, setParsedObject] = useState<Record<string, unknown> | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showRaw, setShowRaw] = useState(false);
   const [aiStatus, setAiStatus] = useState<{ available: boolean; reason: string } | null>(null);
 
   // Check AI status on mount
@@ -75,22 +103,27 @@ const EmailParserAssistant = ({ onBookingCreate }: EmailParserAssistantProps) =>
     setParsedResult('');
     setParsedObject(null);
 
-    const result = await parseEmailWithGemini(emailContent);
     try {
-      const jsonResult = JSON.parse(result);
-      if (jsonResult.error) {
-        setError(jsonResult.error);
-        setParsedResult(JSON.stringify(jsonResult, null, 2));
-      } else {
-        setParsedResult(JSON.stringify(jsonResult, null, 2));
-        setParsedObject(jsonResult);
+      const result = await parseEmailWithGemini(emailContent);
+      try {
+        const jsonResult = JSON.parse(result);
+        if (jsonResult.error) {
+          setError(jsonResult.error);
+          setParsedResult(JSON.stringify(jsonResult, null, 2));
+        } else {
+          setParsedResult(JSON.stringify(jsonResult, null, 2));
+          setParsedObject(jsonResult);
+        }
+      } catch {
+        setError(t('errors.emailInvalidJson'));
+        setParsedResult(result);
       }
-    } catch {
-      setError(t('errors.emailInvalidJson'));
-      setParsedResult(result);
+    } catch (err) {
+      // Network/timeout/service failure — without this the spinner hung forever.
+      setError(err instanceof Error ? err.message : t('errors.generic'));
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   const handleCreateBooking = () => {
@@ -164,33 +197,72 @@ const EmailParserAssistant = ({ onBookingCreate }: EmailParserAssistantProps) =>
         <Card>
           <div className="flex justify-between items-center mb-2">
             <h4 className="text-lg font-semibold text-neutral-700 dark:text-neutral-200">
-              Rezultat Analiză (JSON)
+              Rezultat Analiză
             </h4>
             <Button size="sm" onClick={handleCreateBooking} disabled={!parsedObject || isLoading}>
               <PlusIcon className="mr-2 h-4 w-4" />
               Creează Rezervare
             </Button>
           </div>
-          <div className="relative h-[450px]">
+          <div className="relative h-[450px] overflow-auto rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50 p-3">
             {isLoading && (
-              <div className="absolute inset-0 bg-neutral-50/80 dark:bg-neutral-800/80 flex items-center justify-center rounded-md">
+              <div className="absolute inset-0 bg-neutral-50/80 dark:bg-neutral-800/80 flex items-center justify-center rounded-md z-10">
                 <div className="text-center text-neutral-500 dark:text-neutral-400">
                   <SpinnerIcon large isTextWhite={false} />
                   <p className="mt-2">Analiza în curs...</p>
                 </div>
               </div>
             )}
-            <pre className="w-full h-full p-3 border rounded-md bg-neutral-50 dark:bg-neutral-800/50 border-neutral-200 dark:border-neutral-700 font-mono text-sm overflow-auto">
-              {error && (
-                <code className="text-red-500">
-                  {error}\n\n{parsedResult}
-                </code>
-              )}
-              {!error && parsedResult && <code>{parsedResult}</code>}
-              {!parsedResult && !error && (
-                <code className="text-neutral-400">Rezultatul va apărea aici...</code>
-              )}
-            </pre>
+
+            {/* Error banner (no more literal \n\n on screen) */}
+            {error && (
+              <div className="mb-3 flex items-start gap-2 rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600 dark:text-red-400">
+                <AlertCircleIcon className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Formatted, human-readable fields */}
+            {parsedObject && (
+              <>
+                <dl className="divide-y divide-neutral-200 dark:divide-neutral-700">
+                  {Object.entries(parsedObject)
+                    .filter(([, v]) => v != null && v !== '')
+                    .map(([key, value]) => (
+                      <div key={key} className="grid grid-cols-2 gap-2 py-2">
+                        <dt className="text-sm text-neutral-500 dark:text-neutral-400">
+                          {FIELD_LABELS[key] || key}
+                        </dt>
+                        <dd className="text-sm font-medium text-neutral-800 dark:text-neutral-100 break-words">
+                          {formatFieldValue(value)}
+                        </dd>
+                      </div>
+                    ))}
+                </dl>
+                <button
+                  onClick={() => setShowRaw((s) => !s)}
+                  className="mt-3 text-xs text-primary-600 hover:underline"
+                >
+                  {showRaw ? 'Ascunde JSON brut' : 'Vezi JSON brut'}
+                </button>
+                {showRaw && (
+                  <pre className="mt-2 rounded-md bg-neutral-100 dark:bg-neutral-900 p-2 font-mono text-xs overflow-auto">
+                    <code>{parsedResult}</code>
+                  </pre>
+                )}
+              </>
+            )}
+
+            {/* Raw fallback when parsing failed but we still got text */}
+            {!parsedObject && error && parsedResult && (
+              <pre className="mt-2 rounded-md bg-neutral-100 dark:bg-neutral-900 p-2 font-mono text-xs overflow-auto">
+                <code>{parsedResult}</code>
+              </pre>
+            )}
+
+            {!parsedResult && !error && !isLoading && (
+              <p className="text-sm text-neutral-400">Rezultatul va apărea aici...</p>
+            )}
           </div>
         </Card>
       </div>

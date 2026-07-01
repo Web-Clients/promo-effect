@@ -567,7 +567,7 @@ const LandingPage = ({ onLoginRedirect }: LandingPageProps) => {
               href: '/resurse',
             },
           ].map((item, i) => (
-            <Link key={i} to={item.href} className="group cursor-none">
+            <Link key={i} to={item.href} className="group">
               <div className="relative aspect-[16/9] rounded-[2rem] overflow-hidden mb-8 border border-white/5">
                 <img
                   src={item.img}

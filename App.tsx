@@ -39,7 +39,7 @@ const DashboardFallback = () => (
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
   </div>
 );
-import { User, Booking } from './types';
+import { User, Booking, UserRole } from './types';
 import { ToastProvider } from './components/ui/Toast';
 import authService from './services/auth';
 import { tokenManager } from './services/api';
@@ -106,6 +106,27 @@ const ProtectedRoute = ({ user, children }: { user: User | null; children: React
   if (!user) {
     return <Navigate to="/login" replace />;
   }
+  return <>{children}</>;
+};
+
+// Role groups mirror the sidebar visibility in DashboardLayout. Routes must be
+// gated here too — hiding a nav link does NOT stop a user typing the URL.
+const ADMIN_ROLES: UserRole[] = [UserRole.SUPER_ADMIN, UserRole.ADMIN];
+const ADMIN_OR_MANAGER_ROLES: UserRole[] = [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER];
+
+// Guards a dashboard route by role. Unauthorized (but logged-in) users are sent
+// back to the dashboard home instead of seeing an admin screen.
+const RequireRole = ({
+  user,
+  allow,
+  children,
+}: {
+  user: User | null;
+  allow: UserRole[];
+  children: React.ReactNode;
+}) => {
+  if (!user) return <Navigate to="/login" replace />;
+  if (!allow.includes(user.role)) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 };
 
@@ -293,35 +314,91 @@ const App = () => {
               path="ai-parser"
               element={<Navigate to="/dashboard/adminSettings?tab=emailParser" replace />}
             />
-            <Route path="clients" element={<ClientsList />} />
-            <Route path="invoices" element={<InvoicesList />} />
+            <Route
+              path="clients"
+              element={
+                <RequireRole user={user} allow={ADMIN_OR_MANAGER_ROLES}>
+                  <ClientsList />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="invoices"
+              element={
+                <RequireRole user={user} allow={ADMIN_OR_MANAGER_ROLES}>
+                  <InvoicesList />
+                </RequireRole>
+              }
+            />
             {/* reports moved to Settings → tab reports (admin only) */}
             <Route
               path="reports"
               element={<Navigate to="/dashboard/adminSettings?tab=reports" replace />}
             />
-            <Route path="adminSettings" element={<AdminSettingsPage />} />
-            <Route path="admin-pricing" element={<AdminPricingPanel />} />
+            <Route
+              path="adminSettings"
+              element={
+                <RequireRole user={user} allow={ADMIN_ROLES}>
+                  <AdminSettingsPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="admin-pricing"
+              element={
+                <RequireRole user={user} allow={ADMIN_ROLES}>
+                  <AdminPricingPanel />
+                </RequireRole>
+              }
+            />
             {/* admin-pricing-land removed — redirect to AdminPricingPanel tab "Prețuri Terestru" */}
             <Route
               path="admin-pricing-land"
               element={<Navigate to="/dashboard/admin-pricing" replace />}
             />
-            <Route path="shipping-lines" element={<ShippingLinesPage />} />
+            <Route
+              path="shipping-lines"
+              element={
+                <RequireRole user={user} allow={ADMIN_ROLES}>
+                  <ShippingLinesPage />
+                </RequireRole>
+              }
+            />
             {/* transport-rates removed — redirect to AdminPricingPanel tab "Prețuri Terestru" */}
             <Route
               path="transport-rates"
               element={<Navigate to="/dashboard/admin-pricing" replace />}
             />
-            <Route path="agents" element={<AgentsPanel />} />
+            <Route
+              path="agents"
+              element={
+                <RequireRole user={user} allow={ADMIN_ROLES}>
+                  <AgentsPanel />
+                </RequireRole>
+              }
+            />
             {/* admin-panel moved to Settings → tab admin */}
             <Route
               path="admin-panel"
               element={<Navigate to="/dashboard/adminSettings?tab=admin" replace />}
             />
             <Route path="my-prices" element={<AgentPricesDashboard />} />
-            <Route path="price-approval" element={<AdminPriceApproval />} />
-            <Route path="ports-manager" element={<AdminPortsManager />} />
+            <Route
+              path="price-approval"
+              element={
+                <RequireRole user={user} allow={ADMIN_ROLES}>
+                  <AdminPriceApproval />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="ports-manager"
+              element={
+                <RequireRole user={user} allow={ADMIN_ROLES}>
+                  <AdminPortsManager />
+                </RequireRole>
+              }
+            />
             {/* user-management moved to Settings → tab users (admin only) */}
             <Route
               path="user-management"

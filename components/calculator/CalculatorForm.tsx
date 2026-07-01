@@ -112,6 +112,66 @@ export const CalculatorForm = ({
         </div>
 
         <form onSubmit={handleCalculate} className="space-y-5">
+          {/* Incoterm — first, before origin port (per client) */}
+          <FormField
+            label={t('calculator.deliveryCondition')}
+            hint={t('calculator.deliveryConditionHint')}
+          >
+            <div className="flex gap-2">
+              {(['FOB', 'EXW', 'CFR', 'CIF'] as Incoterm[]).map((inc) => (
+                <button
+                  key={inc}
+                  type="button"
+                  onClick={() => handleIncotermChange(inc)}
+                  className={`flex-1 py-2 px-3 text-sm font-semibold rounded-lg border-2 transition-all ${
+                    params.incoterm === inc
+                      ? 'border-accent-500 bg-accent-50 dark:bg-accent-500/10 text-accent-700 dark:text-accent-400'
+                      : 'border-neutral-200 dark:border-neutral-600 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300'
+                  }`}
+                >
+                  {inc}
+                </button>
+              ))}
+            </div>
+            <div className="mt-1.5 relative">
+              <button
+                type="button"
+                onMouseEnter={() => setIncotermTooltipVisible(true)}
+                onMouseLeave={() => setIncotermTooltipVisible(false)}
+                onClick={() => setIncotermTooltipVisible((v) => !v)}
+                className="text-xs text-neutral-400 underline underline-offset-2 cursor-help"
+              >
+                Ce înseamnă {params.incoterm}?
+              </button>
+              {incotermTooltipVisible && (
+                <div className="absolute z-20 left-0 top-5 w-64 bg-white dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 rounded-lg p-3 shadow-lg text-xs text-neutral-600 dark:text-neutral-300">
+                  {INCOTERM_TOOLTIPS[params.incoterm]}
+                </div>
+              )}
+            </div>
+            {params.incoterm === 'EXW' && (
+              <div className="mt-2 p-2.5 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700/30 rounded-lg">
+                <p className="text-xs text-purple-700 dark:text-purple-300 font-medium">
+                  Taxe export China incluse automat: Transport $500 + Vamă $250 + Depozitare $350
+                </p>
+              </div>
+            )}
+            {params.incoterm === 'CFR' && (
+              <div className="mt-2 p-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 rounded-lg">
+                <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
+                  CFR: Selectați linia maritimă (obligatoriu)
+                </p>
+              </div>
+            )}
+            {params.incoterm === 'CIF' && (
+              <div className="mt-2 p-2.5 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-700/30 rounded-lg">
+                <p className="text-xs text-teal-700 dark:text-teal-300 font-medium">
+                  CIF: Maritim + asigurare incluse de furnizor. Selectați linia maritimă.
+                </p>
+              </div>
+            )}
+          </FormField>
+
           {/* Origin Port */}
           <FormField label={t('calculator.originPort')} required>
             <CalcSelect
@@ -154,94 +214,29 @@ export const CalculatorForm = ({
             label={t('calculator.finalDestination')}
             hint={t('calculator.finalDestinationHint')}
           >
-            <CalcSelect
-              value={params.finalDestination}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                setParams({ ...params, finalDestination: e.target.value as FinalDestination })
-              }
-              required
-            >
+            <div className="flex flex-wrap gap-2">
               {FINAL_DESTINATIONS.map((d) => (
-                <option key={d.value} value={d.value}>
+                <button
+                  key={d.value}
+                  type="button"
+                  onClick={() =>
+                    setParams({ ...params, finalDestination: d.value as FinalDestination })
+                  }
+                  className={`flex-1 min-w-[120px] py-2 px-3 text-sm font-semibold rounded-lg border-2 transition-all ${
+                    params.finalDestination === d.value
+                      ? 'border-accent-500 bg-accent-50 dark:bg-accent-500/10 text-accent-700 dark:text-accent-400'
+                      : 'border-neutral-200 dark:border-neutral-600 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300'
+                  }`}
+                >
                   {d.label}
-                </option>
+                </button>
               ))}
-            </CalcSelect>
+            </div>
             {/* Route display when destination != port */}
             {routeDisplay && (
               <p className="mt-1.5 text-xs font-medium text-accent-600 dark:text-accent-400">
                 Rută: {routeDisplay}
               </p>
-            )}
-          </FormField>
-
-          {/* Incoterm */}
-          <FormField
-            label={t('calculator.deliveryCondition')}
-            hint={t('calculator.deliveryConditionHint')}
-          >
-            {/* Radio group */}
-            <div className="flex gap-2">
-              {(['FOB', 'EXW', 'CFR', 'CIF'] as Incoterm[]).map((inc) => (
-                <button
-                  key={inc}
-                  type="button"
-                  onClick={() => handleIncotermChange(inc)}
-                  className={`flex-1 py-2 px-3 text-sm font-semibold rounded-lg border-2 transition-all ${
-                    params.incoterm === inc
-                      ? 'border-accent-500 bg-accent-50 dark:bg-accent-500/10 text-accent-700 dark:text-accent-400'
-                      : 'border-neutral-200 dark:border-neutral-600 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300'
-                  }`}
-                >
-                  {inc}
-                </button>
-              ))}
-            </div>
-            {/* Tooltip */}
-            <div className="mt-1.5 relative">
-              <button
-                type="button"
-                onMouseEnter={() => setIncotermTooltipVisible(true)}
-                onMouseLeave={() => setIncotermTooltipVisible(false)}
-                onClick={() => setIncotermTooltipVisible((v) => !v)}
-                className="text-xs text-neutral-400 underline underline-offset-2 cursor-help"
-              >
-                Ce înseamnă {params.incoterm}?
-              </button>
-              {incotermTooltipVisible && (
-                <div className="absolute z-20 left-0 top-5 w-64 bg-white dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 rounded-lg p-3 shadow-lg text-xs text-neutral-600 dark:text-neutral-300">
-                  {INCOTERM_TOOLTIPS[params.incoterm]}
-                </div>
-              )}
-            </div>
-            {/* Incoterm-specific info */}
-            {params.incoterm === 'EXW' && (
-              <div className="mt-2 p-2.5 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700/30 rounded-lg">
-                <p className="text-xs text-purple-700 dark:text-purple-300 font-medium">
-                  Taxe export China incluse automat: Transport $500 + Vamă $250 + Depozitare $350
-                </p>
-              </div>
-            )}
-            {params.incoterm === 'FOB' && (
-              <div className="mt-2 p-2.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/30 rounded-lg">
-                <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
-                  Navlu + livrare la destinație calculate automat
-                </p>
-              </div>
-            )}
-            {params.incoterm === 'CFR' && (
-              <div className="mt-2 p-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 rounded-lg">
-                <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
-                  CFR: Selectați linia maritimă (obligatoriu)
-                </p>
-              </div>
-            )}
-            {params.incoterm === 'CIF' && (
-              <div className="mt-2 p-2.5 bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-700/30 rounded-lg">
-                <p className="text-xs text-teal-700 dark:text-teal-300 font-medium">
-                  CIF: Maritim + asigurare incluse de furnizor. Selectați linia maritimă.
-                </p>
-              </div>
             )}
           </FormField>
 

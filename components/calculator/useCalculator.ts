@@ -81,8 +81,11 @@ export function useCalculator(user?: User): UseCalculatorReturn {
         setAgents(agentsList);
 
         if (ports.length > 0) setParams((prev) => ({ ...prev, portOrigin: ports[0] }));
-        if (destinations.length > 0)
-          setParams((prev) => ({ ...prev, portDestination: destinations[0] }));
+        if (destinations.length > 0) {
+          // Default to Constanța when available (client preference), else first.
+          const constanta = destinations.find((d) => /constan/i.test(d));
+          setParams((prev) => ({ ...prev, portDestination: constanta || destinations[0] }));
+        }
         if (types.length > 0) setContainers([{ type: types[0], quantity: 1 }]);
         // cargoWeight is now a free kg input — no dropdown default to prefill.
       } catch (err: unknown) {

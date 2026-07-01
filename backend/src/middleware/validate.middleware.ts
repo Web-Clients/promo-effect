@@ -29,8 +29,8 @@ export const createBookingSchema = z.object({
   cargoWeight: z
     .string()
     .regex(
-      /^(\d+(\.\d+)?(\s*-\s*\d+(\.\d+)?)?\s*(tone|t|kg|ton|tons))$|^TBD$/i,
-      'cargoWeight must be like "10-15 tone", "24.5 ton", "24350kg" or "TBD"'
+      /^(\d+(\.\d+)?(\s*-\s*\d+(\.\d+)?)?\s*(tone|t|kg|ton|tons)?)$|^TBD$/i,
+      'cargoWeight must be a number in kg (e.g. "23500"), a range like "10-15 tone", or "TBD"'
     )
     .min(1, 'Cargo weight is required'),
   cargoReadyDate: z.string().min(1, 'Cargo ready date is required'),

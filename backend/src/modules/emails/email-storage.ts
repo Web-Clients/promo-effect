@@ -22,6 +22,19 @@ interface AttachmentMeta {
  * Uses upsert to avoid duplicate key errors.
  */
 export async function queueEmailForProcessing(email: ParsedEmail): Promise<void> {
+  // Skip entirely if this email is already queued. Gmail messages stay
+  // UNREAD on purpose (so the client still sees them), so the fetcher
+  // re-fetches the same 50 emails every cycle. Without this guard we
+  // re-uploaded every PDF attachment on every run — which is how the
+  // uploads dir ballooned to 39GB of ~99% duplicate files (one PDF had
+  // 641 identical copies). The DB row was already upsert-protected; the
+  // storage write was not.
+  const alreadyQueued = await (prisma as any).incomingEmail.findUnique({
+    where: { messageId: email.id },
+    select: { id: true },
+  });
+  if (alreadyQueued) return;
+
   let pdfText = '';
   const attachmentsMeta: AttachmentMeta[] = [];
 

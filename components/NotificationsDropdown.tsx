@@ -546,20 +546,8 @@ const NotificationsDropdown: React.FC<NotificationsDropdownProps> = ({ className
             )}
           </div>
 
-          {/* Footer */}
-          {hasAny && (
-            <div className="border-t border-neutral-200 dark:border-neutral-700 p-2">
-              <button
-                onClick={() => {
-                  navigate('/dashboard/notifications');
-                  setIsOpen(false);
-                }}
-                className="w-full py-2 text-sm text-center text-primary-600 dark:text-primary-400 hover:bg-neutral-50 dark:hover:bg-neutral-700 rounded-lg transition-colors"
-              >
-                Vezi toate notificările
-              </button>
-            </div>
-          )}
+          {/* Footer removed: there is no /dashboard/notifications page yet, the
+              button led to a 404. Notifications are actioned inline (click a row). */}
         </div>
       )}
     </div>

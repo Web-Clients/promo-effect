@@ -76,7 +76,7 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
             icon: PackageIcon,
             change: '...',
             trend: 'up',
-            sparklineData: generateSparkline(),
+            sparklineData: [],
           },
           {
             title: t('dashboard.inTransit'),
@@ -84,7 +84,7 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
             icon: ShipIcon,
             change: '...',
             trend: 'up',
-            sparklineData: generateSparkline(),
+            sparklineData: [],
           },
           {
             title: t('dashboard.turnover'),
@@ -92,7 +92,7 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
             icon: TrendingUpIcon,
             change: '...',
             trend: 'up',
-            sparklineData: generateSparkline(),
+            sparklineData: [],
           },
           {
             title: t('dashboard.delivered'),
@@ -100,7 +100,7 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
             icon: AlertCircleIcon,
             change: '...',
             trend: 'down',
-            sparklineData: generateSparkline(),
+            sparklineData: [],
           },
         ]
       : [
@@ -108,33 +108,33 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
             title: t('dashboard.totalBookings'),
             value: stats.total,
             icon: PackageIcon,
-            change: '+12%',
+            change: '',
             trend: 'up',
-            sparklineData: generateSparkline(),
+            sparklineData: [],
           },
           {
             title: t('dashboard.inTransit'),
             value: stats.byStatus?.['IN_TRANSIT'] || 0,
             icon: ShipIcon,
-            change: '+5%',
+            change: '',
             trend: 'up',
-            sparklineData: generateSparkline(),
+            sparklineData: [],
           },
           {
             title: t('dashboard.turnover'),
-            value: `$${(stats.totalTurnover / 1000).toFixed(0)}k`,
+            value: `$${((stats.totalTurnover || 0) / 1000).toFixed(0)}k`,
             icon: TrendingUpIcon,
-            change: '+8%',
+            change: '',
             trend: 'up',
-            sparklineData: generateSparkline(),
+            sparklineData: [],
           },
           {
             title: t('dashboard.delivered'),
             value: stats.byStatus?.['DELIVERED'] || 0,
             icon: AlertCircleIcon,
-            change: '+15%',
+            change: '',
             trend: 'up',
-            sparklineData: generateSparkline(),
+            sparklineData: [],
           },
         ];
 

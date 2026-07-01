@@ -518,9 +518,10 @@ model Booking {
   priceId  String? @map("price_id")
 
   // Route
-  portOrigin      String @map("port_origin")
-  portDestination String @map("port_destination")
-  containerType   String @map("container_type")
+  portOrigin      String  @map("port_origin")
+  portDestination String  @map("port_destination")
+  containerType   String  @map("container_type")
+  incoterm        String? // FOB, EXW, CFR, CIF
 
   // Cargo details
   cargoCategory  String   @map("cargo_category")

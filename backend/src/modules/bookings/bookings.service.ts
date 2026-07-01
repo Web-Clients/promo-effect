@@ -271,6 +271,7 @@ export class BookingsService {
         portOrigin: data.portOrigin,
         portDestination: data.portDestination || 'Constanta',
         containerType: data.containerType,
+        incoterm: (data as any).incoterm || undefined,
 
         // Cargo details
         cargoCategory: data.cargoCategory,

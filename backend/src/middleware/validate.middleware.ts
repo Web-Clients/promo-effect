@@ -58,6 +58,7 @@ export const createBookingSchema = z.object({
   eta: z.string().optional(),
   internalNotes: z.string().optional(),
   clientNotes: z.string().optional(),
+  incoterm: z.enum(['FOB', 'EXW', 'CFR', 'CIF']).optional(),
 });
 
 // ===== CLIENT SCHEMAS =====

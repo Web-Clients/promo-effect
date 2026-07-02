@@ -14,7 +14,14 @@ import { Input } from './ui/Input';
 import { Switch } from './ui/Switch';
 import { AlertCircleIcon, CheckIcon, XIcon, CopyIcon } from './icons';
 import { useToast } from './ui/Toast';
-import { getGmailConfig, configureGmail, testGmail, syncGmailNow } from '../services/settings';
+import {
+  getGmailConfig,
+  configureGmail,
+  testGmail,
+  syncGmailNow,
+  getAllSettings,
+  updateSetting,
+} from '../services/settings';
 import type { GmailConfig } from '../services/settings';
 
 // Mock initial settings data based on the full SystemSettings interface
@@ -195,6 +202,58 @@ const VALID_TABS = [
 ] as const;
 type TabValue = (typeof VALID_TABS)[number];
 
+// ── Persistence manifest ──────────────────────────────────────────────
+// Maps each persistable tab's fields to the backend (category, key) pair.
+// `path` is the dot-path into the local `settings` state; `category`/`key`
+// are what the backend key-value store expects (upper-case categories).
+// Scoped per active tab on save so we never overwrite unrelated categories.
+interface SettingField {
+  path: string;
+  category: string;
+  key: string;
+}
+
+const SETTINGS_MANIFEST: Partial<Record<TabValue, SettingField[]>> = {
+  system: [
+    { path: 'systemSettings.companyName', category: 'SYSTEM', key: 'companyName' },
+    { path: 'systemSettings.maintenanceMode', category: 'SYSTEM', key: 'maintenanceMode' },
+  ],
+  tracking: [
+    { path: 'trackingSettings.provider', category: 'TRACKING', key: 'provider' },
+    { path: 'trackingSettings.enabled', category: 'TRACKING', key: 'enabled' },
+    { path: 'trackingSettings.syncInterval', category: 'TRACKING', key: 'syncInterval' },
+    // Sensitive: stored as plain STRING by backend today. Ideally encrypt server-side later.
+    { path: 'trackingSettings.aisstreamApiKey', category: 'TRACKING', key: 'aisstreamApiKey' },
+  ],
+  notifications: [
+    { path: 'emailNotificationSettings.provider', category: 'NOTIFICATIONS', key: 'provider' },
+    { path: 'emailNotificationSettings.enabled', category: 'NOTIFICATIONS', key: 'enabled' },
+    { path: 'smsSettings.enabled', category: 'NOTIFICATIONS', key: 'smsEnabled' },
+  ],
+};
+
+// Flat list of every persistable field, used to hydrate on mount.
+const ALL_MANIFEST_FIELDS: SettingField[] = Object.values(SETTINGS_MANIFEST)
+  .filter((fields): fields is SettingField[] => Array.isArray(fields))
+  .flat();
+
+// Read a dot-path value out of the settings object.
+function getByPath(obj: unknown, path: string): unknown {
+  return path.split('.').reduce<unknown>((acc, k) => {
+    if (acc && typeof acc === 'object') return (acc as Record<string, unknown>)[k];
+    return undefined;
+  }, obj);
+}
+
+// Look up a category from the backend response, tolerating both upper-case
+// (SYSTEM/TRACKING/NOTIFICATIONS) and legacy lower-case category keys.
+function pickCategory(
+  data: Record<string, Record<string, unknown>>,
+  category: string
+): Record<string, unknown> | undefined {
+  return data[category] ?? data[category.toLowerCase()] ?? data[category.toUpperCase()];
+}
+
 const AdminSettingsPage = () => {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -243,6 +302,36 @@ const AdminSettingsPage = () => {
       });
   }, []);
 
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  // Hydrate general settings from the backend key-value store on mount.
+  // Falls back to the existing mockSettings defaults for any missing key.
+  useEffect(() => {
+    getAllSettings()
+      .then((data) => {
+        setSettings((prev) => {
+          const next = JSON.parse(JSON.stringify(prev)) as SystemSettings;
+          for (const field of ALL_MANIFEST_FIELDS) {
+            const cat = pickCategory(data, field.category);
+            if (!cat || !(field.key in cat)) continue; // keep mock default
+            const value = cat[field.key];
+            if (value === undefined) continue;
+            // Write value into the local settings state at field.path.
+            const keys = field.path.split('.');
+            let current = next as unknown as Record<string, unknown>;
+            for (let i = 0; i < keys.length - 1; i++) {
+              current = current[keys[i]] as Record<string, unknown>;
+            }
+            current[keys[keys.length - 1]] = value;
+          }
+          return next;
+        });
+      })
+      .catch(() => {
+        // Non-critical — keep mock defaults
+      });
+  }, []);
+
   const updateSettings = (path: string, value: unknown) => {
     setSettings((prev) => {
       const keys = path.split('.');
@@ -272,17 +361,51 @@ const AdminSettingsPage = () => {
     addToast(t('adminSettings.copiedToClipboard'), 'success');
   };
 
-  const saveSettings = () => {
-    // General settings are not yet persisted to the backend key-value store.
-    // Be honest instead of showing a false "saved" confirmation. (Gmail config
-    // in this page IS persisted — see handleGmailSave.)
-    addToast(
-      t(
-        'adminSettings.generalSaveUnavailable',
-        'Salvarea setărilor generale va fi disponibilă în curând. Configurarea Gmail se salvează.'
-      ),
-      'info'
-    );
+  const saveSettings = async () => {
+    // Persist only the fields belonging to the currently active tab, so we
+    // never overwrite categories the user isn't editing. (Gmail config is
+    // handled separately — see handleGmailSave.)
+    const fields = SETTINGS_MANIFEST[tab];
+    if (!fields || fields.length === 0) {
+      addToast(
+        t(
+          'adminSettings.generalSaveUnavailable',
+          'Nu există setări de salvat pentru această secțiune.'
+        ),
+        'info'
+      );
+      return;
+    }
+
+    setSavingSettings(true);
+    const failed: string[] = [];
+    try {
+      // PUT each key; collect failures for a partial-failure toast.
+      for (const field of fields) {
+        const value = getByPath(settings, field.path);
+        try {
+          await updateSetting(field.category, field.key, value);
+        } catch {
+          failed.push(field.key);
+        }
+      }
+
+      if (failed.length === 0) {
+        addToast(t('adminSettings.saved', 'Setările au fost salvate.'), 'success');
+      } else if (failed.length < fields.length) {
+        addToast(
+          t(
+            'adminSettings.savedPartial',
+            `Salvare parțială: au eșuat ${failed.length} din ${fields.length} setări (${failed.join(', ')}).`
+          ),
+          'error'
+        );
+      } else {
+        addToast(t('adminSettings.saveError', 'Salvarea setărilor a eșuat.'), 'error');
+      }
+    } finally {
+      setSavingSettings(false);
+    }
   };
 
   // ── Gmail handlers ────────────────────────────────────────────────
@@ -648,7 +771,9 @@ const AdminSettingsPage = () => {
                 >
                   Testează Conexiunea
                 </Button>
-                <Button onClick={saveSettings}>Salvează Setările</Button>
+                <Button onClick={saveSettings} disabled={savingSettings} loading={savingSettings}>
+                  Salvează Setările
+                </Button>
               </div>
             </div>
           </Card>
@@ -691,6 +816,12 @@ const AdminSettingsPage = () => {
                 />
               </div>
             </Card>
+
+            <div className="flex justify-end">
+              <Button onClick={saveSettings} disabled={savingSettings} loading={savingSettings}>
+                Salvează Setările
+              </Button>
+            </div>
           </div>
         </TabsContent>
 
@@ -752,7 +883,9 @@ const AdminSettingsPage = () => {
                 </div>
               </div>
 
-              <Button onClick={saveSettings}>Salvează Setările</Button>
+              <Button onClick={saveSettings} disabled={savingSettings} loading={savingSettings}>
+                Salvează Setările
+              </Button>
             </div>
           </Card>
         </TabsContent>

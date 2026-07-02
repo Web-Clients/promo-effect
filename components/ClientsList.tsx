@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useModalA11y } from '../hooks/useModalA11y';
 import { Card } from './ui/Card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from './ui/Table';
 import { Button } from './ui/Button';
@@ -32,6 +33,8 @@ const ClientModal: React.FC<ClientModalProps> = ({
   isLoading,
 }) => {
   const { t } = useTranslation();
+  const modalRef = useRef<HTMLDivElement>(null);
+  useModalA11y(modalRef, isOpen, onClose);
   const [formData, setFormData] = useState<CreateClientData>({
     companyName: '',
     contactPerson: '',
@@ -94,14 +97,30 @@ const ClientModal: React.FC<ClientModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="client-modal-title"
+    >
       <div className="flex min-h-screen items-center justify-center p-4">
         {/* Overlay */}
-        <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+        <div
+          className="fixed inset-0 bg-black/50"
+          onClick={() => {
+            if (!isLoading) onClose();
+          }}
+        />
 
         {/* Modal */}
-        <div className="relative bg-white dark:bg-neutral-800 rounded-xl shadow-xl w-full max-w-lg p-6">
-          <h2 className="text-xl font-semibold text-neutral-800 dark:text-white mb-4">
+        <div
+          ref={modalRef}
+          className="relative bg-white dark:bg-neutral-800 rounded-xl shadow-xl w-full max-w-lg p-6"
+        >
+          <h2
+            id="client-modal-title"
+            className="text-xl font-semibold text-neutral-800 dark:text-white mb-4"
+          >
             {client ? t('clients.editClient') : t('clients.newClient')}
           </h2>
 
@@ -346,19 +365,37 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
   isLoading,
 }) => {
   const { t } = useTranslation();
+  const modalRef = useRef<HTMLDivElement>(null);
+  useModalA11y(modalRef, isOpen, onClose);
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-modal-title"
+    >
       <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+        <div
+          className="fixed inset-0 bg-black/50"
+          onClick={() => {
+            if (!isLoading) onClose();
+          }}
+        />
 
-        <div className="relative bg-white dark:bg-neutral-800 rounded-xl shadow-xl w-full max-w-md p-6">
+        <div
+          ref={modalRef}
+          className="relative bg-white dark:bg-neutral-800 rounded-xl shadow-xl w-full max-w-md p-6"
+        >
           <div className="text-center">
             <div className="mx-auto w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4">
               <TrashIcon className="w-6 h-6 text-red-600 dark:text-red-400" />
             </div>
-            <h3 className="text-lg font-semibold text-neutral-800 dark:text-white mb-2">
+            <h3
+              id="delete-modal-title"
+              className="text-lg font-semibold text-neutral-800 dark:text-white mb-2"
+            >
               {t('clients.deleteClient')}
             </h3>
             <p className="text-neutral-600 dark:text-neutral-400 mb-6">

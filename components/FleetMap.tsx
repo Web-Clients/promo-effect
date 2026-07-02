@@ -1,5 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, CircleMarker } from 'react-leaflet';
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  useMap,
+  CircleMarker,
+  Tooltip,
+} from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import trackingService, {
@@ -201,6 +209,46 @@ const FleetMap: React.FC = () => {
     [fleet]
   );
 
+  // Cheap signature so identical 5s polls don't re-render 1500 ambient nodes.
+  // The poll replaces `ambient` with a fresh array reference every time; if the
+  // underlying data is unchanged this signature is stable and useMemo returns
+  // the same element tree (no reconciliation of the whole ambient layer).
+  const ambientSig = ambient.length
+    ? `${ambient.length}:${ambient[0].mmsi}:${ambient[ambient.length - 1].mmsi}`
+    : '0';
+
+  // Ambient layer memoized on the signature. Each vessel uses a lightweight
+  // <Tooltip> (hover-only, no persistent React subtree per marker) instead of
+  // a mounted <Popup>, which is far cheaper for up to ~1500 markers.
+  const ambientLayer = useMemo(
+    () =>
+      ambient.map((v) => (
+        <CircleMarker
+          key={`amb-${v.mmsi}`}
+          center={[v.lat, v.lng]}
+          radius={2}
+          pathOptions={{
+            color: '#0ea5e9',
+            fillColor: '#0ea5e9',
+            fillOpacity: 0.6,
+            weight: 0,
+          }}
+        >
+          <Tooltip>
+            <div className="text-xs">
+              <div className="font-semibold">{v.name || '(navă fără nume)'}</div>
+              <div className="text-neutral-500">MMSI {v.mmsi}</div>
+              <div className="text-neutral-500">
+                {v.sog?.toFixed(1)} kn · cog {v.cog?.toFixed(0)}°
+              </div>
+            </div>
+          </Tooltip>
+        </CircleMarker>
+      )),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ambientSig]
+  );
+
   return (
     <div className="h-[calc(100vh-80px)] flex flex-col">
       {/* Smooth glide for live vessel markers (matches the 1s DR tick) */}
@@ -301,31 +349,10 @@ const FleetMap: React.FC = () => {
             <FitToFleet points={fleetPoints} onDone={() => setHasFitted(true)} />
           )}
 
-          {/* Background: every active AIS vessel in the trade-route bbox */}
-          {showAmbient &&
-            ambient.map((v) => (
-              <CircleMarker
-                key={`amb-${v.mmsi}`}
-                center={[v.lat, v.lng]}
-                radius={2}
-                pathOptions={{
-                  color: '#0ea5e9',
-                  fillColor: '#0ea5e9',
-                  fillOpacity: 0.6,
-                  weight: 0,
-                }}
-              >
-                <Popup>
-                  <div className="text-xs">
-                    <div className="font-semibold">{v.name || '(navă fără nume)'}</div>
-                    <div className="text-neutral-500">MMSI {v.mmsi}</div>
-                    <div className="text-neutral-500">
-                      {v.sog?.toFixed(1)} kn · cog {v.cog?.toFixed(0)}°
-                    </div>
-                  </div>
-                </Popup>
-              </CircleMarker>
-            ))}
+          {/* Background: every active AIS vessel in the trade-route bbox.
+              Memoized (see ambientLayer) so identical polls don't reconcile
+              up to ~1500 nodes; vessel info is on hover via <Tooltip>. */}
+          {showAmbient && ambientLayer}
 
           {/* Foreground: user's containers */}
           {fleet

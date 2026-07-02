@@ -15,12 +15,17 @@ import { User } from '../types';
 import { Button } from './ui/Button';
 import { PlusIcon } from './icons';
 import { useToast } from './ui/Toast';
-import bookingsService, { BookingResponse, BookingFilters } from '../services/bookings';
+import bookingsService, {
+  BookingResponse,
+  BookingFilters,
+  BookingTabCounts,
+} from '../services/bookings';
 import invoicesService from '../services/invoices';
 import { getErrorMessage } from '../utils/formatters';
 import {
   BULK_FETCH_LIMIT,
   DEFAULT_INVOICE_DUE_DAYS,
+  DEFAULT_PAGE_SIZE,
   SEARCH_DEBOUNCE_MS,
 } from '../config/constants';
 
@@ -124,21 +129,64 @@ const BookingsList = ({ user }: { user: User }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Pagination
+  const PAGE_SIZE = DEFAULT_PAGE_SIZE;
+  const [currentPage, setCurrentPage] = useState(1);
+  // Server-reported total for the *unfiltered* dataset (drives paging on the
+  // "all" tab). For filtered tabs we page the client-side slice instead.
+  const [serverTotal, setServerTotal] = useState(0);
+  // Accurate per-tab totals from the stats endpoint (computed over ALL bookings
+  // server-side, so badges are NOT capped by the fetch limit).
+  const [tabTotals, setTabTotals] = useState<BookingTabCounts | null>(null);
+
   // Debounce search
   useEffect(() => {
     const t = setTimeout(() => setSearchTerm(searchInput), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  // Load bookings
-  const loadBookings = async () => {
+  // Reset to page 1 whenever the tab or the (debounced) search changes.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchTerm]);
+
+  /*
+   * PAGINATION STRATEGY (documented per task requirement)
+   * -----------------------------------------------------
+   * Tab badge counts always come from bookingsService.getBookingTabCounts()
+   * (Phase A8 /bookings/stats), which counts every non-archived booking on the
+   * server — so badges reflect TRUE totals, never the fetch cap.
+   *
+   * The "all" tab uses TRUE server-side pagination: we fetch exactly one page
+   * (limit=PAGE_SIZE, offset=(page-1)*PAGE_SIZE) and page against serverTotal.
+   *
+   * The other tabs are pseudo-statuses (transit/port/delivered<30d/archive) that
+   * the backend list endpoint cannot express with a single status filter (they
+   * also depend on arrivalDateConstanta and container.currentStatus). To keep the
+   * existing tab semantics 100% intact and avoid risky backend changes, those
+   * tabs still fetch a bulk slice (BULK_FETCH_LIMIT) and are filtered + paged
+   * CLIENT-side. RESIDUAL LIMITATION: a single non-"all" tab with more than
+   * BULK_FETCH_LIMIT (100) matching bookings would only page through the first
+   * 100 rows — but its badge count stays accurate via the stats endpoint.
+   */
+  const loadBookings = useCallback(async () => {
     setIsLoading(true);
     setError('');
     try {
-      const filters: BookingFilters = { limit: BULK_FETCH_LIMIT, offset: 0 };
+      const isAllTab = activeTab === 'all';
+      const filters: BookingFilters = isAllTab
+        ? { limit: PAGE_SIZE, offset: (currentPage - 1) * PAGE_SIZE }
+        : { limit: BULK_FETCH_LIMIT, offset: 0 };
       if (searchTerm) filters.search = searchTerm;
-      const res = await bookingsService.getBookings(filters);
+
+      const [res, counts] = await Promise.all([
+        bookingsService.getBookings(filters),
+        bookingsService.getBookingTabCounts().catch(() => null),
+      ]);
+
       setBookings(res.bookings);
+      setServerTotal(res.total ?? res.bookings.length);
+      if (counts) setTabTotals(counts);
     } catch (err) {
       const msg = getErrorMessage(err, 'Eroare la încărcarea rezervărilor');
       setError(msg);
@@ -146,14 +194,33 @@ const BookingsList = ({ user }: { user: User }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, currentPage, searchTerm, addToast]);
 
   useEffect(() => {
     loadBookings();
-  }, [searchTerm]); // eslint-disable-line
+  }, [loadBookings]);
 
-  const filteredBookings = useMemo(() => filterByTab(bookings, activeTab), [bookings, activeTab]);
-  const tabCounts = useMemo(() => countTabs(bookings), [bookings]);
+  // For the "all" tab the server already returned exactly one page, so don't
+  // re-slice. For filtered tabs, apply the tab filter then page client-side.
+  const tabFiltered = useMemo(() => filterByTab(bookings, activeTab), [bookings, activeTab]);
+  const filteredBookings = useMemo(() => {
+    if (activeTab === 'all') return bookings;
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return tabFiltered.slice(start, start + PAGE_SIZE);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, bookings, tabFiltered, currentPage]);
+
+  // Total items in the active view (accurate: from stats when available).
+  const activeTotal =
+    activeTab === 'all'
+      ? (tabTotals?.all ?? serverTotal)
+      : (tabTotals?.[activeTab] ?? tabFiltered.length);
+  const totalPages = Math.max(1, Math.ceil(activeTotal / PAGE_SIZE));
+
+  // Prefer accurate server-side tab totals; fall back to in-memory counts only
+  // if the stats endpoint is unavailable (legacy backend).
+  const tabCounts = useMemo(() => tabTotals ?? countTabs(bookings), [tabTotals, bookings]);
 
   const handleSelectAll = (checked: boolean) =>
     setSelectedRows(checked ? filteredBookings.map((b) => b.id) : []);
@@ -213,7 +280,7 @@ const BookingsList = ({ user }: { user: User }) => {
       }
       setSelectedRows([]);
     },
-    [confirmDialog, selectedRows, bookings, addToast, t]
+    [confirmDialog, selectedRows, bookings, addToast, t, loadBookings]
   );
 
   const tabLabel = t(BOOKING_TABS.find((tab) => tab.key === activeTab)?.labelKey ?? '');
@@ -288,13 +355,40 @@ const BookingsList = ({ user }: { user: User }) => {
         tabLabel={tabLabel}
       />
 
-      {/* Footer count */}
+      {/* Footer count + pagination */}
       {!isLoading && filteredBookings.length > 0 && (
-        <div className="px-1 text-sm text-neutral-500 dark:text-neutral-400">
-          {filteredBookings.length}{' '}
-          {filteredBookings.length === 1 ? t('bookings.countSingular') : t('bookings.countPlural')}
-          {activeTab !== 'all' &&
-            ` ${t('common.of')} ${bookings.length} ${t('common.total').toLowerCase()}`}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-1">
+          <div className="text-sm text-neutral-500 dark:text-neutral-400">
+            {activeTotal}{' '}
+            {activeTotal === 1 ? t('bookings.countSingular') : t('bookings.countPlural')}
+            {activeTab !== 'all' &&
+              ` ${t('common.of')} ${tabCounts.all} ${t('common.total').toLowerCase()}`}
+          </div>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-neutral-500 dark:text-neutral-400">
+                {t('common.page', 'Pagina')} {currentPage} {t('common.of')} {totalPages}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  {t('common.previous', 'Anterior')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                >
+                  {t('common.next', 'Următor')}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

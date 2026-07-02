@@ -443,7 +443,7 @@ const LandingPage = ({ onLoginRedirect }: LandingPageProps) => {
                 </p>
               </div>
               <div>
-                <div className="text-6xl font-black text-white leading-none">5k+</div>
+                <div className="text-6xl font-black text-white leading-none">500+</div>
                 <p className="text-primary-500 text-[10px] font-bold uppercase tracking-widest mt-2">
                   Containere/An
                 </p>
@@ -501,42 +501,36 @@ const LandingPage = ({ onLoginRedirect }: LandingPageProps) => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {[
             {
-              name: 'Andrei Popescu',
-              role: 'CEO, TechLogistics Group',
-              text: 'Eficiența administrativă este la un alt nivel. Nu am mai văzut o platformă atât de precisă în prognozele de transport.',
-              stat: '-12 zile lead time',
+              title: 'Prognoze Precise',
+              text: 'Prognoze de transport precise care reduc timpul administrativ și elimină incertitudinea din planificare.',
+              stat: 'Lead time redus',
             },
             {
-              name: 'Elena Ionescu',
-              role: 'Director Import, RetailGlobal',
-              text: 'Transparența costurilor a eliminat surprizele din facturile portuare. O colaborare bazată pe date și profesionalism.',
-              stat: '+20% eficiență cost',
+              title: 'Costuri Transparente',
+              text: 'Transparență completă a costurilor portuare și de transport — fără surprize pe facturi, totul bazat pe date.',
+              stat: 'Eficiență cost',
             },
             {
-              name: 'Mihai Vasilescu',
-              role: 'Manager Operațiuni, EuroFabrix',
-              text: 'Sistemul lor de tracking ne-a permis să optimizăm stocurile mult mai bine. Un partener tehnologic esențial.',
-              stat: '0 erori vamale',
+              title: 'Tracking în Timp Real',
+              text: 'Sistem de tracking care ajută la optimizarea stocurilor și la anticiparea sosirilor cu precizie.',
+              stat: 'Vizibilitate totală',
             },
-          ].map((test, i) => (
+          ].map((item, i) => (
             <SolidCard key={i} className="flex flex-col justify-between">
               <div>
                 <QuoteIcon className="h-8 w-8 text-primary-500/20 mb-8" />
                 <p className="text-lg text-white font-medium italic mb-8 leading-relaxed">
-                  "{test.text}"
+                  {item.text}
                 </p>
               </div>
               <div className="flex items-center justify-between border-t border-white/5 pt-8">
                 <div>
-                  <span className="block text-white font-bold text-sm tracking-tight">
-                    {test.name}
-                  </span>
-                  <span className="block text-neutral-600 text-[10px] font-bold uppercase tracking-widest">
-                    {test.role}
+                  <span className="block text-white font-bold text-sm tracking-tight uppercase italic">
+                    {item.title}
                   </span>
                 </div>
                 <div className="bg-primary-500/10 border border-primary-500/20 px-3 py-1 rounded-lg text-[10px] font-black text-primary-500 uppercase">
-                  {test.stat}
+                  {item.stat}
                 </div>
               </div>
             </SolidCard>

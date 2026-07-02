@@ -259,6 +259,42 @@ interface PhaseA8StatsResponse {
   turnover?: number;
 }
 
+/**
+ * Accurate per-tab booking counts, computed server-side over ALL non-archived
+ * bookings (Phase A8 /bookings/stats?tabs). Used for tab badges so they reflect
+ * true totals instead of a capped in-memory slice.
+ */
+export interface BookingTabCounts {
+  all: number;
+  loading: number;
+  transit: number;
+  port: number;
+  delivered: number;
+  archive: number;
+}
+
+export const getBookingTabCounts = async (): Promise<BookingTabCounts> => {
+  try {
+    const response = await api.get<PhaseA8StatsResponse>('/bookings/stats');
+    const t = response.data?.tabs;
+    if (t) {
+      return {
+        all: t.all ?? 0,
+        loading: t.loading ?? 0,
+        transit: t.transit ?? 0,
+        port: t.port ?? 0,
+        delivered: t.delivered ?? 0,
+        archive: t.archive ?? 0,
+      };
+    }
+    // Legacy backend without Phase A8 tabs — return zeros; caller falls back
+    // to counting the in-memory list.
+    return { all: 0, loading: 0, transit: 0, port: 0, delivered: 0, archive: 0 };
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error, 'Nu s-au putut încărca contoarele'), { cause: error });
+  }
+};
+
 export const getBookingStats = async (): Promise<BookingStatsResponse> => {
   try {
     const response = await api.get<PhaseA8StatsResponse | BookingStatsResponse>('/bookings/stats');
@@ -294,6 +330,7 @@ const bookingsService = {
   updateBooking,
   cancelBooking,
   getBookingStats,
+  getBookingTabCounts,
 };
 
 export default bookingsService;

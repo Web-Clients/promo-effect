@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { XIcon } from '../icons';
 import { Invoice, PaymentInput } from '../../services/invoices';
 import { useToast } from '../ui/Toast';
+import { useModalA11y } from '../../hooks/useModalA11y';
 
 export interface PaymentModalProps {
   isOpen: boolean;
@@ -21,6 +22,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   invoice,
 }) => {
   const { addToast } = useToast();
+  const modalRef = useRef<HTMLDivElement>(null);
+  useModalA11y(modalRef, isOpen && !!invoice, onClose);
   const [formData, setFormData] = useState<PaymentInput>({
     amount: 0,
     paymentDate: new Date().toISOString().split('T')[0],
@@ -64,11 +67,27 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const balance = invoice.balance ?? invoice.amount - (invoice.amountPaid || 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white dark:bg-neutral-800 rounded-lg shadow-xl w-full max-w-md mx-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="payment-modal-title"
+    >
+      <div
+        className="absolute inset-0 bg-black/50"
+        onClick={() => {
+          if (!isLoading) onClose();
+        }}
+      />
+      <div
+        ref={modalRef}
+        className="relative bg-white dark:bg-neutral-800 rounded-lg shadow-xl w-full max-w-md mx-4"
+      >
         <div className="flex items-center justify-between p-4 border-b dark:border-neutral-700">
-          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+          <h3
+            id="payment-modal-title"
+            className="text-lg font-semibold text-neutral-900 dark:text-neutral-100"
+          >
             Înregistrare Plată
           </h3>
           <button onClick={onClose} className="text-neutral-500 hover:text-neutral-700">

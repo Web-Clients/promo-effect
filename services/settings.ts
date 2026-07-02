@@ -29,6 +29,32 @@ export interface GmailSyncResult {
   timestamp: string;
 }
 
+// ── General settings (flexible key-value store) ────────────────────────
+
+/**
+ * Get all settings grouped by category.
+ * Backend returns { success, data: <grouped by category> }, so we unwrap
+ * `res.data.data`. Shape example:
+ *   { SYSTEM: { companyName: '...', maintenanceMode: false }, TRACKING: {...}, ... }
+ */
+export async function getAllSettings(): Promise<Record<string, Record<string, unknown>>> {
+  const response = await api.get<{
+    success: boolean;
+    data: Record<string, Record<string, unknown>>;
+  }>('/v1/settings');
+  return response.data.data;
+}
+
+/**
+ * Upsert a single setting key under a category. Backend auto-detects the
+ * storage type (STRING/NUMBER/BOOLEAN/JSON) from the value.
+ * NOTE: sensitive values (e.g. API keys) are stored as-is (STRING) today;
+ * ideally these should be encrypted server-side in a future iteration.
+ */
+export async function updateSetting(category: string, key: string, value: unknown): Promise<void> {
+  await api.put(`/v1/settings/${category}/${key}`, { value });
+}
+
 // ── Gmail IMAP ─────────────────────────────────────────────────────────
 
 /**

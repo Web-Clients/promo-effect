@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { XIcon, DownloadIcon, SendIcon, CheckIcon } from '../icons';
 import { Invoice } from '../../services/invoices';
 import { statusVariantMap, statusTextMap } from './types';
 import { formatDateShort } from '../../utils/formatters';
+import { useModalA11y } from '../../hooks/useModalA11y';
 
 export interface InvoiceDetailModalProps {
   isOpen: boolean;
@@ -25,17 +26,31 @@ const InvoiceDetailModal: React.FC<InvoiceDetailModalProps> = ({
   onDownload,
   onCancel,
 }) => {
+  const modalRef = useRef<HTMLDivElement>(null);
+  useModalA11y(modalRef, isOpen && !!invoice, onClose);
+
   if (!isOpen || !invoice) return null;
 
   const balance = invoice.balance ?? invoice.amount - (invoice.amountPaid || 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="invoice-detail-title"
+    >
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white dark:bg-neutral-800 rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+      <div
+        ref={modalRef}
+        className="relative bg-white dark:bg-neutral-800 rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto"
+      >
         <div className="flex items-center justify-between p-4 border-b dark:border-neutral-700">
           <div>
-            <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+            <h3
+              id="invoice-detail-title"
+              className="text-lg font-semibold text-neutral-900 dark:text-neutral-100"
+            >
               {invoice.invoiceNumber}
             </h3>
             <Badge variant={statusVariantMap[invoice.status]}>

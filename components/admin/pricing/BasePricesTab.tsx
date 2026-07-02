@@ -173,7 +173,10 @@ export function BasePricesTab({
                 type="number"
                 value={formData.basePrice}
                 onChange={(e) =>
-                  setFormData({ ...formData, basePrice: parseFloat(e.target.value) || 0 })
+                  setFormData({
+                    ...formData,
+                    basePrice: Math.max(0, parseFloat(e.target.value) || 0),
+                  })
                 }
                 required
                 min="0"

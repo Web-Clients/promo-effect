@@ -2,7 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, CircleMarker } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import trackingService, { FleetContainer, AmbientVessel } from '../services/tracking';
+import trackingService, {
+  FleetContainer,
+  AmbientVessel,
+  getStatusLabel,
+  getEventTypeLabel,
+} from '../services/tracking';
 import { formatDateShort } from '../utils/formatters';
 
 const POLL_MS = 5000;
@@ -263,6 +268,18 @@ const FleetMap: React.FC = () => {
             <div className="text-sm text-neutral-600">Se încarcă flota...</div>
           </div>
         )}
+        {!loading && !error && fleet.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center z-[500] pointer-events-none">
+            <div className="bg-white/90 dark:bg-neutral-800/90 rounded-xl px-6 py-4 text-center shadow-lg">
+              <p className="font-medium text-neutral-700 dark:text-neutral-200">
+                Nicio navă în flotă
+              </p>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
+                Containerele apar aici pe măsură ce primesc o poziție.
+              </p>
+            </div>
+          </div>
+        )}
         <MapContainer
           center={[38, 28]}
           zoom={4}
@@ -341,7 +358,7 @@ const FleetMap: React.FC = () => {
                         <span
                           className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor(c.currentStatus)}`}
                         >
-                          {c.currentStatus || 'N/A'}
+                          {c.currentStatus ? getStatusLabel(c.currentStatus) : 'N/A'}
                         </span>
                       </div>
 
@@ -425,7 +442,7 @@ const FleetMap: React.FC = () => {
                         <div className="text-xs border-t pt-2 text-neutral-500">
                           Ultimul eveniment:{' '}
                           <span className="text-neutral-700 dark:text-neutral-200 font-medium">
-                            {c.lastEvent.eventType}
+                            {getEventTypeLabel(c.lastEvent.eventType)}
                           </span>{' '}
                           la {c.lastEvent.location}
                         </div>

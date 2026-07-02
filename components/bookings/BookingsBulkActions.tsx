@@ -6,7 +6,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../ui/Button';
-import { DownloadIcon, RefreshCwIcon, FileTextIcon, TrashIcon, XIcon } from '../icons';
+import { FileTextIcon, XIcon } from '../icons';
 
 interface BookingsBulkActionsProps {
   selectedCount: number;
@@ -34,26 +34,19 @@ export const BookingsBulkActions: React.FC<BookingsBulkActionsProps> = ({
               : t('bookings.bulkSelected_other')}
           </span>
           <div className="flex items-center gap-2 flex-wrap justify-center">
-            <Button variant="secondary" size="sm" onClick={() => onAction('export')}>
-              <DownloadIcon className="mr-2 h-4 w-4" />
-              {t('bookings.exportAction')}
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => onAction('changeStatus')}>
-              <RefreshCwIcon className="mr-2 h-4 w-4" />
-              {t('bookings.changeStatus')}
-            </Button>
+            {/* Export / Change-status removed until implemented (were dead buttons). */}
             <Button variant="secondary" size="sm" onClick={() => onAction('generateInvoices')}>
               <FileTextIcon className="mr-2 h-4 w-4" />
               {t('bookings.generateInvoices')}
             </Button>
             <Button variant="danger" size="sm" onClick={() => onAction('delete')}>
-              <TrashIcon className="mr-2 h-4 w-4" />
-              {t('bookings.deleteAction')}
+              <XIcon className="mr-2 h-4 w-4" />
+              {t('bookings.cancelAction', 'Anulează')}
             </Button>
             <button
               onClick={onClear}
               className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-              aria-label="Clear selection"
+              aria-label="Deselectează"
             >
               <XIcon className="h-4 w-4 text-white" />
             </button>

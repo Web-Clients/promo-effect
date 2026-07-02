@@ -183,11 +183,13 @@ const BookingsList = ({ user }: { user: User }) => {
         if (ok) addToast(`${ok} facturi generate cu succes!`, 'success');
         if (fail) addToast(`${fail} facturi nu au putut fi generate`, 'error');
       } else if (action === 'delete') {
+        // NOTE: this cancels the booking (moves it to Arhivă) — it does NOT
+        // hard-delete. Copy reflects that so the user isn't misled.
         const confirmed = await confirmDialog({
-          title: t('bookings.deleteConfirmTitle', 'Ștergeți rezervările?'),
-          message: `Sigur doriți să ștergeți ${selectedRows.length} ${selectedRows.length === 1 ? 'rezervare' : 'rezervări'}? Această acțiune nu poate fi anulată.`,
+          title: t('bookings.cancelConfirmTitle', 'Anulați rezervările?'),
+          message: `Sigur doriți să anulați ${selectedRows.length} ${selectedRows.length === 1 ? 'rezervare' : 'rezervări'}? Vor fi mutate în Arhivă.`,
           variant: 'danger',
-          confirmText: t('common.delete', 'Șterge'),
+          confirmText: t('common.cancel', 'Anulează'),
         });
         if (!confirmed) return;
         let ok = 0;
@@ -201,11 +203,11 @@ const BookingsList = ({ user }: { user: User }) => {
           }
         }
         if (ok) {
-          addToast(`${ok} rezerv${ok === 1 ? 'are ștearsă' : 'ări șterse'} cu succes!`, 'success');
+          addToast(`${ok} rezerv${ok === 1 ? 'are anulată' : 'ări anulate'} cu succes!`, 'success');
           await loadBookings();
         }
         if (fail)
-          addToast(`${fail} rezerv${fail === 1 ? 'are' : 'ări'} nu au putut fi șterse`, 'error');
+          addToast(`${fail} rezerv${fail === 1 ? 'are' : 'ări'} nu au putut fi anulate`, 'error');
       } else {
         addToast(`Acțiunea '${action}' nu este implementată încă.`, 'info');
       }

@@ -21,9 +21,6 @@ interface MainDashboardProps {
   user: User;
 }
 
-const generateSparkline = () =>
-  Array.from({ length: 10 }, () => ({ value: Math.floor(Math.random() * 100) }));
-
 interface KpiData {
   title: string;
   value: string | number;

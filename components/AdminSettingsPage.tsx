@@ -256,17 +256,15 @@ const AdminSettingsPage = () => {
     });
   };
 
-  const testConnection = async (service: string) => {
-    setTestResults((prev) => ({ ...prev, [service]: 'pending' }));
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    const success = Math.random() > 0.3;
-    if (success) {
-      setTestResults((prev) => ({ ...prev, [service]: 'success' }));
-      addToast(t('adminSettings.connectionSuccess', { service }), 'success');
-    } else {
-      setTestResults((prev) => ({ ...prev, [service]: 'error' }));
-      addToast(t('adminSettings.connectionFailed', { service }), 'error');
-    }
+  const testConnection = async (_service: string) => {
+    // No real health endpoint for this service yet — don't fake a pass/fail.
+    addToast(
+      t(
+        'adminSettings.connectionTestUnavailable',
+        'Testarea automată pentru acest serviciu nu este încă disponibilă.'
+      ),
+      'info'
+    );
   };
 
   const copyToClipboard = (text: string) => {
@@ -275,7 +273,16 @@ const AdminSettingsPage = () => {
   };
 
   const saveSettings = () => {
-    addToast(t('adminSettings.saved'), 'success');
+    // General settings are not yet persisted to the backend key-value store.
+    // Be honest instead of showing a false "saved" confirmation. (Gmail config
+    // in this page IS persisted — see handleGmailSave.)
+    addToast(
+      t(
+        'adminSettings.generalSaveUnavailable',
+        'Salvarea setărilor generale va fi disponibilă în curând. Configurarea Gmail se salvează.'
+      ),
+      'info'
+    );
   };
 
   // ── Gmail handlers ────────────────────────────────────────────────

@@ -305,13 +305,10 @@ export function PortPricingMatrixTab() {
   };
 
   const handleCellChange = (port: string, ct: string, value: string) => {
+    // Only update the local buffer while typing. The actual PATCH happens on
+    // blur / Enter (handleCellBlur) — this avoids a save per keystroke and the
+    // double-save race between the debounce and blur.
     setEditBuffer((prev) => ({ ...prev, [cellKey(port, ct)]: value }));
-    // Debounce auto-save on change (500ms)
-    const k = cellKey(port, ct);
-    if (saveTimers.current[k]) clearTimeout(saveTimers.current[k]);
-    saveTimers.current[k] = setTimeout(() => {
-      saveCell(port, ct, value);
-    }, 600);
   };
 
   const handleCellBlur = (port: string, ct: string) => {
@@ -369,12 +366,18 @@ export function PortPricingMatrixTab() {
     }));
     setPorts((prev) => [...prev, name].sort((a, b) => a.localeCompare(b)));
     setShowAddModal(false);
-    // Save all zero cells to backend
+    // Save all zero cells to backend. Surface failures on the cell itself
+    // (red state) instead of silently leaving a phantom port row.
     for (const ct of CONTAINER_TYPES) {
+      setCellMeta_(name, ct, { state: 'saving' });
       try {
         await patchPortMatrixCell(name, ct, 0);
-      } catch (_) {
-        // ignore individual failures — user can edit cells later
+        setCellMeta_(name, ct, { state: 'saved' });
+      } catch (err: unknown) {
+        setCellMeta_(name, ct, {
+          state: 'error',
+          error: err instanceof Error ? err.message : 'Salvare eșuată',
+        });
       }
     }
   };

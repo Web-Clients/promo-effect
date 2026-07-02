@@ -540,7 +540,10 @@ const AgentPricesDashboard: React.FC = () => {
                   step="0.01"
                   value={formData.freightPrice}
                   onChange={(e) =>
-                    setFormData({ ...formData, freightPrice: parseFloat(e.target.value) || 0 })
+                    setFormData({
+                      ...formData,
+                      freightPrice: Math.max(0, parseFloat(e.target.value) || 0),
+                    })
                   }
                   className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 rounded-lg"
                   required

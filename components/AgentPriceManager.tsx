@@ -347,7 +347,10 @@ export function AgentPriceManager({ agent, onClose }: Props) {
                       step="0.01"
                       value={formData.freightPrice}
                       onChange={(e) =>
-                        setFormData({ ...formData, freightPrice: parseFloat(e.target.value) || 0 })
+                        setFormData({
+                          ...formData,
+                          freightPrice: Math.max(0, parseFloat(e.target.value) || 0),
+                        })
                       }
                       className="w-full p-2 border rounded-lg"
                       required

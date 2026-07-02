@@ -3,7 +3,7 @@ import { formatDateShort } from '../utils/formatters';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { getLivePositions, LiveVesselPosition } from '../services/tracking';
+import { getLivePositions, LiveVesselPosition, getStatusLabel } from '../services/tracking';
 
 // Fix default marker icons for Leaflet in React
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -274,19 +274,7 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
   };
 
   // Format status for display
-  const formatStatus = (s?: string) => {
-    const statusMap: Record<string, string> = {
-      IN_TRANSIT: 'In Transit',
-      DEPARTED: 'Departed',
-      ARRIVED: 'Arrived',
-      DELIVERED: 'Delivered',
-      GATE_IN: 'Gate In',
-      GATE_OUT: 'Gate Out',
-      LOADED: 'Loaded on Vessel',
-      DISCHARGED: 'Discharged',
-    };
-    return statusMap[s || ''] || s || 'Unknown';
-  };
+  const formatStatus = (s?: string) => (s ? getStatusLabel(s) : '—');
 
   return (
     <div
@@ -389,10 +377,10 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
                   <p className="font-semibold">{pin.location || 'Port'}</p>
                   <p className="text-gray-600 text-xs">
                     {pin.type === 'POL'
-                      ? '🟢 Port of Loading'
+                      ? '🟢 Port de încărcare'
                       : pin.type === 'POD'
-                        ? '🔴 Port of Discharge'
-                        : '🟡 Transshipment'}
+                        ? '🔴 Port de descărcare'
+                        : '🟡 Transbordare'}
                   </p>
                 </div>
               </Popup>
@@ -411,23 +399,23 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
 
                   <div className="space-y-1">
                     <p>
-                      <span className="text-gray-500">Location:</span>{' '}
-                      {effectiveLocation.name || 'Unknown'}
+                      <span className="text-gray-500">Locație:</span>{' '}
+                      {effectiveLocation.name || 'Necunoscută'}
                     </p>
                     {livePos && (
                       <>
-                        <p className="text-xs text-emerald-600 font-medium">● Live AIS</p>
+                        <p className="text-xs text-emerald-600 font-medium">● AIS live</p>
                         <p className="text-xs">
-                          <span className="text-gray-500">Speed:</span>{' '}
-                          {livePos.sog != null ? `${livePos.sog.toFixed(1)} kn` : '—'}
+                          <span className="text-gray-500">Viteză:</span>{' '}
+                          {livePos.sog != null ? `${livePos.sog.toFixed(1)} nd` : '—'}
                         </p>
                         <p className="text-xs">
-                          <span className="text-gray-500">Course:</span>{' '}
+                          <span className="text-gray-500">Direcție:</span>{' '}
                           {livePos.cog != null ? `${livePos.cog.toFixed(0)}°` : '—'}
                         </p>
                         {livePos.destination && (
                           <p className="text-xs">
-                            <span className="text-gray-500">Dest:</span> {livePos.destination}
+                            <span className="text-gray-500">Destinație:</span> {livePos.destination}
                           </p>
                         )}
                       </>

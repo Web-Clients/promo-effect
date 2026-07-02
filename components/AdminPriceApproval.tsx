@@ -10,6 +10,7 @@ import { useToast } from './ui/Toast';
 import agentPortalService, { PendingPriceWithAgent, ApprovalStats } from '../services/agentPortal';
 import { cn } from '../lib/utils';
 import { getErrorMessage, formatDateShort } from '../utils/formatters';
+import { useConfirm } from '../hooks/useConfirm';
 
 // Icons
 const CheckIcon = () => (
@@ -60,6 +61,7 @@ const AdminPriceApproval: React.FC = () => {
   const [rejectionReason, setRejectionReason] = useState('');
 
   const { addToast } = useToast();
+  const { confirm: confirmDialog, ConfirmDialogNode } = useConfirm();
 
   // Load data
   useEffect(() => {
@@ -86,6 +88,16 @@ const AdminPriceApproval: React.FC = () => {
   };
 
   const handleApprove = async (priceId: string) => {
+    const confirmed = await confirmDialog({
+      title: t('pricing.approveConfirmTitle', 'Aprobați prețul?'),
+      message: t(
+        'pricing.approveConfirmMessage',
+        'Prețul aprobat devine disponibil în calculatorul clienților.'
+      ),
+      variant: 'primary',
+      confirmText: t('common.approve', 'Aprobă'),
+    });
+    if (!confirmed) return;
     setProcessingId(priceId);
 
     try {
@@ -148,6 +160,7 @@ const AdminPriceApproval: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {ConfirmDialogNode}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

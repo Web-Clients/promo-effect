@@ -106,24 +106,29 @@ const InvoiceDetailModal: React.FC<InvoiceDetailModalProps> = ({
             )}
           </div>
 
-          {/* Amounts */}
+          {/* Amounts — only show the subtotal/VAT breakdown when the backend
+              actually provides it. We do NOT invent tax figures on an invoice. */}
           <div className="bg-neutral-50 dark:bg-neutral-900 rounded-lg p-4">
-            <div className="flex justify-between mb-2">
-              <span className="text-neutral-600 dark:text-neutral-400">Subtotal:</span>
-              <span className="text-neutral-900 dark:text-neutral-100">
-                ${(invoice.subtotal || invoice.amount / 1.19).toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between mb-2">
-              <span className="text-neutral-600 dark:text-neutral-400">TVA (19%):</span>
-              <span className="text-neutral-900 dark:text-neutral-100">
-                ${(invoice.taxAmount || invoice.amount - invoice.amount / 1.19).toFixed(2)}
-              </span>
-            </div>
+            {invoice.subtotal != null && invoice.taxAmount != null && (
+              <>
+                <div className="flex justify-between mb-2">
+                  <span className="text-neutral-600 dark:text-neutral-400">Subtotal:</span>
+                  <span className="text-neutral-900 dark:text-neutral-100">
+                    {invoice.subtotal.toFixed(2)} {invoice.currency}
+                  </span>
+                </div>
+                <div className="flex justify-between mb-2">
+                  <span className="text-neutral-600 dark:text-neutral-400">TVA:</span>
+                  <span className="text-neutral-900 dark:text-neutral-100">
+                    {invoice.taxAmount.toFixed(2)} {invoice.currency}
+                  </span>
+                </div>
+              </>
+            )}
             <div className="flex justify-between font-semibold text-lg border-t dark:border-neutral-700 pt-2 mt-2">
               <span className="text-neutral-900 dark:text-neutral-100">Total:</span>
               <span className="text-blue-600 dark:text-blue-400">
-                ${invoice.amount.toFixed(2)} {invoice.currency}
+                {invoice.amount.toFixed(2)} {invoice.currency}
               </span>
             </div>
             {invoice.amountPaid && invoice.amountPaid > 0 && (

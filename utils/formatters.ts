@@ -88,8 +88,16 @@ export function getErrorMessage(err: unknown, fallback = 'A apărut o eroare'): 
 
 const LOCALE_MAP: Record<string, string> = { ro: 'ro-RO', ru: 'ru-RU', en: 'en-US' };
 
-export function formatDate(date: Date | string, locale: string = 'ro'): string {
+/** Coerce to a valid Date or null. Guards against "Invalid Date" in the UI. */
+function toValidDate(date: Date | string | null | undefined): Date | null {
+  if (date == null) return null;
   const d = typeof date === 'string' ? new Date(date) : date;
+  return isNaN(d.getTime()) ? null : d;
+}
+
+export function formatDate(date: Date | string, locale: string = 'ro'): string {
+  const d = toValidDate(date);
+  if (!d) return '—';
   return new Intl.DateTimeFormat(LOCALE_MAP[locale] || 'ro-RO', {
     year: 'numeric',
     month: 'long',
@@ -98,7 +106,8 @@ export function formatDate(date: Date | string, locale: string = 'ro'): string {
 }
 
 export function formatDateShort(date: Date | string, locale: string = 'ro'): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
+  const d = toValidDate(date);
+  if (!d) return '—';
   return new Intl.DateTimeFormat(LOCALE_MAP[locale] || 'ro-RO', {
     day: '2-digit',
     month: '2-digit',
@@ -107,7 +116,8 @@ export function formatDateShort(date: Date | string, locale: string = 'ro'): str
 }
 
 export function formatDateTime(date: Date | string, locale: string = 'ro'): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
+  const d = toValidDate(date);
+  if (!d) return '—';
   return new Intl.DateTimeFormat(LOCALE_MAP[locale] || 'ro-RO', {
     day: '2-digit',
     month: '2-digit',
@@ -118,7 +128,8 @@ export function formatDateTime(date: Date | string, locale: string = 'ro'): stri
 }
 
 export function formatRelative(date: Date | string, locale: string = 'ro'): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
+  const d = toValidDate(date);
+  if (!d) return '—';
   const diffMs = Date.now() - d.getTime();
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
@@ -139,6 +150,7 @@ export function formatRelative(date: Date | string, locale: string = 'ro'): stri
 }
 
 export function formatNumber(num: number, locale: string = 'ro'): string {
+  if (num == null || !Number.isFinite(num)) return '—';
   return new Intl.NumberFormat(LOCALE_MAP[locale] || 'ro-RO').format(num);
 }
 
@@ -147,6 +159,7 @@ export function formatCurrency(
   currency: string = 'USD',
   locale: string = 'ro'
 ): string {
+  if (amount == null || !Number.isFinite(amount)) return '—';
   return new Intl.NumberFormat(LOCALE_MAP[locale] || 'ro-RO', {
     style: 'currency',
     currency,

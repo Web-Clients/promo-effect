@@ -66,7 +66,7 @@ const CalculPrompt = ({ onLoginRedirect }: { onLoginRedirect: () => void }) => (
           </p>
           <Button
             size="lg"
-            className="w-full bg-primary-600 text-white font-bold h-16 rounded-full uppercase tracking-[0.3em] text-xs shadow-[0_0_30px_rgba(249,115,22,0.2)]"
+            className="w-full bg-primary-600 text-white font-bold h-16 rounded-full uppercase tracking-[0.3em] text-xs shadow-[0_0_30px_rgba(37,99,235,0.25)]"
             onClick={onLoginRedirect}
           >
             ACCESEAZĂ SIMULATORUL

@@ -51,7 +51,7 @@ const Preturi = ({ onLoginRedirect }: { onLoginRedirect: () => void }) => {
               <Button
                 variant="outline"
                 className="w-full border-white/10 text-white font-bold h-12 text-[10px] uppercase tracking-widest italic hover:bg-white/5"
-                onClick={onLoginRedirect}
+                onClick={() => navigate('/contact')}
               >
                 DETALII COTAȚIE
               </Button>

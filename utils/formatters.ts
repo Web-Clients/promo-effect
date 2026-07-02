@@ -127,6 +127,15 @@ export function formatDateTime(date: Date | string, locale: string = 'ro'): stri
   }).format(d);
 }
 
+export function formatTime(date: Date | string, locale: string = 'ro'): string {
+  const d = toValidDate(date);
+  if (!d) return '—';
+  return new Intl.DateTimeFormat(LOCALE_MAP[locale] || 'ro-RO', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(d);
+}
+
 export function formatRelative(date: Date | string, locale: string = 'ro'): string {
   const d = toValidDate(date);
   if (!d) return '—';

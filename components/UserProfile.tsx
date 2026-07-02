@@ -9,18 +9,24 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/Tabs';
 import { Switch } from './ui/Switch';
 import { useToast } from './ui/Toast';
 import authService from '../services/auth';
-import { getErrorMessage } from '../utils/formatters';
+import usersService from '../services/users';
+import { getErrorMessage, formatDateShort } from '../utils/formatters';
 
 const UserProfile = ({ user }: { user: User }) => {
   const { addToast } = useToast();
   const { t } = useTranslation();
 
-  // Mock states for form inputs
+  // The frontend User type is a narrowed shape; the backend actually returns
+  // phone/createdAt too, so read them defensively from a widened view.
+  const extendedUser = user as User & { phone?: string; createdAt?: string };
+
   const [profile, setProfile] = useState({
     firstName: user.name.split(' ')[0],
     lastName: user.name.split(' ').slice(1).join(' '),
-    phone: '+373 69 123 456',
+    phone: extendedUser.phone ?? '',
   });
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
   const [notifications, setNotifications] = useState({
     email: true,
     sms: false,
@@ -53,14 +59,35 @@ const UserProfile = ({ user }: { user: User }) => {
       });
   }, []);
 
-  const handleProfileSave = (e: React.FormEvent) => {
+  const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    addToast(t('profile.profileUpdated'), 'success');
+    setSavingProfile(true);
+    try {
+      const name = `${profile.firstName} ${profile.lastName}`.trim();
+      await usersService.updateUser(String(user.id), {
+        name,
+        phone: profile.phone,
+      });
+      addToast(t('profile.profileUpdated'), 'success');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, t('errors.saveFailed')), 'error');
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
-  const handlePasswordChange = (e: React.FormEvent) => {
-    e.preventDefault();
-    addToast(t('profile.passwordChanged'), 'success');
+  // There is NO self-service change-password endpoint — only an email reset
+  // flow exists. Trigger the reset email instead of faking a success.
+  const handleSendResetLink = async () => {
+    setSendingReset(true);
+    try {
+      await authService.requestPasswordReset(user.email);
+      addToast('Ți-am trimis un link de resetare pe email', 'success');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, t('errors.saveFailed')), 'error');
+    } finally {
+      setSendingReset(false);
+    }
   };
 
   const handleNotificationsSave = (e: React.FormEvent) => {
@@ -160,10 +187,12 @@ const UserProfile = ({ user }: { user: User }) => {
                 <span className="text-neutral-500">{t('profile.accountStatus')}</span>
                 <Badge variant="green">{t('status.active')}</Badge>
               </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-500">{t('profile.memberSince')}</span>
-                <span className="font-medium">20 Ian, 2024</span>
-              </div>
+              {extendedUser.createdAt && (
+                <div className="flex justify-between">
+                  <span className="text-neutral-500">{t('profile.memberSince')}</span>
+                  <span className="font-medium">{formatDateShort(extendedUser.createdAt)}</span>
+                </div>
+              )}
             </div>
           </Card>
         </div>
@@ -205,30 +234,33 @@ const UserProfile = ({ user }: { user: User }) => {
                     />
                   </div>
                   <div className="text-right">
-                    <Button type="submit">{t('profile.saveChanges')}</Button>
+                    <Button type="submit" loading={savingProfile} disabled={savingProfile}>
+                      {t('profile.saveChanges')}
+                    </Button>
                   </div>
                 </form>
               </Card>
             </TabsContent>
             <TabsContent value="security">
               <Card>
-                <form onSubmit={handlePasswordChange} className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium">{t('profile.currentPassword')}</label>
-                    <Input type="password" placeholder="••••••••" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">{t('profile.newPassword')}</label>
-                    <Input type="password" placeholder="••••••••" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">{t('profile.confirmNewPassword')}</label>
-                    <Input type="password" placeholder="••••••••" />
-                  </div>
+                {/* Password change is done via an email reset link — there is no
+                    self-service change-password endpoint. Be honest about it. */}
+                <div className="space-y-4">
+                  <h4 className="text-base font-semibold">{t('profile.changePassword')}</h4>
+                  <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                    Schimbarea parolei se face prin linkul de resetare trimis pe email.
+                  </p>
                   <div className="text-right">
-                    <Button type="submit">{t('profile.changePassword')}</Button>
+                    <Button
+                      type="button"
+                      onClick={handleSendResetLink}
+                      loading={sendingReset}
+                      disabled={sendingReset}
+                    >
+                      Trimite link de resetare
+                    </Button>
                   </div>
-                </form>
+                </div>
                 <div className="border-t my-6"></div>
                 <div className="space-y-4">
                   <h4 className="text-base font-semibold mb-2">{t('profile.twoFactor')}</h4>

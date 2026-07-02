@@ -249,7 +249,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
         client_name: isClient ? user.name : '',
         status: BookingStatus.DRAFT,
         cargoCategory: 'general',
-        cargoWeight: '1-10 tone',
+        cargoWeight: '',
         cargoReadyDate: new Date().toISOString().split('T')[0],
         ...initialData,
       });
@@ -627,12 +627,13 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
             <Input
               type="number"
               value={bookingData.quoted_price_usd || ''}
-              onChange={(e) =>
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
                 setBookingData({
                   ...bookingData,
-                  quoted_price_usd: parseFloat(e.target.value),
-                })
-              }
+                  quoted_price_usd: Number.isFinite(v) ? v : undefined,
+                });
+              }}
             />
           </div>
         </div>

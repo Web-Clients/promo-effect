@@ -3,13 +3,7 @@ import { Button } from '../ui/Button';
 import { cn } from '../../lib/utils';
 import { ClockIcon, CheckCircleIcon } from './Icons';
 import { RouteDisplay } from './RouteDisplay';
-import {
-  PriceOffer,
-  Incoterm,
-  FinalDestination,
-  LAND_TRANSPORT_CHISINAU,
-  CHINA_INLAND_EXW,
-} from './types';
+import { PriceOffer, Incoterm, FinalDestination } from './types';
 
 interface OfferCardProps {
   offer: PriceOffer;
@@ -22,15 +16,17 @@ interface OfferCardProps {
   onSelectOffer: (offer: PriceOffer, index: number) => void;
 }
 
-const getEXWTotal = () =>
-  CHINA_INLAND_EXW.transport + CHINA_INLAND_EXW.customs + CHINA_INLAND_EXW.warehousing;
+// China inland (EXW) costs are NOT known to the backend and must be configured
+// separately. Returning 0 avoids silently inflating the quote with fabricated
+// constants (previously a fixed $1100 was added).
+const getEXWTotal = () => 0;
 
-// Rata 3 (Constanța→Chișinău): transport + customs + commission only
-// portTaxes are shown here as "Cheltuieli Locale"
-const getLandTransportTotal = (commissionOverride?: number) => {
-  const commission =
-    commissionOverride !== undefined ? commissionOverride : LAND_TRANSPORT_CHISINAU.commission;
-  return LAND_TRANSPORT_CHISINAU.transport + LAND_TRANSPORT_CHISINAU.customs + commission;
+// Rata 3 (Constanța→Chișinău): transport + customs + commission only.
+// Uses the REAL backend values (offer.terrestrialTransport / offer.customsTaxes),
+// so admin price edits are reflected. portTaxes are shown as "Cheltuieli Locale".
+const getLandTransportTotal = (offer: PriceOffer, commissionOverride?: number) => {
+  const commission = commissionOverride !== undefined ? commissionOverride : offer.commission || 0;
+  return offer.terrestrialTransport + offer.customsTaxes + commission;
 };
 
 // Rata 1 maritime: freight + portAdjustment only (portTaxes moved to Rata 3)
@@ -173,7 +169,7 @@ export const OfferCard = ({
         <div className="mt-5 pt-5 border-t border-neutral-200 dark:border-neutral-700 animate-fade-in">
           {isAdmin ? (
             <>
-              {/* Admin: Rata 0 - EXW China costs */}
+              {/* Admin: Rata 0 - EXW China costs (configured separately, not in this quote) */}
               {incoterm === 'EXW' && (
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
@@ -184,25 +180,11 @@ export const OfferCard = ({
                       ${getEXWTotal().toFixed(2)}
                     </span>
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                      <p className="text-xs text-neutral-400 mb-1">Transport China</p>
-                      <p className="font-semibold text-primary-800 dark:text-white">
-                        ${CHINA_INLAND_EXW.transport.toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                      <p className="text-xs text-neutral-400 mb-1">Vamă Export</p>
-                      <p className="font-semibold text-primary-800 dark:text-white">
-                        ${CHINA_INLAND_EXW.customs.toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                      <p className="text-xs text-neutral-400 mb-1">Depozitare</p>
-                      <p className="font-semibold text-primary-800 dark:text-white">
-                        ${CHINA_INLAND_EXW.warehousing.toFixed(2)}
-                      </p>
-                    </div>
+                  <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 rounded-lg">
+                    <p className="text-sm text-amber-700 dark:text-amber-400">
+                      Costurile interne China se configurează separat și nu sunt incluse în acest
+                      calcul.
+                    </p>
                   </div>
                 </div>
               )}
@@ -289,20 +271,20 @@ export const OfferCard = ({
                       {supplierCoversMaritime ? 'Rata 2' : 'Rata 3'}: Constanța → Chișinău
                     </h5>
                     <span className="text-sm font-bold text-accent-500">
-                      ${getLandTransportTotal(commissionOverride).toFixed(2)}
+                      ${getLandTransportTotal(offer, commissionOverride).toFixed(2)}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
                       <p className="text-xs text-neutral-400 mb-1">Transport Terestru</p>
                       <p className="font-semibold text-primary-800 dark:text-white">
-                        ${LAND_TRANSPORT_CHISINAU.transport.toFixed(2)}
+                        ${offer.terrestrialTransport.toFixed(2)}
                       </p>
                     </div>
                     <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
                       <p className="text-xs text-neutral-400 mb-1">Taxe Vamale</p>
                       <p className="font-semibold text-primary-800 dark:text-white">
-                        ${LAND_TRANSPORT_CHISINAU.customs.toFixed(2)}
+                        ${offer.customsTaxes.toFixed(2)}
                       </p>
                     </div>
                     <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
@@ -353,7 +335,7 @@ export const OfferCard = ({
                     ${getEXWTotal().toFixed(0)}
                   </p>
                   <p className="text-xs text-purple-500 mt-1">
-                    Origine: {offer.portOrigin} (vamă export + ridicare + depozitare)
+                    Costurile interne China se configurează separat.
                   </p>
                 </div>
               )}
@@ -400,8 +382,9 @@ export const OfferCard = ({
                   Includes terrestrial + customs + local fees + commission combined */}
               <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4 border border-green-100 dark:border-green-800/30">
                 <div className="flex items-center gap-2 mb-2">
+                  {/* Domestic road leg — NOT a maritime Incoterm (no CFR/CIF here) */}
                   <span className="px-2 py-0.5 text-xs font-bold text-white bg-green-600 rounded">
-                    {finalDestination === 'constanta' ? 'CFR' : 'CFR/CIF'}
+                    Transport intern
                   </span>
                   <h5 className="text-sm font-semibold text-green-800 dark:text-green-300">
                     {offer.portIntermediate} → {offer.portFinal}

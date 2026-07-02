@@ -44,6 +44,7 @@ export function BasePricesTab({
 }: BasePricesTabProps) {
   const { t } = useTranslation();
   const [formData, setFormData] = useState<BasePriceInput>(defaultFormData());
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (editingItem) {
@@ -69,6 +70,12 @@ export function BasePricesTab({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Date-order guard: "valid until" must not be before "valid from".
+    if (new Date(formData.validUntil) < new Date(formData.validFrom)) {
+      setError('Data "Valid Până La" nu poate fi înainte de "Valid De La".');
+      return;
+    }
+    setError(null);
     onSave(formData);
   };
 
@@ -224,10 +231,17 @@ export function BasePricesTab({
                 value={formData.validUntil}
                 onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
                 required
+                min={formData.validFrom}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
           </div>
+
+          {error && (
+            <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+              {error}
+            </div>
+          )}
 
           <div className="flex items-center">
             <input

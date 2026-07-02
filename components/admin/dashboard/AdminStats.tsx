@@ -98,6 +98,37 @@ const XCircleIcon = () => (
   </svg>
 );
 
+// ─── System-health label maps ─────────────────────────────────────────────────
+
+// RO labels for known health-check keys (fallback to the raw key).
+const HEALTH_KEY_LABELS: Record<string, string> = {
+  database: 'Bază de date',
+  db: 'Bază de date',
+  emailService: 'Serviciu email',
+  emailQueue: 'Serviciu email',
+  email: 'Serviciu email',
+  redis: 'Redis',
+  storage: 'Stocare',
+  api: 'API',
+  tracking: 'Tracking',
+};
+
+const healthKeyLabel = (key: string): string => HEALTH_KEY_LABELS[key] || key;
+
+// RO labels for health statuses (fallback to the raw status value).
+const healthStatusLabel = (status: string): string => {
+  switch (status) {
+    case 'ok':
+      return 'OK';
+    case 'warning':
+      return 'Atenție';
+    case 'error':
+      return 'Eroare';
+    default:
+      return status;
+  }
+};
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface AdminStatsProps {
@@ -294,7 +325,7 @@ export const AdminStats: React.FC<AdminStatsProps> = ({ stats, systemHealth }) =
                 ][]
               ).map(([key, value]) => (
                 <div key={key} className="flex items-center justify-between">
-                  <span className="text-sm text-neutral-500 capitalize">{key}</span>
+                  <span className="text-sm text-neutral-500">{healthKeyLabel(key)}</span>
                   <span
                     className={cn(
                       'flex items-center gap-1 text-xs font-medium',
@@ -306,7 +337,7 @@ export const AdminStats: React.FC<AdminStatsProps> = ({ stats, systemHealth }) =
                     {value.status === 'ok' && <CheckCircleIcon />}
                     {value.status === 'warning' && <AlertIcon />}
                     {value.status === 'error' && <XCircleIcon />}
-                    {value.status === 'ok' ? 'OK' : value.status}
+                    {healthStatusLabel(value.status)}
                   </span>
                 </div>
               ))}

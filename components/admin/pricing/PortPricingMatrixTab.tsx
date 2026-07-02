@@ -454,8 +454,8 @@ export function PortPricingMatrixTab() {
         <div>
           <h3 className="text-lg font-medium text-gray-900">Matricea Ajustărilor de Port</h3>
           <p className="text-sm text-gray-500 mt-1">
-            Click pe orice celulă pentru a edita. Salvarea este automată la fiecare modificare.
-            Valori în USD (+/−). Porturile adăugate apar automat în Calculator și Rezervări.
+            Click pe orice celulă pentru a edita. Salvare la ieșirea din câmp / Enter. Valori în USD
+            (+/−). Porturile adăugate apar automat în Calculator și Rezervări.
           </p>
         </div>
         <button

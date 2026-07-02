@@ -14,7 +14,7 @@ import { TlxBadge, DocBadge, StatusBadge } from './BookingsBadges';
 import { Button } from '../ui/Button';
 import { PlusIcon, FileTextIcon } from '../icons';
 import { SkeletonTableRow } from '../ui/Skeleton';
-import { formatDateShort } from '../../utils/formatters';
+import { formatDateShort, formatCurrency } from '../../utils/formatters';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -174,9 +174,19 @@ export const BookingsTable: React.FC<BookingsTableProps> = ({
                 <tr
                   key={b.id}
                   onClick={() => navigate(`/dashboard/bookings/${b.id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      navigate(`/dashboard/bookings/${b.id}`);
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`${t('bookings.openBooking', 'Deschide comanda')} ${b.id}`}
                   className={cn(
                     'cursor-pointer transition-colors',
                     'hover:bg-neutral-50 dark:hover:bg-neutral-700/30',
+                    'focus:outline-none focus:ring-2 focus:ring-inset focus:ring-accent-500',
                     selectedRows.includes(b.id) && 'bg-accent-50/50 dark:bg-accent-500/10'
                   )}
                   style={{ animationDelay: `${index * 30}ms` }}
@@ -255,7 +265,7 @@ export const BookingsTable: React.FC<BookingsTableProps> = ({
                   {/* Preț */}
                   <td className="p-4 text-right">
                     <span className="font-semibold text-accent-500 whitespace-nowrap">
-                      ${b.totalPrice?.toFixed(0) ?? '0'}
+                      {b.totalPrice != null ? formatCurrency(b.totalPrice, 'USD') : '—'}
                     </span>
                   </td>
                   {/* TLX */}

@@ -30,8 +30,9 @@ test.describe('Smoke tests', () => {
 
   test('language switcher works', async ({ page }) => {
     await page.goto('/');
-    // Look for language switcher buttons
-    const enButton = page.locator('button:has-text("EN")');
+    // Language switcher button — exact match, else "EN" also matches other
+    // buttons whose label contains those letters (strict-mode violation).
+    const enButton = page.getByRole('button', { name: 'EN', exact: true });
     if (await enButton.isVisible()) {
       await enButton.click();
       // Verify localStorage was set

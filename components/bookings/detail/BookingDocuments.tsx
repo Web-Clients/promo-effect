@@ -3,7 +3,7 @@ import { Card } from '../../ui/Card';
 import { Button } from '../../ui/Button';
 import { useToast } from '../../ui/Toast';
 import { api } from '../../../services/api';
-import { getErrorMessage } from '../../../utils/formatters';
+import { getErrorMessage, formatDateShort } from '../../../utils/formatters';
 
 export interface BookingDocument {
   id: string;
@@ -26,18 +26,6 @@ function formatBytes(bytes?: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function formatDate(str: string): string {
-  try {
-    return new Date(str).toLocaleDateString('ro-RO', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-  } catch {
-    return str;
-  }
 }
 
 function getFileIcon(type: string): string {
@@ -136,7 +124,7 @@ const BookingDocuments: React.FC<BookingDocumentsProps> = ({
                   {doc.name}
                 </p>
                 <p className="text-xs text-neutral-400 dark:text-neutral-500">
-                  {formatDate(doc.uploadedAt)}
+                  {formatDateShort(doc.uploadedAt)}
                   {doc.size ? ` · ${formatBytes(doc.size)}` : ''}
                 </p>
               </div>

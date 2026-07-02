@@ -5,7 +5,7 @@
 
 import { Router, Request, Response } from 'express';
 import { ReportsService } from './reports.service';
-import { authMiddleware } from '../../middleware/auth.middleware';
+import { authMiddleware, requireRole } from '../../middleware/auth.middleware';
 import { reportLimiter } from '../../middleware/rateLimit.middleware';
 import { reportExportService } from '../../services/report-export.service';
 import prisma from '../../lib/prisma';
@@ -123,48 +123,53 @@ router.get('/containers', authMiddleware, async (req: Request, res: Response) =>
  * Access: ADMIN, MANAGER
  * Query params: export_format (pdf|excel|csv) - if provided, returns file instead of JSON
  */
-router.get('/financiar', authMiddleware, async (req: Request, res: Response) => {
-  try {
-    const filters: any = {
-      dateFrom: req.query.date_from ? new Date(req.query.date_from as string) : undefined,
-      dateTo: req.query.date_to ? new Date(req.query.date_to as string) : undefined,
-      clientId: req.query.client_id as string,
-      groupBy: (req.query.group_by as 'day' | 'month' | 'quarter' | 'year') || 'month',
-    };
+router.get(
+  '/financiar',
+  authMiddleware,
+  requireRole(['ADMIN', 'SUPER_ADMIN', 'MANAGER']),
+  async (req: Request, res: Response) => {
+    try {
+      const filters: any = {
+        dateFrom: req.query.date_from ? new Date(req.query.date_from as string) : undefined,
+        dateTo: req.query.date_to ? new Date(req.query.date_to as string) : undefined,
+        clientId: req.query.client_id as string,
+        groupBy: (req.query.group_by as 'day' | 'month' | 'quarter' | 'year') || 'month',
+      };
 
-    const report = await reportsService.getFinancialReport(filters);
+      const report = await reportsService.getFinancialReport(filters);
 
-    // Check if export is requested
-    const exportFormat = req.query.export_format as 'pdf' | 'excel' | 'csv' | undefined;
-    if (exportFormat) {
-      const exportResult = await reportExportService.exportReport({
-        format: exportFormat,
-        reportType: 'financial',
+      // Check if export is requested
+      const exportFormat = req.query.export_format as 'pdf' | 'excel' | 'csv' | undefined;
+      if (exportFormat) {
+        const exportResult = await reportExportService.exportReport({
+          format: exportFormat,
+          reportType: 'financial',
+          data: report,
+          title: 'Raport Financiar',
+          filename: `financial-report-${new Date().toISOString().split('T')[0]}.${exportFormat === 'excel' ? 'xlsx' : exportFormat}`,
+        });
+
+        res.setHeader('Content-Type', exportResult.contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="${exportResult.filename}"`);
+        res.setHeader('Content-Length', exportResult.buffer.length);
+        return res.send(exportResult.buffer);
+      }
+
+      res.json({
+        success: true,
         data: report,
-        title: 'Raport Financiar',
-        filename: `financial-report-${new Date().toISOString().split('T')[0]}.${exportFormat === 'excel' ? 'xlsx' : exportFormat}`,
+        timestamp: new Date().toISOString(),
       });
-
-      res.setHeader('Content-Type', exportResult.contentType);
-      res.setHeader('Content-Disposition', `attachment; filename="${exportResult.filename}"`);
-      res.setHeader('Content-Length', exportResult.buffer.length);
-      return res.send(exportResult.buffer);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch financial report';
+      res.status(500).json({
+        success: false,
+        error: message,
+        timestamp: new Date().toISOString(),
+      });
     }
-
-    res.json({
-      success: true,
-      data: report,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to fetch financial report';
-    res.status(500).json({
-      success: false,
-      error: message,
-      timestamp: new Date().toISOString(),
-    });
   }
-});
+);
 
 /**
  * GET /api/v1/reports/client-performance
@@ -172,42 +177,47 @@ router.get('/financiar', authMiddleware, async (req: Request, res: Response) => 
  * Access: ADMIN, MANAGER
  * Query params: export_format (pdf|excel|csv) - if provided, returns file instead of JSON
  */
-router.get('/client-performance', authMiddleware, async (req: Request, res: Response) => {
-  try {
-    const clientId = req.query.client_id as string | undefined;
-    const report = await reportsService.getClientPerformance(clientId);
+router.get(
+  '/client-performance',
+  authMiddleware,
+  requireRole(['ADMIN', 'SUPER_ADMIN', 'MANAGER']),
+  async (req: Request, res: Response) => {
+    try {
+      const clientId = req.query.client_id as string | undefined;
+      const report = await reportsService.getClientPerformance(clientId);
 
-    // Check if export is requested
-    const exportFormat = req.query.export_format as 'pdf' | 'excel' | 'csv' | undefined;
-    if (exportFormat) {
-      const exportResult = await reportExportService.exportReport({
-        format: exportFormat,
-        reportType: 'client-performance',
+      // Check if export is requested
+      const exportFormat = req.query.export_format as 'pdf' | 'excel' | 'csv' | undefined;
+      if (exportFormat) {
+        const exportResult = await reportExportService.exportReport({
+          format: exportFormat,
+          reportType: 'client-performance',
+          data: report,
+          title: 'Raport Performanță Clienți',
+          filename: `client-performance-report-${new Date().toISOString().split('T')[0]}.${exportFormat === 'excel' ? 'xlsx' : exportFormat}`,
+        });
+
+        res.setHeader('Content-Type', exportResult.contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="${exportResult.filename}"`);
+        res.setHeader('Content-Length', exportResult.buffer.length);
+        return res.send(exportResult.buffer);
+      }
+
+      res.json({
+        success: true,
         data: report,
-        title: 'Raport Performanță Clienți',
-        filename: `client-performance-report-${new Date().toISOString().split('T')[0]}.${exportFormat === 'excel' ? 'xlsx' : exportFormat}`,
+        timestamp: new Date().toISOString(),
       });
-
-      res.setHeader('Content-Type', exportResult.contentType);
-      res.setHeader('Content-Disposition', `attachment; filename="${exportResult.filename}"`);
-      res.setHeader('Content-Length', exportResult.buffer.length);
-      return res.send(exportResult.buffer);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch client performance';
+      res.status(500).json({
+        success: false,
+        error: message,
+        timestamp: new Date().toISOString(),
+      });
     }
-
-    res.json({
-      success: true,
-      data: report,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to fetch client performance';
-    res.status(500).json({
-      success: false,
-      error: message,
-      timestamp: new Date().toISOString(),
-    });
   }
-});
+);
 
 /**
  * GET /api/v1/reports/operational
@@ -215,43 +225,48 @@ router.get('/client-performance', authMiddleware, async (req: Request, res: Resp
  * Access: ADMIN, MANAGER
  * Query params: export_format (pdf|excel|csv) - if provided, returns file instead of JSON
  */
-router.get('/operational', authMiddleware, async (req: Request, res: Response) => {
-  try {
-    const dateFrom = req.query.date_from ? new Date(req.query.date_from as string) : undefined;
-    const dateTo = req.query.date_to ? new Date(req.query.date_to as string) : undefined;
+router.get(
+  '/operational',
+  authMiddleware,
+  requireRole(['ADMIN', 'SUPER_ADMIN', 'MANAGER']),
+  async (req: Request, res: Response) => {
+    try {
+      const dateFrom = req.query.date_from ? new Date(req.query.date_from as string) : undefined;
+      const dateTo = req.query.date_to ? new Date(req.query.date_to as string) : undefined;
 
-    const report = await reportsService.getOperationalReport(dateFrom, dateTo);
+      const report = await reportsService.getOperationalReport(dateFrom, dateTo);
 
-    // Check if export is requested
-    const exportFormat = req.query.export_format as 'pdf' | 'excel' | 'csv' | undefined;
-    if (exportFormat) {
-      const exportResult = await reportExportService.exportReport({
-        format: exportFormat,
-        reportType: 'operational',
+      // Check if export is requested
+      const exportFormat = req.query.export_format as 'pdf' | 'excel' | 'csv' | undefined;
+      if (exportFormat) {
+        const exportResult = await reportExportService.exportReport({
+          format: exportFormat,
+          reportType: 'operational',
+          data: report,
+          title: 'Raport Operațional',
+          filename: `operational-report-${new Date().toISOString().split('T')[0]}.${exportFormat === 'excel' ? 'xlsx' : exportFormat}`,
+        });
+
+        res.setHeader('Content-Type', exportResult.contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="${exportResult.filename}"`);
+        res.setHeader('Content-Length', exportResult.buffer.length);
+        return res.send(exportResult.buffer);
+      }
+
+      res.json({
+        success: true,
         data: report,
-        title: 'Raport Operațional',
-        filename: `operational-report-${new Date().toISOString().split('T')[0]}.${exportFormat === 'excel' ? 'xlsx' : exportFormat}`,
+        timestamp: new Date().toISOString(),
       });
-
-      res.setHeader('Content-Type', exportResult.contentType);
-      res.setHeader('Content-Disposition', `attachment; filename="${exportResult.filename}"`);
-      res.setHeader('Content-Length', exportResult.buffer.length);
-      return res.send(exportResult.buffer);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch operational report';
+      res.status(500).json({
+        success: false,
+        error: message,
+        timestamp: new Date().toISOString(),
+      });
     }
-
-    res.json({
-      success: true,
-      data: report,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to fetch operational report';
-    res.status(500).json({
-      success: false,
-      error: message,
-      timestamp: new Date().toISOString(),
-    });
   }
-});
+);
 
 export default router;

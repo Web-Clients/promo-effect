@@ -3,14 +3,18 @@ import { formatDateShort } from '../utils/formatters';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import iconRetina from 'leaflet/dist/images/marker-icon-2x.png';
+import icon from 'leaflet/dist/images/marker-icon.png';
+import shadow from 'leaflet/dist/images/marker-shadow.png';
 import { getLivePositions, LiveVesselPosition, getStatusLabel } from '../services/tracking';
 
-// Fix default marker icons for Leaflet in React
+// Fix default marker icons for Leaflet in React — use bundled assets instead
+// of a CDN so the icons always load (offline/CSP-safe).
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+  iconRetinaUrl: iconRetina,
+  iconUrl: icon,
+  shadowUrl: shadow,
 });
 
 // Custom icons
@@ -38,15 +42,20 @@ const containerIcon = new L.DivIcon({
   iconAnchor: [10, 10],
 });
 
-const vesselIcon = new L.DivIcon({
-  className: 'custom-vessel-marker',
-  html: `<div style="
-    font-size: 24px;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-  ">🚢</div>`,
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
-});
+// Rotated arrow vessel marker (mirrors FleetMap's containerIcon) so the ship
+// points the way it is actually heading instead of drifting sideways.
+const vesselIconRot = (deg: number): L.DivIcon =>
+  new L.DivIcon({
+    className: 'custom-vessel-marker',
+    html: `<div style="transform: rotate(${deg}deg); filter: drop-shadow(0 2px 4px rgba(0,0,0,.3));">
+      <svg width="28" height="28" viewBox="0 0 34 34" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="17" cy="17" r="13" fill="#0d9488" stroke="#5eead4" stroke-width="2"/>
+        <path d="M17 6 L23 19 L17 16 L11 19 Z" fill="white"/>
+      </svg>
+    </div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+  });
 
 const portOriginIcon = new L.DivIcon({
   className: 'custom-port-origin-marker',
@@ -136,16 +145,20 @@ export interface ContainerMapProps {
 // Component to fit map bounds to route — ONCE. Live polling moves the
 // vessel marker every few seconds; re-fitting on each update would yank
 // the viewport and make the map unusable while inspecting a vessel.
-const FitBounds: React.FC<{ bounds: L.LatLngBoundsExpression | null }> = ({ bounds }) => {
+// A single point uses setView at a sensible zoom instead of a huge ±5° box.
+const FitBounds: React.FC<{ points: [number, number][] }> = ({ points }) => {
   const map = useMap();
   const fitted = useRef(false);
 
   useEffect(() => {
-    if (bounds && !fitted.current) {
-      map.fitBounds(bounds, { padding: [50, 50] });
-      fitted.current = true;
+    if (points.length === 0 || fitted.current) return;
+    if (points.length === 1) {
+      map.setView(points[0], 7);
+    } else {
+      map.fitBounds(L.latLngBounds(points), { padding: [50, 50] });
     }
-  }, [map, bounds]);
+    fitted.current = true;
+  }, [map, points]);
 
   return null;
 };
@@ -217,8 +230,9 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
     return route.path.map(([lng, lat]) => [lat, lng] as [number, number]);
   }, [route?.path]);
 
-  // Calculate map bounds
-  const bounds = useMemo(() => {
+  // Collect all points the initial viewport should encompass. FitBounds
+  // decides between setView (single point) and fitBounds (multiple points).
+  const fitPoints = useMemo(() => {
     const points: [number, number][] = [];
 
     // Add current location
@@ -240,15 +254,8 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
       });
     }
 
-    if (points.length === 0) return null;
-    if (points.length === 1) {
-      // Single point - create small bounds around it
-      const [lat, lng] = points[0];
-      return L.latLngBounds([lat - 5, lng - 5], [lat + 5, lng + 5]);
-    }
-
-    return L.latLngBounds(points);
-  }, [currentLocation, routePath, route?.pins]);
+    return points;
+  }, [effectiveLocation?.latitude, effectiveLocation?.longitude, routePath, route?.pins]);
 
   // Default center (world view)
   const defaultCenter: [number, number] =
@@ -339,7 +346,7 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
           />
 
           {/* Fit bounds to show all points */}
-          {bounds && <FitBounds bounds={bounds} />}
+          {fitPoints.length > 0 && <FitBounds points={fitPoints} />}
 
           {/* Route polyline - solid line for actual route */}
           {routePath.length > 1 && (
@@ -391,7 +398,9 @@ const ContainerMap: React.FC<ContainerMapProps> = ({
           {effectiveLocation?.latitude && effectiveLocation?.longitude && (
             <Marker
               position={[effectiveLocation.latitude, effectiveLocation.longitude]}
-              icon={vessel?.name ? vesselIcon : containerIcon}
+              icon={
+                vessel?.name ? vesselIconRot(livePos?.heading ?? livePos?.cog ?? 0) : containerIcon
+              }
             >
               <Popup>
                 <div className="text-sm min-w-[200px]">

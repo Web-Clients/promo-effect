@@ -2,11 +2,9 @@ import React from 'react';
 import { TrackingEvent } from '../types';
 import { cn } from '../lib/utils';
 import { CheckIcon, MapPinIcon } from './icons';
-import { formatDateShort } from '../utils/formatters';
+import { formatDateShort, formatTime } from '../utils/formatters';
 
 const formatDate = (dateString: string) => formatDateShort(dateString);
-const formatTime = (dateString: string) =>
-  new Date(dateString).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
 
 export const TrackingTimeline = ({ events }: { events: TrackingEvent[] }) => {
   return (

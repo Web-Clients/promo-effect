@@ -123,7 +123,9 @@ const Login = ({ onLogin }: LoginProps) => {
           </div>
         </div>
 
-        <p className="text-white/40 text-sm">© 2025 Promo-Efect. Toate drepturile rezervate.</p>
+        <p className="text-white/40 text-sm">
+          © {new Date().getFullYear()} Promo-Efect. Toate drepturile rezervate.
+        </p>
       </div>
 
       {/* Right Side - Login Form */}

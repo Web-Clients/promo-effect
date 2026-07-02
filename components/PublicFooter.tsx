@@ -78,7 +78,7 @@ export const PublicFooter = () => {
             {['Linkedin', 'Facebook', 'Twitter'].map((s) => (
               <span
                 key={s}
-                className="text-[10px] font-black text-neutral-700 uppercase tracking-widest hover:text-white"
+                className="text-[10px] font-black text-neutral-700 uppercase tracking-widest"
               >
                 {s}
               </span>

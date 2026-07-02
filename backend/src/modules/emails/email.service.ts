@@ -523,6 +523,10 @@ export class EmailService {
                 confidence: extractedData.confidence,
                 containerNumber: extractedData.containerNumber,
                 blNumber: extractedData.blNumber,
+                // Surfaced in the admin "recent containers" panel columns.
+                vesselName: extractedData.vesselName,
+                portOfLoading: extractedData.portOrigin,
+                eta: extractedData.eta,
               }),
             },
           });

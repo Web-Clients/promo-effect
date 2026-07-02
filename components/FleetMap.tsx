@@ -462,6 +462,47 @@ const FleetMap: React.FC = () => {
               );
             })}
         </MapContainer>
+
+        {/* On-map legend — explains marker source colors. Colors match the
+            containerIcon source mapping exactly + the ambient AIS dot. */}
+        <div className="absolute bottom-3 left-3 z-[500] bg-white/90 dark:bg-neutral-800/90 backdrop-blur rounded-lg shadow-lg px-3 py-2 text-[11px] text-neutral-700 dark:text-neutral-200 space-y-1">
+          <div className="font-semibold text-neutral-800 dark:text-neutral-100 mb-1">Legendă</div>
+          <div className="flex items-center gap-2">
+            <span
+              className="w-3 h-3 rounded-full inline-block"
+              style={{ backgroundColor: '#0d9488' }}
+            />
+            <span>AIS live</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className="w-3 h-3 rounded-full inline-block"
+              style={{ backgroundColor: '#64748b' }}
+            />
+            <span>Ultima poziție cunoscută</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className="w-3 h-3 rounded-full inline-block"
+              style={{ backgroundColor: '#6366f1' }}
+            />
+            <span>Ultimul eveniment</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className="w-3 h-3 rounded-full inline-block"
+              style={{ backgroundColor: '#d97706' }}
+            />
+            <span>La port (fallback)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className="w-3 h-3 rounded-full inline-block"
+              style={{ backgroundColor: '#0ea5e9' }}
+            />
+            <span>Trafic AIS global</span>
+          </div>
+        </div>
       </div>
     </div>
   );

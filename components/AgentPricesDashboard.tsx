@@ -208,6 +208,15 @@ const AgentPricesDashboard: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Date-order guards
+    if (new Date(formData.validUntil) < new Date(formData.validFrom)) {
+      addToast('Data "Valid Până" nu poate fi înainte de "Valid Din".', 'error');
+      return;
+    }
+    if (new Date(formData.departureDate) < new Date(formData.validFrom)) {
+      addToast('Data plecării nu poate fi înainte de "Valid Din".', 'error');
+      return;
+    }
     setIsSaving(true);
 
     try {
@@ -574,6 +583,7 @@ const AgentPricesDashboard: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
                     className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 rounded-lg"
                     required
+                    min={formData.validFrom}
                   />
                 </div>
 

@@ -469,6 +469,9 @@ router.get(
           emailFrom: changes.emailFrom,
           emailSubject: changes.emailSubject,
           confidence: changes.confidence,
+          vesselName: changes.vesselName,
+          portOfLoading: changes.portOfLoading,
+          eta: changes.eta,
           createdAt: log.createdAt,
         };
       });

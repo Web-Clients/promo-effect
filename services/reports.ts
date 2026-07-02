@@ -39,5 +39,10 @@ export async function getFinancialReport(groupBy = 'month'): Promise<FinancialRe
 
 export async function getContainersReport(): Promise<ContainersReport> {
   const res = await api.get('/v1/reports/containers');
-  return unwrap<ContainersReport>(res);
+  // The endpoint returns { success, data: <containers[]>, statistics: {...} }
+  // where `statistics` is a SIBLING of `data`, not nested. Read it directly.
+  const body = res.data as { statistics?: ContainersReport['statistics'] };
+  return {
+    statistics: body.statistics ?? { total: 0, byStatus: {}, byShippingLine: {}, byPort: {} },
+  };
 }

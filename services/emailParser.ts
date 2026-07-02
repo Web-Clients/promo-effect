@@ -68,6 +68,14 @@ export interface RecentEmailContainer {
   emailFrom?: string;
   emailSubject?: string;
   confidence?: number;
+  // Enrichment fields extracted by the parser (ParsedEmailData). The backend
+  // /admin/emails/recent-containers endpoint does NOT yet return these — it only
+  // maps containerNumber/blNumber/emailFrom/emailSubject/confidence from the audit
+  // log. They are optional here so the UI can display them once the backend is
+  // updated to include them in the changes payload. See email.controller.ts.
+  vesselName?: string;
+  portOfLoading?: string;
+  eta?: string;
   createdAt: string;
 }
 
@@ -135,18 +143,27 @@ class EmailParserService {
   /**
    * Parse email content using Gemini AI
    */
-  async parseWithAI(emailContent: string): Promise<{ success: boolean; data?: ParsedEmailData; confidence?: number; error?: string }> {
-    const response = await api.post<{ success: boolean; data?: ParsedEmailData; confidence?: number; error?: string }>(
-      '/admin/emails/parse-with-ai',
-      { emailContent }
-    );
+  async parseWithAI(
+    emailContent: string
+  ): Promise<{ success: boolean; data?: ParsedEmailData; confidence?: number; error?: string }> {
+    const response = await api.post<{
+      success: boolean;
+      data?: ParsedEmailData;
+      confidence?: number;
+      error?: string;
+    }>('/admin/emails/parse-with-ai', { emailContent });
     return response.data;
   }
 
   /**
    * Parse email without creating booking
    */
-  async parseEmail(email: { from?: string; subject: string; body: string; date?: string }): Promise<EmailProcessingResult> {
+  async parseEmail(email: {
+    from?: string;
+    subject: string;
+    body: string;
+    date?: string;
+  }): Promise<EmailProcessingResult> {
     const response = await api.post<EmailProcessingResult>('/admin/emails/parse', email);
     return response.data;
   }
@@ -182,22 +199,28 @@ class EmailParserService {
   /**
    * Fetch emails from Gmail (queue only, no processing)
    */
-  async fetchFromGmail(maxResults: number = 10): Promise<{ success: boolean; fetched: number; queued: number; message: string }> {
-    const response = await api.post<{ success: boolean; fetched: number; queued: number; message: string }>(
-      '/admin/emails/fetch',
-      { maxResults }
-    );
+  async fetchFromGmail(
+    maxResults: number = 10
+  ): Promise<{ success: boolean; fetched: number; queued: number; message: string }> {
+    const response = await api.post<{
+      success: boolean;
+      fetched: number;
+      queued: number;
+      message: string;
+    }>('/admin/emails/fetch', { maxResults });
     return response.data;
   }
 
   /**
    * Get list of incoming emails with filtering
    */
-  async getIncomingEmails(options: {
-    status?: string;
-    limit?: number;
-    offset?: number;
-  } = {}): Promise<{ success: boolean; count: number; emails: IncomingEmail[] }> {
+  async getIncomingEmails(
+    options: {
+      status?: string;
+      limit?: number;
+      offset?: number;
+    } = {}
+  ): Promise<{ success: boolean; count: number; emails: IncomingEmail[] }> {
     const params = new URLSearchParams();
     if (options.status) params.append('status', options.status);
     if (options.limit) params.append('limit', options.limit.toString());
@@ -213,14 +236,19 @@ class EmailParserService {
    * Get pending emails in queue
    */
   async getPendingEmails(): Promise<{ pending: number; emails: IncomingEmail[] }> {
-    const response = await api.get<{ pending: number; emails: IncomingEmail[] }>('/admin/emails/queue');
+    const response = await api.get<{ pending: number; emails: IncomingEmail[] }>(
+      '/admin/emails/queue'
+    );
     return response.data;
   }
 
   /**
    * Process all pending emails in queue
    */
-  async processQueue(autoCreate: boolean = true, minConfidence: number = 80): Promise<{
+  async processQueue(
+    autoCreate: boolean = true,
+    minConfidence: number = 80
+  ): Promise<{
     summary: {
       total: number;
       success: number;

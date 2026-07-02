@@ -83,6 +83,14 @@ const AIEmailParser: React.FC = () => {
 
   const lastRun = gmailStatus?.lastFetchResult;
 
+  // Autopilot is considered healthy only if the cron ran recently. The job runs
+  // every 15 min, so anything older than ~20 min (or a missing timestamp) means
+  // the cron likely stopped — show an honest "Inactiv" state instead of a fake
+  // "Activ" badge.
+  const AUTOPILOT_STALE_MS = 20 * 60 * 1000;
+  const autopilotActive =
+    !!lastRun?.timestamp && Date.now() - new Date(lastRun.timestamp).getTime() < AUTOPILOT_STALE_MS;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -205,18 +213,44 @@ const AIEmailParser: React.FC = () => {
         </div>
 
         {/* Autopilot Status */}
-        <div className="rounded-xl border border-blue-200 dark:border-blue-700/50 bg-blue-50 dark:bg-blue-900/20 p-4 flex items-start gap-3">
-          <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-800/30 flex items-center justify-center flex-shrink-0">
+        <div
+          className={cn(
+            'rounded-xl border p-4 flex items-start gap-3',
+            autopilotActive
+              ? 'border-blue-200 dark:border-blue-700/50 bg-blue-50 dark:bg-blue-900/20'
+              : 'border-amber-200 dark:border-amber-700/50 bg-amber-50 dark:bg-amber-900/20'
+          )}
+        >
+          <div
+            className={cn(
+              'w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0',
+              autopilotActive
+                ? 'bg-blue-100 dark:bg-blue-800/30'
+                : 'bg-amber-100 dark:bg-amber-800/30'
+            )}
+          >
             <div className="relative">
-              <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+              <div
+                className={cn(
+                  'w-3 h-3 rounded-full',
+                  autopilotActive ? 'bg-blue-500 animate-pulse' : 'bg-amber-500'
+                )}
+              ></div>
             </div>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
               Autopilot
             </p>
-            <p className="font-semibold text-sm text-blue-700 dark:text-blue-400 mt-0.5">
-              Activ - la 15 min
+            <p
+              className={cn(
+                'font-semibold text-sm mt-0.5',
+                autopilotActive
+                  ? 'text-blue-700 dark:text-blue-400'
+                  : 'text-amber-700 dark:text-amber-400'
+              )}
+            >
+              {autopilotActive ? 'Activ - la 15 min' : 'Inactiv / verifică cron'}
             </p>
             {lastRun?.timestamp && (
               <p className="text-xs text-neutral-400 mt-0.5">
@@ -373,19 +407,27 @@ const AIEmailParser: React.FC = () => {
                         BL: {item.blNumber}
                       </span>
                     )}
-                    {item.confidence && (
+                    {item.confidence != null && (
                       <span
                         className={cn(
                           'text-xs px-1.5 py-0.5 rounded font-medium',
                           item.confidence >= 80
                             ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                            : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                            : item.confidence >= 50
+                              ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                              : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                         )}
                       >
                         {item.confidence}%
                       </span>
                     )}
                   </div>
+                  {/* Enrichment line: vessel · port of loading · ETA (— when absent).
+                      Backend currently omits these; shows '—' until it returns them. */}
+                  <p className="text-xs text-neutral-400 truncate mt-0.5">
+                    Navă: {item.vesselName || '—'} · Port: {item.portOfLoading || '—'} · ETA:{' '}
+                    {item.eta ? formatTime(item.eta) : '—'}
+                  </p>
                   {item.emailSubject && (
                     <p className="text-xs text-neutral-400 truncate mt-0.5">{item.emailSubject}</p>
                   )}

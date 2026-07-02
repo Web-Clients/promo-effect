@@ -3,6 +3,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { XIcon } from '../icons';
 import { Invoice, PaymentInput } from '../../services/invoices';
+import { useToast } from '../ui/Toast';
 
 export interface PaymentModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   isLoading,
   invoice,
 }) => {
+  const { addToast } = useToast();
   const [formData, setFormData] = useState<PaymentInput>({
     amount: 0,
     paymentDate: new Date().toISOString().split('T')[0],
@@ -39,6 +41,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Guard against invalid amounts (empty/NaN/negative or above the balance).
+    if (!(formData.amount > 0) || formData.amount > balance) {
+      addToast('Sumă invalidă', 'error');
+      return;
+    }
     await onSubmit(formData);
   };
 
@@ -75,10 +82,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               <span className="font-medium">Factură:</span> {invoice.invoiceNumber}
             </p>
             <p className="text-sm text-blue-700 dark:text-blue-300">
-              <span className="font-medium">Total:</span> ${invoice.amount.toFixed(2)}
+              <span className="font-medium">Total:</span> {invoice.amount.toFixed(2)}{' '}
+              {invoice.currency}
             </p>
             <p className="text-sm text-blue-700 dark:text-blue-300">
-              <span className="font-medium">De plată:</span> ${balance.toFixed(2)}
+              <span className="font-medium">De plată:</span> {balance.toFixed(2)} {invoice.currency}
             </p>
           </div>
 

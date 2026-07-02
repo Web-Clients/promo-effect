@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getErrorMessage } from '../../utils/formatters';
+import { getErrorMessage, formatCurrency, formatDateShort } from '../../utils/formatters';
 import { DEFAULT_PAGE_SIZE, BULK_FETCH_LIMIT, SEARCH_DEBOUNCE_MS } from '../../config/constants';
 import { Card } from '../ui/Card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../ui/Table';
@@ -39,6 +39,7 @@ const InvoicesList: React.FC = () => {
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -59,7 +60,7 @@ const InvoicesList: React.FC = () => {
           page: currentPage,
           limit: pageSize,
           status: statusFilter !== 'all' ? statusFilter : undefined,
-          search: searchTerm || undefined,
+          search: debouncedSearch || undefined,
         }),
         invoicesService.getStats(),
       ]);
@@ -73,7 +74,7 @@ const InvoicesList: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, statusFilter, searchTerm, addToast]);
+  }, [currentPage, statusFilter, debouncedSearch, addToast]);
 
   // Fetch clients and bookings for create modal
   const fetchClientsAndBookings = async () => {
@@ -95,14 +96,14 @@ const InvoicesList: React.FC = () => {
     fetchClientsAndBookings();
   }, []);
 
-  // Search debounce
+  // Search debounce: update debouncedSearch on a timer so the fetch (which
+  // depends on debouncedSearch) fires once after the user stops typing.
   useEffect(() => {
     const timer = setTimeout(() => {
       setCurrentPage(1);
-      fetchInvoices();
+      setDebouncedSearch(searchTerm);
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm]);
 
   // Handlers
@@ -235,6 +236,8 @@ const InvoicesList: React.FC = () => {
           </Card>
           <Card className="p-4">
             <p className="text-sm text-neutral-500 dark:text-neutral-400">Total Facturat</p>
+            {/* Stats are aggregated across invoices without a currency field;
+                assume single-currency (USD). */}
             <p className="text-2xl font-bold text-blue-600">${stats.totalAmount.toFixed(2)}</p>
           </Card>
           <Card className="p-4">
@@ -332,8 +335,8 @@ const InvoicesList: React.FC = () => {
                   >
                     <TableCell className="font-mono font-medium">{invoice.invoiceNumber}</TableCell>
                     <TableCell>{invoice.client?.companyName || '-'}</TableCell>
-                    <TableCell>${invoice.amount.toFixed(2)}</TableCell>
-                    <TableCell>{new Date(invoice.dueDate).toLocaleDateString('ro-RO')}</TableCell>
+                    <TableCell>{formatCurrency(invoice.amount, invoice.currency)}</TableCell>
+                    <TableCell>{formatDateShort(invoice.dueDate)}</TableCell>
                     <TableCell>
                       <Badge variant={statusVariantMap[invoice.status]}>
                         {statusTextMap[invoice.status]}

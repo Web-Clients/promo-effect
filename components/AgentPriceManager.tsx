@@ -97,6 +97,15 @@ export function AgentPriceManager({ agent, onClose }: Props) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Date-order guards
+    if (new Date(formData.validUntil) < new Date(formData.validFrom)) {
+      addToast('Data "Valid Până La" nu poate fi înainte de "Valid De La".', 'error');
+      return;
+    }
+    if (new Date(formData.departureDate) < new Date(formData.validFrom)) {
+      addToast('Data plecării nu poate fi înainte de "Valid De La".', 'error');
+      return;
+    }
     try {
       if (editingPrice) {
         await updateAgentPrice(agent.id, editingPrice.id, { ...formData });
@@ -376,6 +385,7 @@ export function AgentPriceManager({ agent, onClose }: Props) {
                         onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
                         className="w-full p-2 border rounded-lg"
                         required
+                        min={formData.validFrom}
                       />
                     </div>
                     <div>

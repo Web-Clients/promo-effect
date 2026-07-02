@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -20,11 +20,21 @@ const truckIcon = new L.DivIcon({
   iconAnchor: [16, 16],
 });
 
-// Component to recenter map when location changes
+// Center the map ONCE on the first fix. After that the 30s polling refresh
+// must not yank the viewport back — that fights the user's pan/zoom. Only
+// re-center gently if the marker has drifted outside the current bounds.
 const MapUpdater: React.FC<{ center: [number, number] }> = ({ center }) => {
   const map = useMap();
+  const centered = useRef(false);
   useEffect(() => {
-    map.setView(center, map.getZoom());
+    if (!centered.current) {
+      map.setView(center, map.getZoom());
+      centered.current = true;
+      return;
+    }
+    if (!map.getBounds().contains(center)) {
+      map.panTo(center);
+    }
   }, [center, map]);
   return null;
 };
@@ -140,7 +150,7 @@ const GPSTrackingMap: React.FC<GPSTrackingMapProps> = ({
       <Card className="p-4">
         <div className="flex items-center justify-between mb-4">
           <h4 className="text-base font-semibold text-neutral-700 dark:text-neutral-200">
-            🚛 GPS Tracking
+            🚛 Urmărire GPS
           </h4>
         </div>
 
@@ -203,7 +213,7 @@ const GPSTrackingMap: React.FC<GPSTrackingMapProps> = ({
     <Card className="p-4">
       <div className="flex items-center justify-between mb-4">
         <h4 className="text-base font-semibold text-neutral-700 dark:text-neutral-200">
-          🚛 GPS Tracking - {vehicleName || vehicleId}
+          🚛 Urmărire GPS — {vehicleName || vehicleId}
         </h4>
         <Button variant="secondary" size="sm" onClick={fetchLocation} disabled={loading}>
           {loading ? '...' : '🔄 Actualizează'}

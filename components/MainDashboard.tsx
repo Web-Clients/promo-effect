@@ -143,11 +143,15 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
       }))
     : [];
 
-  const weeklyRevenue = [
-    { name: 'S1', revenue: stats ? stats.totalRevenue * 0.2 : 0 },
-    { name: 'S2', revenue: stats ? stats.totalRevenue * 0.25 : 0 },
-    { name: 'S3', revenue: stats ? stats.totalRevenue * 0.27 : 0 },
-    { name: 'S4', revenue: stats ? stats.totalRevenue * 0.28 : 0 },
+  // NOTE: The backend does not expose a real weekly revenue series, so we
+  // cannot present genuine week-over-week figures. Rather than fabricate
+  // "real" weekly data, show an explicitly-labeled estimated distribution
+  // of the total revenue. See report: needs a real weekly revenue endpoint.
+  const revenueDistribution = [
+    { name: 'T1', revenue: stats ? stats.totalRevenue * 0.2 : 0 },
+    { name: 'T2', revenue: stats ? stats.totalRevenue * 0.25 : 0 },
+    { name: 'T3', revenue: stats ? stats.totalRevenue * 0.27 : 0 },
+    { name: 'T4', revenue: stats ? stats.totalRevenue * 0.28 : 0 },
   ];
 
   return (
@@ -187,20 +191,20 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
       {/* Charts Section */}
       {isAdminOrManager && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {/* Weekly Revenue Chart */}
+          {/* Revenue distribution (estimated — no real weekly series exists) */}
           <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 p-5">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-base font-semibold text-primary-800 dark:text-white">
-                {t('dashboard.weeklyRevenue')}
+                Distribuție estimativă venit
               </h4>
-              <span className="text-xs text-neutral-400 bg-neutral-100 dark:bg-neutral-700 px-2 py-1 rounded-md">
-                {t('dashboard.lastFourWeeks')}
+              <span className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-500/20 dark:text-amber-400 px-2 py-1 rounded-md">
+                estimare
               </span>
             </div>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
-                  data={weeklyRevenue}
+                  data={revenueDistribution}
                   margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
                 >
                   <defs>

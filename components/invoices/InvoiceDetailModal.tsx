@@ -4,6 +4,7 @@ import { Button } from '../ui/Button';
 import { XIcon, DownloadIcon, SendIcon, CheckIcon } from '../icons';
 import { Invoice } from '../../services/invoices';
 import { statusVariantMap, statusTextMap } from './types';
+import { formatDateShort } from '../../utils/formatters';
 
 export interface InvoiceDetailModalProps {
   isOpen: boolean;
@@ -83,7 +84,7 @@ const InvoiceDetailModal: React.FC<InvoiceDetailModalProps> = ({
                 Data Emiterii
               </h4>
               <p className="text-neutral-900 dark:text-neutral-100">
-                {new Date(invoice.issueDate).toLocaleDateString('ro-RO')}
+                {formatDateShort(invoice.issueDate)}
               </p>
             </div>
             <div>
@@ -91,7 +92,7 @@ const InvoiceDetailModal: React.FC<InvoiceDetailModalProps> = ({
                 Data Scadentă
               </h4>
               <p className="text-neutral-900 dark:text-neutral-100">
-                {new Date(invoice.dueDate).toLocaleDateString('ro-RO')}
+                {formatDateShort(invoice.dueDate)}
               </p>
             </div>
             {invoice.paidDate && (
@@ -100,7 +101,7 @@ const InvoiceDetailModal: React.FC<InvoiceDetailModalProps> = ({
                   Data Plății
                 </h4>
                 <p className="text-green-600 dark:text-green-400">
-                  {new Date(invoice.paidDate).toLocaleDateString('ro-RO')}
+                  {formatDateShort(invoice.paidDate)}
                 </p>
               </div>
             )}
@@ -136,12 +137,14 @@ const InvoiceDetailModal: React.FC<InvoiceDetailModalProps> = ({
                 <div className="flex justify-between mt-2">
                   <span className="text-green-600 dark:text-green-400">Achitat:</span>
                   <span className="text-green-600 dark:text-green-400">
-                    -${invoice.amountPaid.toFixed(2)}
+                    -{invoice.amountPaid.toFixed(2)} {invoice.currency}
                   </span>
                 </div>
                 <div className="flex justify-between font-semibold">
                   <span className="text-red-600 dark:text-red-400">De plată:</span>
-                  <span className="text-red-600 dark:text-red-400">${balance.toFixed(2)}</span>
+                  <span className="text-red-600 dark:text-red-400">
+                    {balance.toFixed(2)} {invoice.currency}
+                  </span>
                 </div>
               </>
             )}
@@ -161,10 +164,10 @@ const InvoiceDetailModal: React.FC<InvoiceDetailModalProps> = ({
                   >
                     <div>
                       <p className="font-medium text-green-700 dark:text-green-300">
-                        ${payment.amount.toFixed(2)}
+                        {payment.amount.toFixed(2)} {invoice.currency}
                       </p>
                       <p className="text-sm text-green-600 dark:text-green-400">
-                        {payment.method} • {new Date(payment.paidAt).toLocaleDateString('ro-RO')}
+                        {payment.method} • {formatDateShort(payment.paidAt)}
                       </p>
                       {payment.reference && (
                         <p className="text-xs text-green-500">Ref: {payment.reference}</p>

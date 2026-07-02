@@ -397,6 +397,7 @@ const ClientsList = () => {
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
 
   // Modals
@@ -411,7 +412,7 @@ const ClientsList = () => {
       const data = await clientsService.getClients({
         page: currentPage,
         limit,
-        search: searchTerm || undefined,
+        search: debouncedSearch || undefined,
         status: statusFilter !== 'ALL' ? statusFilter : undefined,
       });
 
@@ -423,16 +424,18 @@ const ClientsList = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, searchTerm, statusFilter, addToast, t]);
+  }, [currentPage, debouncedSearch, statusFilter, addToast, t]);
 
   useEffect(() => {
     fetchClients();
   }, [fetchClients]);
 
-  // Debounced search
+  // Debounced search: push searchTerm into debouncedSearch after a pause so the
+  // fetch (which depends on debouncedSearch) runs once, not on every keystroke.
   useEffect(() => {
     const timer = setTimeout(() => {
       setCurrentPage(1); // Reset to first page on search
+      setDebouncedSearch(searchTerm);
     }, 300);
     return () => clearTimeout(timer);
   }, [searchTerm]);

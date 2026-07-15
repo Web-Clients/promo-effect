@@ -114,11 +114,21 @@ app.get('/api/csrf-token', (req: Request, res: Response) => {
 const CSRF_EXEMPT_PATTERN =
   /^\/api(\/v\d+)?\/auth\/(login|register|refresh|forgot-password|reset-password|verify-email|complete-2fa-login)(\b|\/|\?|$)/;
 
+// Inbound tracking webhooks are server-to-server (Terminal49, carrier APIs).
+// They carry no browser session and are authenticated by provider signature
+// (HMAC), so CSRF does not apply. Matches the exact `/tracking/webhook` and
+// `/tracking/terminal49/webhook` endpoints only — NOT `/webhook/parse-email`,
+// which is browser-triggered and must stay protected.
+const WEBHOOK_CSRF_EXEMPT_PATTERN = /^\/api(\/v\d+)?\/tracking\/(terminal49\/)?webhook\/?(\?|$)/;
+
 app.use('/api', (req: Request, res: Response, next: NextFunction) => {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     return next();
   }
-  if (CSRF_EXEMPT_PATTERN.test(req.originalUrl)) {
+  if (
+    CSRF_EXEMPT_PATTERN.test(req.originalUrl) ||
+    WEBHOOK_CSRF_EXEMPT_PATTERN.test(req.originalUrl)
+  ) {
     return next();
   }
   doubleCsrfProtection(req, res, next);

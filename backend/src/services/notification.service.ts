@@ -6,6 +6,7 @@
 
 import prisma from '../lib/prisma';
 import { infobipService } from './infobip.service';
+import { telegramService } from './telegram.service';
 import logger from '../utils/logger';
 
 export interface NotificationChannel {
@@ -13,6 +14,7 @@ export interface NotificationChannel {
   sms?: boolean;
   whatsapp?: boolean;
   push?: boolean;
+  telegram?: boolean;
 }
 
 export interface NotificationAttachment {
@@ -156,6 +158,19 @@ export class NotificationService {
         results.push = { success: true };
       } catch (error: any) {
         results.push = { success: false, error: error.message };
+      }
+    }
+
+    // Telegram ops alert — mirror any non-INFO notification (delays, ETA changes,
+    // email-parse failures, etc.) to the operations chat. Best-effort: a Telegram
+    // failure must never block the other channels or the request.
+    if (severity !== 'INFO' && telegramService.isAdminChatConfigured()) {
+      try {
+        const icon = severity === 'CRITICAL' ? '🔴' : '⚠️';
+        await telegramService.sendAdminAlert(`${icon} ${title}\n\n${message}`);
+        results.telegram = { success: true };
+      } catch (error: any) {
+        results.telegram = { success: false, error: error.message };
       }
     }
 

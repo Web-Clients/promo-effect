@@ -317,7 +317,9 @@
       "companySearchPlaceholder": "Caută client după nume companie...",
       "supplierSection": "Furnizor (China)",
       "agentSection": "Agent China"
-    }
+    },
+    "route": "Rută",
+    "tabArchive": "Arhivă"
   },
   "adminSettingsTabs": {
     "stats": "Statistici",

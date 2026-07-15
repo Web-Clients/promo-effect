@@ -317,7 +317,9 @@
       "companySearchPlaceholder": "Search client by company name...",
       "supplierSection": "Supplier (China)",
       "agentSection": "China Agent"
-    }
+    },
+    "route": "Route",
+    "tabArchive": "Archive"
   },
   "adminSettingsTabs": {
     "stats": "Statistics",

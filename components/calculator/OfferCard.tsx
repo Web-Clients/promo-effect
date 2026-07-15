@@ -21,20 +21,17 @@ interface OfferCardProps {
 // constants (previously a fixed $1100 was added).
 const getEXWTotal = () => 0;
 
-// Rata 3 (Constanța→Chișinău): transport + customs + commission only.
-// Uses the REAL backend values (offer.terrestrialTransport / offer.customsTaxes),
-// so admin price edits are reflected. portTaxes are shown as "Cheltuieli Locale".
-const getLandTransportTotal = (offer: PriceOffer, commissionOverride?: number) => {
-  const commission = commissionOverride !== undefined ? commissionOverride : offer.commission || 0;
-  return offer.terrestrialTransport + offer.customsTaxes + commission;
-};
-
-// Rata 1 maritime: freight + portAdjustment only (portTaxes moved to Rata 3)
+// Rata 1 maritime: freight + portAdjustment folded into a single "Tarif Maritim" cell
+// (the separate "Ajustare Port" cell was removed per client request).
 const getMaritimeTotal = (offer: PriceOffer) => offer.freightPrice + offer.portAdjustment;
 
-// Rata 2 land leg (portIntermediate→portFinal): terrestrial + customs + insurance only (no commission)
-const getLandLegSubtotal = (offer: PriceOffer) =>
-  offer.terrestrialTransport + offer.customsTaxes + (offer.insurance || 0);
+// Rata 2 "Taxe locale Constanța": local port charges + customs, one combined value.
+const getTaxeLocaleTotal = (offer: PriceOffer) => offer.portTaxes + offer.customsTaxes;
+
+// Rata 3 land leg to final destination: terrestrial transport + insurance (customs now
+// live in Rata 2; commission is added separately as a percentage).
+const getTransportTerestruTotal = (offer: PriceOffer) =>
+  offer.terrestrialTransport + (offer.insurance || 0);
 
 const computeTotalPrice = (
   offer: PriceOffer,
@@ -77,22 +74,25 @@ export const OfferCard = ({
   onToggle,
   onSelectOffer,
 }: OfferCardProps) => {
-  // Default commission = the real backend commission (was a hardcoded constant for
-  // chisinau, which shifted the total away from offer.totalPriceUSD).
-  const defaultCommission = offer.commission;
-  const [commissionValue, setCommissionValue] = useState<string>(String(defaultCommission));
-  const commissionOverride = parseFloat(commissionValue) || 0;
-
-  // CIF behaves like CFR for routing logic (supplier covers maritime). Insurance is
-  // already counted via offer.insurance regardless of incoterm.
+  // Comision expediție is now a PERCENTAGE of the transport cost (client request),
+  // default 10%, editable by admin. Base excludes the commission itself (no circularity)
+  // and excludes the maritime leg when the supplier covers it (CFR/CIF).
   const supplierCoversMaritime = incoterm === 'CFR' || incoterm === 'CIF';
+  const [commissionPercent, setCommissionPercent] = useState<string>('10');
+  const pct = parseFloat(commissionPercent) || 0;
+
+  const maritimeTotal = getMaritimeTotal(offer);
+  const taxeLocaleTotal = getTaxeLocaleTotal(offer);
+  const transportTerestruTotal = getTransportTerestruTotal(offer);
+  const commissionBase =
+    (supplierCoversMaritime ? 0 : maritimeTotal) + taxeLocaleTotal + transportTerestruTotal;
+  const commissionAmount = Math.round((commissionBase * pct) / 100);
+  const commissionOverride = commissionAmount;
+
   const adjustedTotal = computeTotalPrice(offer, incoterm, finalDestination, commissionOverride);
   // Approximate MDL using ratio from original offer (guard div-by-zero → no NaN MDL)
   const mdlRate = offer.totalPriceUSD > 0 ? offer.totalPriceMDL / offer.totalPriceUSD : 0;
   const adjustedTotalMDL = adjustedTotal * mdlRate;
-
-  // cheltuieliLocale = portTaxes (moved from Rata 1)
-  const cheltuieliLocale = offer.portTaxes;
 
   return (
     <button
@@ -189,7 +189,8 @@ export const OfferCard = ({
                 </div>
               )}
 
-              {/* Admin: Rata 1 - Maritime (hidden for CFR/CIF) — no portTaxes here */}
+              {/* Admin: Rata 1 — Maritime (hidden for CFR/CIF). Single "Tarif Maritim"
+                  cell; the separate "Ajustare Port" cell was removed per client request. */}
               {!supplierCoversMaritime && (
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
@@ -197,22 +198,14 @@ export const OfferCard = ({
                       Rata 1: {offer.portOrigin} → {offer.portIntermediate}
                     </h5>
                     <span className="text-sm font-bold text-accent-500">
-                      ${getMaritimeTotal(offer).toFixed(2)}
+                      ${maritimeTotal.toFixed(2)}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                      <p className="text-xs text-neutral-400 mb-1">Tarif Maritim</p>
-                      <p className="font-semibold text-primary-800 dark:text-white">
-                        ${offer.freightPrice.toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                      <p className="text-xs text-neutral-400 mb-1">Ajustare Port</p>
-                      <p className="font-semibold text-primary-800 dark:text-white">
-                        ${offer.portAdjustment.toFixed(2)}
-                      </p>
-                    </div>
+                  <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
+                    <p className="text-xs text-neutral-400 mb-1">Tarif Maritim</p>
+                    <p className="font-semibold text-primary-800 dark:text-white">
+                      ${maritimeTotal.toFixed(2)}
+                    </p>
                   </div>
                 </div>
               )}
@@ -228,86 +221,67 @@ export const OfferCard = ({
                 </div>
               )}
 
-              {/* Admin: Rata 2 land leg (portIntermediate→portFinal) — no comision here */}
+              {/* Admin: Rata 2 — "Taxe locale Constanța": cheltuieli locale + taxe vamale,
+                  o singură celulă cu totalul (client request). */}
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-2">
                   <h5 className="text-sm font-semibold text-primary-800 dark:text-white">
-                    {supplierCoversMaritime ? 'Rata 1' : 'Rata 2'}: {offer.portIntermediate} →{' '}
-                    {offer.portFinal}
+                    {supplierCoversMaritime ? 'Rata 1' : 'Rata 2'}: Taxe locale{' '}
+                    {offer.portIntermediate}
                   </h5>
                   <span className="text-sm font-bold text-accent-500">
-                    ${getLandLegSubtotal(offer).toFixed(2)}
+                    ${taxeLocaleTotal.toFixed(2)}
                   </span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                    <p className="text-xs text-neutral-400 mb-1">Transport Terestru</p>
-                    <p className="font-semibold text-primary-800 dark:text-white">
-                      ${offer.terrestrialTransport.toFixed(2)}
-                    </p>
-                  </div>
-                  <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                    <p className="text-xs text-neutral-400 mb-1">Taxe Vamale</p>
-                    <p className="font-semibold text-primary-800 dark:text-white">
-                      ${offer.customsTaxes.toFixed(2)}
-                    </p>
-                  </div>
-                  {(offer.insurance || 0) > 0 && (
-                    <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                      <p className="text-xs text-neutral-400 mb-1">Asigurare</p>
-                      <p className="font-semibold text-primary-800 dark:text-white">
-                        ${offer.insurance.toFixed(2)}
-                      </p>
-                    </div>
-                  )}
+                <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
+                  <p className="text-xs text-neutral-400 mb-1">Cheltuieli locale + taxe vamale</p>
+                  <p className="font-semibold text-primary-800 dark:text-white">
+                    ${taxeLocaleTotal.toFixed(2)}
+                  </p>
                 </div>
               </div>
 
-              {/* Admin: Rata 3 — Constanța → Chișinău (with Cheltuieli Locale + editable Comision) */}
-              {finalDestination === 'chisinau' && (
+              {/* Admin: Rata 3 — leg terestru spre destinația finală: transport terestru +
+                  comision expediție ca procent (editabil). Ascuns dacă nu există leg terestru. */}
+              {offer.portFinal && offer.portFinal !== offer.portIntermediate && (
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <h5 className="text-sm font-semibold text-primary-800 dark:text-white">
-                      {supplierCoversMaritime ? 'Rata 2' : 'Rata 3'}: Constanța → Chișinău
+                      {supplierCoversMaritime ? 'Rata 2' : 'Rata 3'}: {offer.portIntermediate} →{' '}
+                      {offer.portFinal}
                     </h5>
                     <span className="text-sm font-bold text-accent-500">
-                      ${getLandTransportTotal(offer, commissionOverride).toFixed(2)}
+                      ${(transportTerestruTotal + commissionAmount).toFixed(2)}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                      <p className="text-xs text-neutral-400 mb-1">Transport Terestru</p>
+                      <p className="text-xs text-neutral-400 mb-1">Transport terestru</p>
                       <p className="font-semibold text-primary-800 dark:text-white">
-                        ${offer.terrestrialTransport.toFixed(2)}
+                        ${transportTerestruTotal.toFixed(2)}
                       </p>
                     </div>
                     <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                      <p className="text-xs text-neutral-400 mb-1">Taxe Vamale</p>
-                      <p className="font-semibold text-primary-800 dark:text-white">
-                        ${offer.customsTaxes.toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                      <p className="text-xs text-neutral-400 mb-1">Cheltuieli Locale</p>
-                      <p className="font-semibold text-primary-800 dark:text-white">
-                        ${cheltuieliLocale.toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                      <p className="text-xs text-neutral-400 mb-1">Comision</p>
+                      <p className="text-xs text-neutral-400 mb-1">Comision expediție</p>
                       {isAdmin ? (
-                        <input
-                          type="number"
-                          min="0"
-                          step="1"
-                          className="w-full text-sm font-semibold text-primary-800 dark:text-white bg-transparent border-b border-accent-400 focus:outline-none focus:border-accent-600"
-                          value={commissionValue}
-                          onChange={(e) => setCommissionValue(e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
+                        <div className="flex items-baseline gap-1">
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            aria-label="Procent comision expediție"
+                            className="w-12 text-sm font-semibold text-primary-800 dark:text-white bg-transparent border-b border-accent-400 focus:outline-none focus:border-accent-600"
+                            value={commissionPercent}
+                            onChange={(e) => setCommissionPercent(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <span className="text-sm font-semibold text-primary-800 dark:text-white">
+                            % = ${commissionAmount.toFixed(0)}
+                          </span>
+                        </div>
                       ) : (
                         <p className="font-semibold text-primary-800 dark:text-white">
-                          ${commissionOverride.toFixed(2)}
+                          {pct}% = ${commissionAmount.toFixed(2)}
                         </p>
                       )}
                     </div>

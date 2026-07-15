@@ -317,7 +317,9 @@
       "companySearchPlaceholder": "Поиск клиента по названию компании...",
       "supplierSection": "Поставщик (Китай)",
       "agentSection": "Агент в Китае"
-    }
+    },
+    "route": "Маршрут",
+    "tabArchive": "Архив"
   },
   "adminSettingsTabs": {
     "stats": "Статистика",

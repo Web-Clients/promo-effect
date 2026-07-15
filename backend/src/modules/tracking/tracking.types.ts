@@ -79,6 +79,16 @@ export const EventTypeLabels: Record<string, string> = {
   GATE_OUT: 'Ieșire din Terminal',
   DELIVERED: 'Livrat',
   EMPTY_RETURNED: 'Container Gol Returnat',
+  // Terminal49 carrier milestones
+  EMPTY_OUT: 'Container Gol Ridicat',
+  TRANSSHIPMENT_ARRIVED: 'Sosire Transbordare',
+  TRANSSHIPMENT_DEPARTED: 'Plecare Transbordare',
+  RAIL_DEPARTURE: 'Plecare Feroviară',
+  RAIL_ARRIVAL: 'Sosire Feroviară',
+  LFD_CHANGED: 'Ultima Zi Liberă Modificată',
+  ETA_UPDATE: 'ETA Actualizat',
+  TRACKING_STARTED: 'Urmărire Activată',
+  TRACKING_FAILED: 'Urmărire Eșuată',
 };
 
 // Event order for validation (lower = earlier in process)

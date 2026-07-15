@@ -18,6 +18,7 @@ import containerRoutes from './tracking-container.routes';
 import searchRoutes from './tracking-search.routes';
 import gpsRoutes from './tracking-gps.routes';
 import webhookRoutes from './tracking-webhook.routes';
+import terminal49Routes from './tracking-terminal49.routes';
 import logger from '../../utils/logger';
 
 const router = Router();
@@ -216,5 +217,6 @@ router.use('/containers', containerRoutes);
 router.use('/search', searchRoutes);
 router.use('/gps', gpsRoutes);
 router.use('/webhook', webhookRoutes);
+router.use('/terminal49', terminal49Routes);
 
 export default router;

@@ -76,7 +76,15 @@ app.use(
 );
 // FIX: The errors on app.use were likely due to a cascading type resolution issue.
 // Explicitly typing route handlers below should resolve this.
-app.use(express.json());
+app.use(
+  express.json({
+    // Stash the raw body so webhook handlers can verify HMAC signatures
+    // (e.g. Terminal49) against the exact bytes the provider signed.
+    verify: (req, _res, buf) => {
+      (req as any).rawBody = buf;
+    },
+  })
+);
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 

@@ -68,6 +68,8 @@ export interface AdminSettings {
   insuranceCost: number;
   profitMarginPercent: number;
   weightRanges: string; // JSON string
+  /** Resolved by the server — always carries all four incoterms. */
+  commissionPercentByIncoterm?: Record<string, number>;
   updatedAt: string;
 }
 
@@ -81,6 +83,7 @@ export interface AdminSettingsInput {
   insuranceCost?: number;
   profitMarginPercent?: number;
   weightRanges?: string;
+  commissionPercentByIncoterm?: Record<string, number>;
 }
 
 export interface PricingStats {

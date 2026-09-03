@@ -4,6 +4,12 @@
  */
 
 import prisma from '../../lib/prisma';
+import {
+  resolveCommissionPolicy,
+  INCOTERMS,
+  MIN_COMMISSION_PERCENT,
+  MAX_COMMISSION_PERCENT,
+} from '../calculator/calculator-incoterms';
 
 // Base Price types
 export interface BasePriceInput {
@@ -41,6 +47,26 @@ export interface AdminSettingsInput {
   insuranceCost?: number;
   profitMarginPercent?: number;
   weightRanges?: string;
+  /** Per-incoterm forwarding commission, e.g. { FOB: 4, EXW: 4, CFR: 10, CIF: 10 }. */
+  commissionPercentByIncoterm?: Record<string, number>;
+}
+
+/**
+ * A bad percentage stored here would mis-price every future quote, so it is
+ * rejected at the door rather than clamped silently.
+ */
+function validateCommissionPercentages(input: Record<string, number>): Record<string, number> {
+  const clean: Record<string, number> = {};
+  for (const incoterm of INCOTERMS) {
+    const pct = Number(input[incoterm]);
+    if (!Number.isFinite(pct) || pct < MIN_COMMISSION_PERCENT || pct > MAX_COMMISSION_PERCENT) {
+      throw new Error(
+        `Comision ${incoterm}: „${input[incoterm]}" nu este valid. Se acceptă ${MIN_COMMISSION_PERCENT}–${MAX_COMMISSION_PERCENT}%.`
+      );
+    }
+    clean[incoterm] = pct;
+  }
+  return clean;
 }
 
 export class AdminPricingService {
@@ -280,6 +306,12 @@ export class AdminPricingService {
   /**
    * Get admin settings
    */
+  /** Resolved percentages, so the admin screen always shows all four incoterms. */
+  async getCommissionPercentages(): Promise<Record<string, number>> {
+    const settings = await this.getAdminSettings();
+    return resolveCommissionPolicy(settings).percentByIncoterm;
+  }
+
   async getAdminSettings() {
     let settings = await prisma.adminSettings.findUnique({
       where: { id: 1 },
@@ -338,6 +370,11 @@ export class AdminPricingService {
           profitMarginPercent: data.profitMarginPercent,
         }),
         ...(data.weightRanges !== undefined && { weightRanges: data.weightRanges }),
+        ...(data.commissionPercentByIncoterm !== undefined && {
+          commissionPercentByIncoterm: JSON.stringify(
+            validateCommissionPercentages(data.commissionPercentByIncoterm)
+          ),
+        }),
         // Also update legacy fields for backward compatibility
         ...(data.portTaxesConstanta !== undefined && { portTaxes: data.portTaxesConstanta }),
         ...(data.terrestrialTransportConstanta !== undefined && {

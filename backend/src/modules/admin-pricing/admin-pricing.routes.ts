@@ -386,7 +386,12 @@ router.delete(
 router.get('/settings', authMiddleware, adminOnly, async (req: Request, res: Response) => {
   try {
     const settings = await adminPricingService.getAdminSettings();
-    res.json(settings);
+    // Hand back the RESOLVED percentages, not the raw JSON string, so the admin
+    // screen always renders all four incoterms even before anything is stored.
+    res.json({
+      ...settings,
+      commissionPercentByIncoterm: await adminPricingService.getCommissionPercentages(),
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to get admin settings';
     res.status(500).json({ error: message });

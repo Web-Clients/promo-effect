@@ -4,6 +4,12 @@
  */
 
 import prisma from '../../lib/prisma';
+import {
+  resolveCommissionPolicy,
+  INCOTERMS,
+  MIN_COMMISSION_PERCENT,
+  MAX_COMMISSION_PERCENT,
+} from '../calculator/calculator-incoterms';
 import { encrypt, decrypt } from '../../utils/crypto.util';
 import { gmailIntegration } from '../../integrations/gmail.integration';
 import { EmailService } from '../emails/email.service';
@@ -79,6 +85,10 @@ export class SettingsService {
               customsTaxes: adminSettings.customsTaxes,
               terrestrialTransport: adminSettings.terrestrialTransport,
               commission: adminSettings.commission,
+              // Resolved, so the admin screen always shows all four incoterms
+              // even when nothing has been stored yet.
+              commissionPercentByIncoterm:
+                resolveCommissionPolicy(adminSettings).percentByIncoterm,
               weightRanges: JSON.parse(adminSettings.weightRanges),
             }
           : {},
@@ -116,6 +126,7 @@ export class SettingsService {
           customsTaxes: settings.customsTaxes,
           terrestrialTransport: settings.terrestrialTransport,
           commission: settings.commission,
+          commissionPercentByIncoterm: resolveCommissionPolicy(settings).percentByIncoterm,
           weightRanges: JSON.parse(settings.weightRanges),
         };
       case 'gmail':
@@ -339,6 +350,22 @@ export class SettingsService {
           else if (key === 'terrestrialTransport')
             updateData.terrestrialTransport = parseFloat(value);
           else if (key === 'commission') updateData.commission = parseFloat(value);
+          else if (key === 'commissionPercentByIncoterm') {
+            // Validate every incoterm before storing: a bad percentage here would
+            // silently mis-price every future quote.
+            const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+            const clean: Record<string, number> = {};
+            for (const incoterm of INCOTERMS) {
+              const pct = Number(parsed?.[incoterm]);
+              if (!Number.isFinite(pct) || pct < MIN_COMMISSION_PERCENT || pct > MAX_COMMISSION_PERCENT) {
+                throw new Error(
+                  `Comision ${incoterm}: ${parsed?.[incoterm]} nu este valid. Se acceptă ${MIN_COMMISSION_PERCENT}–${MAX_COMMISSION_PERCENT}%.`
+                );
+              }
+              clean[incoterm] = pct;
+            }
+            updateData.commissionPercentByIncoterm = JSON.stringify(clean);
+          }
           else if (key === 'weightRanges') updateData.weightRanges = JSON.stringify(value);
           else throw new Error(`Key ${key} not found in category ${category}`);
           break;

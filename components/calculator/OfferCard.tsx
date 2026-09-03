@@ -128,16 +128,27 @@ export const OfferCard = ({
                 )}
               >
                 <CheckCircleIcon />
+                {/* This badge is derived purely from how many days remain until the
+                    cargo-ready date — it says nothing about vessel space. Labelling
+                    it "Disponibil/Indisponibil" made the client read it as real
+                    availability and wonder why an "Indisponibil" offer was still
+                    selectable. It now says what it actually measures. */}
                 {offer.availability === 'AVAILABLE'
-                  ? 'Disponibil'
+                  ? 'Termen confortabil'
                   : offer.availability === 'LIMITED'
-                    ? 'Limitat'
-                    : 'Indisponibil'}
+                    ? 'Termen strâns'
+                    : 'Termen foarte scurt'}
               </span>
             </div>
             <div className="mt-2">
               <RouteDisplay route={offer.route} />
             </div>
+            {offer.priceFromReferencePort && (
+              <p className="mt-2 text-xs text-warning-700 dark:text-warning-500">
+                Tarif de referință {offer.priceFromReferencePort} — pentru{' '}
+                {offer.portOrigin} nu există tarif propriu, s-a aplicat ajustarea de port.
+              </p>
+            )}
           </div>
         </div>
 

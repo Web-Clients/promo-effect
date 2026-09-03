@@ -172,9 +172,45 @@ export function useCalculator(user?: User): UseCalculatorReturn {
     setOrderSuccess(null);
   };
 
+  /**
+   * Name what is missing before we ask the server.
+   *
+   * The client reported "ne spune ca nu sa putut plasa comanda, dar de ce? nu e
+   * clar ce e gresit" — a single generic sentence with no indication of which
+   * field was at fault. Anything we can check here is named here.
+   */
+  const findOrderProblems = (): string[] => {
+    const problems: string[] = [];
+    const supplierRequired = params.incoterm === 'FOB' || params.incoterm === 'EXW';
+
+    if (supplierRequired && !supplierData.supplierName?.trim()) {
+      problems.push('Nume Furnizor');
+    }
+    if (!supplierData.clientId && !supplierData.beneficiaryName?.trim()) {
+      problems.push('Beneficiar (alegeți un client sau completați „Companie beneficiar")');
+    }
+    if (!supplierData.clientId && !supplierData.beneficiaryContact?.trim()) {
+      problems.push('Persoană contact beneficiar');
+    }
+    if (!supplierData.cargoDescription?.trim()) {
+      problems.push('Descriere Marfă');
+    }
+    return problems;
+  };
+
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOfferData || !result) return;
+
+    const problems = findOrderProblems();
+    if (problems.length > 0) {
+      setError(
+        problems.length === 1
+          ? `Comanda nu poate fi plasată: lipsește „${problems[0]}".`
+          : `Comanda nu poate fi plasată. Lipsesc: ${problems.map((p) => `„${p}"`).join(', ')}.`
+      );
+      return;
+    }
 
     setIsPlacingOrder(true);
     setError('');
@@ -203,7 +239,9 @@ export function useCalculator(user?: User): UseCalculatorReturn {
       setOrderSuccess(`Comanda a fost plasată cu succes! Număr rezervare: ${response.bookingId}`);
       setShowSupplierForm(false);
     } catch (err: unknown) {
-      setError(getErrorMessage(err));
+      // Prefix so a bare transport error ("Request failed with status code 400")
+      // still tells the operator which step failed.
+      setError(`Comanda nu a putut fi plasată: ${getErrorMessage(err)}`);
     } finally {
       setIsPlacingOrder(false);
     }

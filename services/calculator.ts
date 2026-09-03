@@ -87,6 +87,8 @@ export interface PriceOffer {
   commissionPercent?: number;
   commissionBase?: number;
   commissionAmount?: number;
+  /** Set when the origin port has no rate of its own and a reference port's was used. */
+  priceFromReferencePort?: string;
 }
 
 export interface CalculatorResult {

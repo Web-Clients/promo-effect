@@ -172,11 +172,17 @@ export async function computeFromBasePrices(
   // (e.g. Ningbo) has no own base price, use Shanghai's base price — the origin's
   // PortPricingMatrix adjustment (e.g. Ningbo +100) is applied on top below.
   const REFERENCE_PORT = 'Shanghai';
+  // Tracked so the quote can SAY it is a reference price. Promo-Efect has no
+  // Ningbo rows at all, so every Ningbo quote is really a Shanghai rate plus the
+  // Ningbo port adjustment — which read to the client as "the Ningbo price isn't
+  // active today but it picks it anyway".
+  let referencePortUsed: string | undefined;
   if (
     basePrices.length === 0 &&
     (input.portOrigin || '').trim().toLowerCase() !== REFERENCE_PORT.toLowerCase()
   ) {
     basePrices = await prisma.basePrice.findMany({ where: baseWhere(REFERENCE_PORT) });
+    if (basePrices.length > 0) referencePortUsed = REFERENCE_PORT;
   }
 
   if (basePrices.length === 0) return [];
@@ -343,6 +349,7 @@ export async function computeFromBasePrices(
           ? maxTransitDays
           : estimateTransitDays(input.portOrigin, portDestination),
       availability: checkAvailability(readyDate),
+      priceFromReferencePort: referencePortUsed,
     });
   }
 

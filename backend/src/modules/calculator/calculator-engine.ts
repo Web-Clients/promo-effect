@@ -21,9 +21,10 @@ import {
 } from './calculator-routes';
 import {
   Incoterm,
-  getIncotermsExtraCost,
-  EXW_CHINA_COSTS,
-  LAND_TRANSPORT_CHISINAU,
+  requiresShippingLine,
+  CommissionPolicy,
+  DEFAULT_COMMISSION_POLICY,
+  priceOffer,
 } from './calculator-incoterms';
 import { validateCalculatorInput } from './calculator-validation';
 
@@ -32,93 +33,6 @@ export interface ExtendedCalculatorInput extends CalculatorInput {
   incoterm?: Incoterm;
   shippingLine?: string; // required for CFR
   finalDestination?: string; // e.g. 'chisinau', 'balti', 'constanta'
-}
-
-/**
- * Compute incoterm + final destination adjustments on top of a base offer
- */
-export function applyIncotermsToOffer(
-  offer: PriceOffer,
-  incoterm: Incoterm,
-  finalDestination: string
-): PriceOffer & {
-  isPriceMissing: boolean;
-  incoterm: Incoterm;
-  rates: {
-    china?: { total: number; breakdown: { transport: number; customs: number; storage: number } };
-    maritime: {
-      total: number;
-      breakdown: { freight: number; portAdjustment: number; portTaxes: number };
-    };
-    landTransport?: {
-      total: number;
-      breakdown: { transport: number; expedition: number; localTaxes: number; commission: number };
-    };
-  };
-  totalDays: number;
-} {
-  const { chinaExtra, landTransportExtra } = getIncotermsExtraCost(incoterm, finalDestination);
-
-  const maritimeTotal = offer.freightPrice + offer.portAdjustment + offer.portTaxes;
-  const landBase =
-    offer.terrestrialTransport + offer.customsTaxes + offer.commission + (offer.insurance || 0);
-
-  let totalUSD = offer.totalPriceUSD + chinaExtra + landTransportExtra;
-
-  // For EXW maritime is NOT in supplier price — it's already in totalPriceUSD from base calc
-  // For CFR maritime is already included — but totalPriceUSD from base includes it, so no subtraction needed
-
-  const rates: any = {
-    maritime: {
-      total: maritimeTotal,
-      breakdown: {
-        freight: offer.freightPrice,
-        portAdjustment: offer.portAdjustment,
-        portTaxes: offer.portTaxes,
-      },
-    },
-  };
-
-  if (incoterm === 'EXW') {
-    rates.china = {
-      total: EXW_CHINA_COSTS.total,
-      breakdown: {
-        transport: EXW_CHINA_COSTS.transport,
-        customs: EXW_CHINA_COSTS.customs,
-        storage: EXW_CHINA_COSTS.warehousing,
-      },
-    };
-  }
-
-  if (finalDestination && finalDestination !== 'constanta') {
-    rates.landTransport = {
-      total: LAND_TRANSPORT_CHISINAU.total,
-      breakdown: {
-        transport: LAND_TRANSPORT_CHISINAU.transport,
-        expedition: LAND_TRANSPORT_CHISINAU.expedition,
-        localTaxes: LAND_TRANSPORT_CHISINAU.localTaxes,
-        commission: LAND_TRANSPORT_CHISINAU.commission,
-      },
-    };
-  }
-
-  const destLabel = DESTINATION_LABELS[finalDestination] || finalDestination;
-  const portIntermediate = offer.portIntermediate;
-  const portFinal =
-    finalDestination && finalDestination !== 'constanta' ? destLabel : portIntermediate;
-  const route = buildRouteString(offer.portOrigin, portIntermediate, finalDestination);
-
-  return {
-    ...offer,
-    incoterm,
-    rates,
-    totalPriceUSD: totalUSD,
-    totalPriceMDL: 0, // will be filled by engine after exchange rate
-    route,
-    portFinal,
-    totalDays: offer.estimatedTransitDays,
-    isPriceMissing: false,
-  };
 }
 
 /**
@@ -278,9 +192,12 @@ export async function computeFromBasePrices(
   }
   const dedupedPrices = Array.from(dedupSeen.values());
 
-  // Filter by CFR shipping line if specified
+  // Under CFR/CIF the supplier has already booked a carrier, so quoting the other
+  // lines is meaningless — keep only the one that was selected. CIF used to fall
+  // through this filter and get offered every line.
+  const linePinned = input.incoterm ? requiresShippingLine(input.incoterm) : false;
   const filteredPrices =
-    input.incoterm === 'CFR' && input.shippingLine
+    linePinned && input.shippingLine
       ? dedupedPrices.filter(
           (p) => p.shippingLine.toLowerCase() === (input.shippingLine || '').toLowerCase()
         )
@@ -557,8 +474,27 @@ export function finalizeOffers(
   exchangeRate: number,
   totalContainerCount: number,
   input: ExtendedCalculatorInput,
-  client?: { discount?: number | null }
+  client?: { discount?: number | null },
+  commissionPolicy: CommissionPolicy = DEFAULT_COMMISSION_POLICY
 ): CalculatorResult {
+  // Incoterm pricing FIRST — it decides whether the buyer pays the ocean freight
+  // and what the commission comes to, so the ranking below must sort on that
+  // number rather than on the raw sum. This is the only place the total is
+  // computed; the offer card and the order form both render what lands here.
+  const incoterm: Incoterm = input.incoterm || 'FOB';
+  for (const offer of offers) {
+    const priced = priceOffer(offer, incoterm, commissionPolicy);
+    offer.incoterm = priced.incoterm;
+    offer.maritimeCharged = priced.maritimeCharged;
+    offer.localTaxesTotal = priced.localTaxes;
+    offer.landTransportTotal = priced.landTransport;
+    offer.commissionPercent = priced.commissionPercent;
+    offer.commissionBase = priced.commissionBase;
+    offer.commissionAmount = priced.commissionAmount;
+    offer.commission = priced.commissionAmount;
+    offer.totalPriceUSD = priced.total;
+  }
+
   // Apply client discount before sorting
   if (client?.discount) {
     offers.forEach((o) => {

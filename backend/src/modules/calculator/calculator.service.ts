@@ -31,6 +31,7 @@ import {
   ExtendedCalculatorInput,
 } from './calculator-engine';
 import { validateCalculatorInput } from './calculator-validation';
+import { resolveCommissionPolicy, priceOffer, isIncoterm, Incoterm } from './calculator-incoterms';
 import { estimateTransitDays, checkAvailability } from './calculator-routes';
 
 // Re-export types for backward compatibility
@@ -164,7 +165,18 @@ export class CalculatorService {
       }
     }
 
-    return finalizeOffers(offers, exchangeRate, totalContainerCount, extInput, client);
+    // Commission percentages are admin-configurable per Incoterm; a missing or
+    // malformed setting falls back to the built-in default rather than failing.
+    const commissionPolicy = resolveCommissionPolicy(settings);
+
+    return finalizeOffers(
+      offers,
+      exchangeRate,
+      totalContainerCount,
+      extInput,
+      client,
+      commissionPolicy
+    );
   }
 
   /**
@@ -338,6 +350,37 @@ export class CalculatorService {
   async placeOrder(data: PlaceOrderRequest, userId: string): Promise<PlaceOrderResult> {
     const { offer, calculatorInput, supplierData } = data;
 
+    // Re-price server-side. The browser used to send back whatever the offer card
+    // had computed, and the booking stored the raw pre-incoterm sum — which is how
+    // a $2.475 CFR quote became a $9.005 booking. The total written to the DB and
+    // put in the three emails is now derived here, from the same rules the
+    // calculator used, never taken on trust from the request body.
+    //
+    // The leg components still arrive from the client; re-deriving them from
+    // basePriceId is the next hardening step.
+    const rawIncoterm = (calculatorInput as { incoterm?: unknown }).incoterm;
+    const incoterm: Incoterm = isIncoterm(rawIncoterm) ? rawIncoterm : 'FOB';
+    const settings = await prisma.adminSettings.findUnique({ where: { id: 1 } });
+    const priced = priceOffer(
+      offer,
+      incoterm,
+      resolveCommissionPolicy(settings),
+      data.commissionPercent
+    );
+
+    // Everything downstream — the booking row, the transport-order PDF and the
+    // three emails — reads the offer object, so put the authoritative numbers on
+    // it rather than leaving a second, stale copy in play.
+    offer.incoterm = priced.incoterm;
+    offer.maritimeCharged = priced.maritimeCharged;
+    offer.localTaxesTotal = priced.localTaxes;
+    offer.landTransportTotal = priced.landTransport;
+    offer.commissionPercent = priced.commissionPercent;
+    offer.commissionBase = priced.commissionBase;
+    offer.commissionAmount = priced.commissionAmount;
+    offer.commission = priced.commissionAmount;
+    offer.totalPriceUSD = priced.total;
+
     // Get user info
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -433,8 +476,8 @@ export class CalculatorService {
         portTaxes: offer.portTaxes,
         customsTaxes: offer.customsTaxes,
         terrestrialTransport: offer.terrestrialTransport,
-        commission: offer.commission,
-        totalPrice: offer.totalPriceUSD,
+        commission: priced.commissionAmount,
+        totalPrice: priced.total,
         supplierName: supplierData.supplierName,
         supplierPhone: supplierData.supplierPhone,
         supplierEmail: supplierData.supplierEmail,

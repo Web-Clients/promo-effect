@@ -55,7 +55,35 @@ jest.mock('../src/lib/prisma', () => ({
 
 import { PricingService } from '../src/modules/pricing/pricing.service';
 import { HsCodesService } from '../src/modules/hscodes/hscodes.service';
-import { finalizeOffers, applyIncotermsToOffer } from '../src/modules/calculator/calculator-engine';
+import { finalizeOffers } from '../src/modules/calculator/calculator-engine';
+import { Incoterm } from '../src/modules/calculator/calculator-incoterms';
+
+/**
+ * Price one offer through the LIVE path.
+ *
+ * These cases used to call `applyIncotermsToOffer`, which `calculatePrices` never
+ * invoked — the assertions passed while production applied no incoterm rules at
+ * all. Everything now goes through finalizeOffers, the function the endpoint
+ * actually calls.
+ */
+function priceViaEngine(offer: PriceOffer, incoterm: Incoterm, finalDestination: string) {
+  const readyDate = (() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 2);
+    return d.toISOString().split('T')[0];
+  })();
+  const result = finalizeOffers([{ ...offer }], 18, 1, {
+    portOrigin: offer.portOrigin,
+    containerType: '20DV',
+    cargoWeight: '18-23',
+    cargoReadyDate: readyDate,
+    portDestination: 'Constanta',
+    containers: [],
+    incoterm,
+    finalDestination,
+  } as never);
+  return result.offers[0];
+}
 import { PriceOffer } from '../src/modules/calculator/calculator.types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -260,8 +288,10 @@ describe('Missing price → Contact reprezentant (A25)', () => {
       estimatedTransitDays: 32,
       availability: 'AVAILABLE',
     };
-    const result = applyIncotermsToOffer(offer, 'FOB', 'constanta');
-    expect(result.isPriceMissing).toBe(false);
+    const result = priceViaEngine(offer, 'FOB', 'constanta');
+    // maritime 1100 + local 350 + land 300 + 10% of (350+300) = 1815
+    expect(result.totalPriceUSD).toBe(1815);
+    expect(result.incoterm).toBe('FOB');
   });
 
   it('finalizeOffers with empty offers → no results (trigger "Contact reprezentant" in UI)', () => {
@@ -466,7 +496,7 @@ describe('Base price + port adjustment + weight surcharge → correct total', ()
    * (avoids DB dependency on this test level).
    */
 
-  it('EXW + chisinau: 1800 base + 1100 china + 2500 land = 5400', () => {
+  it('EXW + chisinau: priced like FOB, no invented China or land constants', () => {
     const offer: PriceOffer = {
       rank: 0,
       shippingLine: 'MSC',
@@ -490,12 +520,14 @@ describe('Base price + port adjustment + weight surcharge → correct total', ()
       availability: 'AVAILABLE',
     };
 
-    const result = applyIncotermsToOffer(offer, 'EXW', 'chisinau');
-    expect(result.totalPriceUSD).toBe(1800 + 1100 + 2500);
-    expect(result.totalPriceUSD).toBe(5400);
+    const result = priceViaEngine(offer, 'EXW', 'chisinau');
+    // No fabricated China inland costs and no second land leg stacked on top of
+    // the real terrestrialTransport — EXW prices like FOB until those costs come
+    // from a real table.
+    expect(result.totalPriceUSD).toBe(1815);
   });
 
-  it('CFR + constanta: total unchanged (maritime included in base)', () => {
+  it('CFR + constanta: the maritime leg the supplier paid for is dropped', () => {
     const offer: PriceOffer = {
       rank: 0,
       shippingLine: 'MSC',
@@ -519,8 +551,11 @@ describe('Base price + port adjustment + weight surcharge → correct total', ()
       availability: 'AVAILABLE',
     };
 
-    const result = applyIncotermsToOffer(offer, 'CFR', 'constanta');
-    expect(result.totalPriceUSD).toBe(1800);
+    const result = priceViaEngine(offer, 'CFR', 'constanta');
+    // local 350 + land 300 + 10% of (350+300) = 715. The old assertion kept the
+    // full 1800 — that is exactly the bug the client reported.
+    expect(result.maritimeCharged).toBe(0);
+    expect(result.totalPriceUSD).toBe(715);
   });
 
   it('MDL conversion at rate 18 is correct', () => {

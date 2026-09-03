@@ -4,17 +4,8 @@
  *         calculator-routes.ts, calculator-validation.ts
  */
 
-import {
-  applyIncotermsToOffer,
-  finalizeOffers,
-  getExchangeRate,
-} from '../src/modules/calculator/calculator-engine';
-import {
-  getIncotermsExtraCost,
-  buildIncotermsBreakdown,
-  EXW_CHINA_COSTS,
-  LAND_TRANSPORT_CHISINAU,
-} from '../src/modules/calculator/calculator-incoterms';
+import { finalizeOffers, getExchangeRate } from '../src/modules/calculator/calculator-engine';
+import { Incoterm } from '../src/modules/calculator/calculator-incoterms';
 import {
   isConstantaDestination,
   isOdessaDestination,
@@ -72,95 +63,6 @@ function makeOffer(overrides: Partial<PriceOffer> = {}): PriceOffer {
 }
 
 // ─── calculator-incoterms.ts ─────────────────────────────────────────────────
-
-describe('getIncotermsExtraCost', () => {
-  it('FOB + constanta → zero extra costs', () => {
-    const { chinaExtra, landTransportExtra, maritimeIncluded } = getIncotermsExtraCost(
-      'FOB',
-      'constanta'
-    );
-    expect(chinaExtra).toBe(0);
-    expect(landTransportExtra).toBe(0);
-    expect(maritimeIncluded).toBe(false);
-  });
-
-  it('EXW → adds China inland costs', () => {
-    const { chinaExtra, landTransportExtra } = getIncotermsExtraCost('EXW', 'constanta');
-    expect(chinaExtra).toBe(EXW_CHINA_COSTS.total);
-    expect(chinaExtra).toBe(1100);
-    expect(landTransportExtra).toBe(0);
-  });
-
-  it('FOB + chisinau → adds land transport', () => {
-    const { chinaExtra, landTransportExtra } = getIncotermsExtraCost('FOB', 'chisinau');
-    expect(chinaExtra).toBe(0);
-    expect(landTransportExtra).toBe(LAND_TRANSPORT_CHISINAU.total);
-    expect(landTransportExtra).toBe(2500);
-  });
-
-  it('EXW + chisinau → adds both China + land transport', () => {
-    const { chinaExtra, landTransportExtra } = getIncotermsExtraCost('EXW', 'chisinau');
-    expect(chinaExtra).toBe(1100);
-    expect(landTransportExtra).toBe(2500);
-  });
-
-  it('CFR → maritimeIncluded=true', () => {
-    const { maritimeIncluded } = getIncotermsExtraCost('CFR', 'constanta');
-    expect(maritimeIncluded).toBe(true);
-  });
-
-  it('CFR + chisinau → maritimeIncluded=true AND land transport', () => {
-    const { maritimeIncluded, landTransportExtra } = getIncotermsExtraCost('CFR', 'chisinau');
-    expect(maritimeIncluded).toBe(true);
-    expect(landTransportExtra).toBe(2500);
-  });
-});
-
-describe('EXW_CHINA_COSTS constants', () => {
-  it('breakdown sums to total: 500 + 250 + 350 = 1100', () => {
-    const { transport, customs, warehousing, total } = EXW_CHINA_COSTS;
-    expect(transport + customs + warehousing).toBe(total);
-    expect(total).toBe(1100);
-  });
-});
-
-describe('LAND_TRANSPORT_CHISINAU constants', () => {
-  it('breakdown sums to total: 1500 + 300 + 500 + 200 = 2500', () => {
-    const { transport, expedition, localTaxes, commission, total } = LAND_TRANSPORT_CHISINAU;
-    expect(transport + expedition + localTaxes + commission).toBe(total);
-    expect(total).toBe(2500);
-  });
-});
-
-describe('buildIncotermsBreakdown', () => {
-  it('EXW → has china costs, no maritimeIncluded', () => {
-    const breakdown = buildIncotermsBreakdown('EXW', 'constanta');
-    expect(breakdown.incoterm).toBe('EXW');
-    expect(breakdown.china).toBeDefined();
-    expect(breakdown.china!.total).toBe(1100);
-    expect(breakdown.maritimeIncluded).toBeUndefined();
-    expect(breakdown.landTransport).toBeUndefined();
-  });
-
-  it('CFR → maritimeIncluded=true, no china', () => {
-    const breakdown = buildIncotermsBreakdown('CFR', 'constanta');
-    expect(breakdown.maritimeIncluded).toBe(true);
-    expect(breakdown.china).toBeUndefined();
-  });
-
-  it('FOB + chisinau → has landTransport', () => {
-    const breakdown = buildIncotermsBreakdown('FOB', 'chisinau');
-    expect(breakdown.landTransport).toBeDefined();
-    expect(breakdown.landTransport!.total).toBe(2500);
-  });
-
-  it('FOB + constanta → minimal breakdown, no extras', () => {
-    const breakdown = buildIncotermsBreakdown('FOB', 'constanta');
-    expect(breakdown.china).toBeUndefined();
-    expect(breakdown.landTransport).toBeUndefined();
-    expect(breakdown.maritimeIncluded).toBeUndefined();
-  });
-});
 
 // ─── calculator-routes.ts ─────────────────────────────────────────────────────
 
@@ -355,67 +257,16 @@ describe('validateCalculatorInput', () => {
 
 // ─── calculator-engine.ts (pure functions) ───────────────────────────────────
 
-describe('applyIncotermsToOffer', () => {
-  it('FOB + constanta → total unchanged', () => {
-    const offer = makeOffer({ totalPriceUSD: 1800 });
-    const result = applyIncotermsToOffer(offer, 'FOB', 'constanta');
-    expect(result.totalPriceUSD).toBe(1800);
-    expect(result.incoterm).toBe('FOB');
-    expect(result.isPriceMissing).toBe(false);
-  });
-
-  it('EXW + constanta → adds 1100', () => {
-    const offer = makeOffer({ totalPriceUSD: 1800 });
-    const result = applyIncotermsToOffer(offer, 'EXW', 'constanta');
-    expect(result.totalPriceUSD).toBe(1800 + 1100);
-    expect(result.rates.china).toBeDefined();
-    expect(result.rates.china!.total).toBe(1100);
-  });
-
-  it('FOB + chisinau → adds land transport 2500', () => {
-    const offer = makeOffer({ totalPriceUSD: 1800 });
-    const result = applyIncotermsToOffer(offer, 'FOB', 'chisinau');
-    expect(result.totalPriceUSD).toBe(1800 + 2500);
-    expect(result.rates.landTransport).toBeDefined();
-    expect(result.rates.landTransport!.total).toBe(2500);
-  });
-
-  it('EXW + chisinau → adds both 1100 + 2500 = 3600', () => {
-    const offer = makeOffer({ totalPriceUSD: 1800 });
-    const result = applyIncotermsToOffer(offer, 'EXW', 'chisinau');
-    expect(result.totalPriceUSD).toBe(1800 + 1100 + 2500);
-    expect(result.rates.china).toBeDefined();
-    expect(result.rates.landTransport).toBeDefined();
-  });
-
-  it('includes maritime rate breakdown', () => {
-    const offer = makeOffer({ freightPrice: 1000, portAdjustment: 100, portTaxes: 200 });
-    const result = applyIncotermsToOffer(offer, 'FOB', 'constanta');
-    expect(result.rates.maritime.total).toBe(1000 + 100 + 200);
-    expect(result.rates.maritime.breakdown.freight).toBe(1000);
-    expect(result.rates.maritime.breakdown.portAdjustment).toBe(100);
-    expect(result.rates.maritime.breakdown.portTaxes).toBe(200);
-  });
-
-  it('builds correct route string for chisinau', () => {
-    const offer = makeOffer();
-    const result = applyIncotermsToOffer(offer, 'FOB', 'chisinau');
-    expect(result.route).toContain('Chișinău');
-  });
-
-  it('no landTransport rates for constanta destination', () => {
-    const offer = makeOffer();
-    const result = applyIncotermsToOffer(offer, 'FOB', 'constanta');
-    expect(result.rates.landTransport).toBeUndefined();
-  });
-});
-
 describe('finalizeOffers', () => {
-  it('sorts offers by totalPriceUSD ascending', () => {
+  // finalizeOffers now DERIVES the total from the legs instead of passing through
+  // whatever totalPriceUSD a caller happened to set. Ranking therefore has to
+  // sort on the derived number — an offer with cheap freight but an expensive
+  // land leg must not win just because its stale pre-incoterm sum was lower.
+  it('sorts by the derived total, not by the incoming totalPriceUSD', () => {
     const offers = [
-      makeOffer({ totalPriceUSD: 3000 }),
-      makeOffer({ totalPriceUSD: 1500 }),
-      makeOffer({ totalPriceUSD: 2000 }),
+      makeOffer({ freightPrice: 3000, totalPriceUSD: 1 }),
+      makeOffer({ freightPrice: 1000, totalPriceUSD: 99999 }),
+      makeOffer({ freightPrice: 2000, totalPriceUSD: 500 }),
     ];
     const result = finalizeOffers(offers, 18, 1, {
       portOrigin: 'Shanghai',
@@ -425,13 +276,12 @@ describe('finalizeOffers', () => {
       portDestination: 'Constanta',
       containers: [],
     } as any);
-    expect(result.offers[0].totalPriceUSD).toBe(1500);
-    expect(result.offers[1].totalPriceUSD).toBe(2000);
-    expect(result.offers[2].totalPriceUSD).toBe(3000);
+    // legs beyond freight are identical: +100 adj, 350 local, 300 land, 65 commission
+    expect(result.offers.map((o) => o.totalPriceUSD)).toEqual([1815, 2815, 3815]);
   });
 
   it('applies exchange rate for MDL conversion', () => {
-    const offers = [makeOffer({ totalPriceUSD: 1000 })];
+    const offers = [makeOffer()];
     const result = finalizeOffers(offers, 18, 1, {
       portOrigin: 'Shanghai',
       containerType: '20DV',
@@ -440,7 +290,8 @@ describe('finalizeOffers', () => {
       portDestination: 'Constanta',
       containers: [],
     } as any);
-    expect(result.offers[0].totalPriceMDL).toBe(18000);
+    expect(result.offers[0].totalPriceUSD).toBe(1815);
+    expect(result.offers[0].totalPriceMDL).toBe(1815 * 18);
     expect(result.exchangeRate).toBe(18);
   });
 
@@ -520,20 +371,42 @@ describe('Weight boundary edge cases in validation', () => {
   });
 });
 
+/**
+ * Price one offer through the path `calculatePrices` actually takes.
+ * The removed `applyIncotermsToOffer` was never called in production, so the
+ * assertions that used it proved nothing about the live quote.
+ */
+function priceViaEngine(offer: PriceOffer, incoterm: Incoterm, finalDestination: string) {
+  const result = finalizeOffers([{ ...offer }], 18, 1, {
+    portOrigin: offer.portOrigin,
+    containerType: '20DV',
+    cargoWeight: '18-23',
+    cargoReadyDate: FUTURE_DATE,
+    portDestination: 'Constanta',
+    containers: [],
+    incoterm,
+    finalDestination,
+  } as never).offers[0];
+  return result;
+}
+
 // ─── Incoterm × destination × container combination matrix ───────────────────
 
 describe('Incoterm × destination combinations', () => {
-  const incoterms = ['FOB', 'EXW', 'CFR'] as const;
+  // CIF is in the matrix now. It used to be a frontend-only button: the backend
+  // enum stopped at CFR, so a CIF quote skipped every maritime rule.
+  const incoterms = ['FOB', 'EXW', 'CFR', 'CIF'] as const;
   const destinations = ['constanta', 'chisinau', 'balti'] as const;
   const containerTypes = ['20DV', '40DV', '40HQ', '45HQ', '20OT', '40OT', '20RF'] as const;
 
   for (const incoterm of incoterms) {
     for (const destination of destinations) {
       it(`${incoterm} + ${destination} → valid total`, () => {
-        const base = makeOffer({ totalPriceUSD: 2000 });
-        const result = applyIncotermsToOffer(base, incoterm, destination);
-        expect(result.totalPriceUSD).toBeGreaterThanOrEqual(2000);
-        expect(result.isPriceMissing).toBe(false);
+        const result = priceViaEngine(makeOffer(), incoterm, destination);
+        // legs: maritime 1100, local 350, land 300; commission 10% of 650 = 65
+        const supplierPaysFreight = incoterm === 'CFR' || incoterm === 'CIF';
+        expect(result.totalPriceUSD).toBe(supplierPaysFreight ? 715 : 1815);
+        expect(result.maritimeCharged).toBe(supplierPaysFreight ? 0 : 1100);
         expect(result.incoterm).toBe(incoterm);
       });
     }
@@ -555,30 +428,36 @@ describe('Incoterm × destination combinations', () => {
 // ─── Snapshot tests for pricing breakdown ─────────────────────────────────────
 
 describe('Pricing breakdown snapshots', () => {
-  it('EXW + chisinau breakdown snapshot', () => {
-    const offer = makeOffer({
-      totalPriceUSD: 1800,
-      freightPrice: 1000,
-      portAdjustment: 100,
-      portTaxes: 200,
-    });
-    const result = applyIncotermsToOffer(offer, 'EXW', 'chisinau');
-    expect({
+  // The breakdown the offer card renders. Snapshotting it here means a change to
+  // any leg or to the commission shows up as a reviewable diff instead of
+  // quietly moving what the client is quoted.
+  const breakdown = (incoterm: 'FOB' | 'EXW' | 'CFR' | 'CIF', destination: string) => {
+    const result = priceViaEngine(makeOffer(), incoterm, destination);
+    return {
       totalPriceUSD: result.totalPriceUSD,
-      chinaCost: result.rates.china?.total,
-      landTransportCost: result.rates.landTransport?.total,
-      maritimeTotal: result.rates.maritime.total,
-    }).toMatchSnapshot();
+      maritimeCharged: result.maritimeCharged,
+      localTaxesTotal: result.localTaxesTotal,
+      landTransportTotal: result.landTransportTotal,
+      commissionPercent: result.commissionPercent,
+      commissionBase: result.commissionBase,
+      commissionAmount: result.commissionAmount,
+    };
+  };
+
+  it('EXW + chisinau breakdown snapshot', () => {
+    expect(breakdown('EXW', 'chisinau')).toMatchSnapshot();
   });
 
   it('FOB + constanta breakdown snapshot', () => {
-    const offer = makeOffer({ totalPriceUSD: 1800 });
-    const result = applyIncotermsToOffer(offer, 'FOB', 'constanta');
-    expect({
-      totalPriceUSD: result.totalPriceUSD,
-      chinaCost: result.rates.china?.total,
-      landTransportCost: result.rates.landTransport?.total,
-    }).toMatchSnapshot();
+    expect(breakdown('FOB', 'constanta')).toMatchSnapshot();
+  });
+
+  it('CFR + chisinau breakdown snapshot', () => {
+    expect(breakdown('CFR', 'chisinau')).toMatchSnapshot();
+  });
+
+  it('CIF + chisinau breakdown snapshot', () => {
+    expect(breakdown('CIF', 'chisinau')).toMatchSnapshot();
   });
 });
 

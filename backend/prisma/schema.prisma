@@ -372,7 +372,11 @@ model AdminSettings {
 
   // Common costs (USD)
   customsTaxes         Float @default(180.00) @map("customs_taxes")
-  commission           Float @default(200.00) @map("commission")
+  commission           Float @default(200.00) @map("commission") // Legacy flat fee — superseded by commissionPercentByIncoterm
+  // Forwarding commission as a percentage, per Incoterm, e.g.
+  // {"FOB":10,"EXW":10,"CFR":10,"CIF":10}. Applied to local handling + land leg
+  // only, never to the ocean freight. See calculator-incoterms.ts.
+  commissionPercentByIncoterm String? @map("commission_percent_by_incoterm")
   insuranceCost        Float @default(50.00) @map("insurance_cost") // Standard insurance cost
   profitMarginPercent  Float @default(10.0) @map("profit_margin_percent") // Profit margin %
 

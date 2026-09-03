@@ -1,18 +1,49 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`Pricing breakdown snapshots CFR + chisinau breakdown snapshot 1`] = `
+{
+  "commissionAmount": 65,
+  "commissionBase": 650,
+  "commissionPercent": 10,
+  "landTransportTotal": 300,
+  "localTaxesTotal": 350,
+  "maritimeCharged": 0,
+  "totalPriceUSD": 715,
+}
+`;
+
+exports[`Pricing breakdown snapshots CIF + chisinau breakdown snapshot 1`] = `
+{
+  "commissionAmount": 65,
+  "commissionBase": 650,
+  "commissionPercent": 10,
+  "landTransportTotal": 300,
+  "localTaxesTotal": 350,
+  "maritimeCharged": 0,
+  "totalPriceUSD": 715,
+}
+`;
+
 exports[`Pricing breakdown snapshots EXW + chisinau breakdown snapshot 1`] = `
 {
-  "chinaCost": 1100,
-  "landTransportCost": 2500,
-  "maritimeTotal": 1300,
-  "totalPriceUSD": 5400,
+  "commissionAmount": 65,
+  "commissionBase": 650,
+  "commissionPercent": 10,
+  "landTransportTotal": 300,
+  "localTaxesTotal": 350,
+  "maritimeCharged": 1100,
+  "totalPriceUSD": 1815,
 }
 `;
 
 exports[`Pricing breakdown snapshots FOB + constanta breakdown snapshot 1`] = `
 {
-  "chinaCost": undefined,
-  "landTransportCost": undefined,
-  "totalPriceUSD": 1800,
+  "commissionAmount": 65,
+  "commissionBase": 650,
+  "commissionPercent": 10,
+  "landTransportTotal": 300,
+  "localTaxesTotal": 350,
+  "maritimeCharged": 1100,
+  "totalPriceUSD": 1815,
 }
 `;

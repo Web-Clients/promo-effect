@@ -62,6 +62,22 @@ export interface PriceOffer {
 
   estimatedTransitDays: number;
   availability: 'AVAILABLE' | 'LIMITED' | 'UNAVAILABLE';
+
+  // Incoterm pricing — filled by finalizeOffers via calculator-incoterms.priceOffer.
+  // The frontend renders these; it must never re-derive the total itself.
+  incoterm?: 'FOB' | 'EXW' | 'CFR' | 'CIF';
+  /** Ocean freight actually billed to the buyer — 0 under CFR/CIF. */
+  maritimeCharged?: number;
+  /** portTaxes + customsTaxes, the single "Taxe locale Constanța" cell. */
+  localTaxesTotal?: number;
+  /** terrestrialTransport + insurance. */
+  landTransportTotal?: number;
+  commissionPercent?: number;
+  /** What the percentage is applied to — never includes the ocean freight. */
+  commissionBase?: number;
+  commissionAmount?: number;
+  /** True when the quote used a Shanghai rate because the chosen origin has none. */
+  priceFromReferencePort?: string;
 }
 
 export interface CalculatorResult {
@@ -98,6 +114,8 @@ export interface PlaceOrderRequest {
   offer: PriceOffer;
   calculatorInput: CalculatorInput;
   supplierData: SupplierData;
+  /** Admin's per-quote commission percentage, re-validated server-side (0–30). */
+  commissionPercent?: number;
 }
 
 export interface PlaceOrderResult {

@@ -241,7 +241,38 @@ describe('validateCalculatorInput', () => {
         incoterm: 'CFR',
         shippingLine: undefined,
       } as any)
-    ).toThrow('Pentru CFR selectați linia maritimă');
+    ).toThrow('Pentru CFR/CIF selectați linia maritimă');
+  });
+
+  it('throws if CIF without shippingLine — CIF used to slip past this check', () => {
+    expect(() =>
+      validateCalculatorInput({
+        ...validInput,
+        incoterm: 'CIF',
+        shippingLine: undefined,
+      } as any)
+    ).toThrow('Pentru CFR/CIF selectați linia maritimă');
+  });
+
+  it('does not require a port of origin under CFR/CIF — the seller chose it', () => {
+    for (const incoterm of ['CFR', 'CIF']) {
+      expect(() =>
+        validateCalculatorInput({
+          ...validInput,
+          portOrigin: '',
+          incoterm,
+          shippingLine: 'Maersk',
+        } as any)
+      ).not.toThrow();
+    }
+  });
+
+  it('still requires a port of origin under FOB/EXW', () => {
+    for (const incoterm of ['FOB', 'EXW']) {
+      expect(() =>
+        validateCalculatorInput({ ...validInput, portOrigin: '', incoterm } as any)
+      ).toThrow();
+    }
   });
 
   it('passes if CFR with shippingLine', () => {

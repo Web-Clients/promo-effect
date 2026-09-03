@@ -2,6 +2,9 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
+  // The local-stack suite needs a seeded database and an API on :3099; it has
+  // its own config (see e2e/local-stack/README.md) and must not run here.
+  testIgnore: '**/local-stack/**',
   timeout: 30000,
   expect: { timeout: 5000 },
   fullyParallel: true,

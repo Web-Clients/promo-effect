@@ -102,7 +102,7 @@ export interface UseCalculatorReturn {
   setSupplierData: React.Dispatch<React.SetStateAction<SupplierData>>;
   // Handlers
   handleCalculate: (e: React.FormEvent) => Promise<void>;
-  handleSelectOffer: (offer: PriceOffer, index: number) => void;
+  handleSelectOffer: (offer: PriceOffer, index: number, commissionPercent: number) => void;
   handlePlaceOrder: (e: React.FormEvent) => Promise<void>;
   // Props
   isAdmin: boolean;

@@ -13,7 +13,8 @@ interface OfferCardProps {
   incoterm: Incoterm;
   finalDestination: FinalDestination;
   onToggle: (index: number) => void;
-  onSelectOffer: (offer: PriceOffer, index: number) => void;
+  /** commissionPercent is the admin's effective percentage for this quote. */
+  onSelectOffer: (offer: PriceOffer, index: number, commissionPercent: number) => void;
 }
 
 // China inland (EXW) costs are NOT known to the backend and must be configured
@@ -25,44 +26,13 @@ const getEXWTotal = () => 0;
 // (the separate "Ajustare Port" cell was removed per client request).
 const getMaritimeTotal = (offer: PriceOffer) => offer.freightPrice + offer.portAdjustment;
 
-// Rata 2 "Taxe locale Constanța": local port charges + customs, one combined value.
-const getTaxeLocaleTotal = (offer: PriceOffer) => offer.portTaxes + offer.customsTaxes;
+// The three cells below now prefer what the backend computed. They keep a local
+// fallback only so an offer served by an older backend still renders.
+const getTaxeLocaleTotal = (offer: PriceOffer) =>
+  offer.localTaxesTotal ?? offer.portTaxes + offer.customsTaxes;
 
-// Rata 3 land leg to final destination: terrestrial transport + insurance (customs now
-// live in Rata 2; commission is added separately as a percentage).
 const getTransportTerestruTotal = (offer: PriceOffer) =>
-  offer.terrestrialTransport + (offer.insurance || 0);
-
-const computeTotalPrice = (
-  offer: PriceOffer,
-  incoterm: Incoterm,
-  _finalDestination: FinalDestination,
-  commissionOverride?: number
-) => {
-  // TRUST the backend total. offer.totalPriceUSD already = freight + portAdjustment
-  // + portTaxes + terrestrialTransport + customsTaxes + commission + insurance,
-  // computed once from the real tables. The old code re-derived it with hardcoded
-  // LAND_TRANSPORT_CHISINAU constants ON TOP of offer.terrestrialTransport, which
-  // double-counted the land leg and inflated the price (client's "calculează greșit").
-  let total = offer.totalPriceUSD;
-
-  // Commission override (admin) replaces the backend commission.
-  if (commissionOverride !== undefined) {
-    total += commissionOverride - (offer.commission || 0);
-  }
-
-  // EXW: buyer also pays China local export costs (not known to the backend).
-  if (incoterm === 'EXW') {
-    total += getEXWTotal();
-  }
-
-  // CFR/CIF: the supplier covers the maritime leg → exclude it from the buyer's total.
-  if (incoterm === 'CFR' || incoterm === 'CIF') {
-    total -= offer.freightPrice + offer.portAdjustment;
-  }
-
-  return total;
-};
+  offer.landTransportTotal ?? offer.terrestrialTransport + (offer.insurance || 0);
 
 export const OfferCard = ({
   offer,
@@ -74,23 +44,37 @@ export const OfferCard = ({
   onToggle,
   onSelectOffer,
 }: OfferCardProps) => {
-  // Comision expediție is now a PERCENTAGE of the transport cost (client request),
-  // default 10%, editable by admin. Base excludes the commission itself (no circularity)
-  // and excludes the maritime leg when the supplier covers it (CFR/CIF).
+  // The total comes from the backend (calculator-incoterms.priceOffer) and is
+  // rendered as-is. This component used to recompute it — dropping the maritime
+  // leg for CFR/CIF and applying its own commission — while the order form and
+  // the booking kept the untouched backend sum, so the price changed the moment
+  // the client pressed "Selectează Această Ofertă".
+  //
+  // An admin may still override the commission percentage for one quote. That is
+  // expressed as a delta on the backend total, and the percentage travels with
+  // the order so the server re-derives the same number rather than trusting this.
   const supplierCoversMaritime = incoterm === 'CFR' || incoterm === 'CIF';
-  const [commissionPercent, setCommissionPercent] = useState<string>('10');
-  const pct = parseFloat(commissionPercent) || 0;
+
+  const backendPercent = offer.commissionPercent ?? 10;
+  const backendCommission = offer.commissionAmount ?? offer.commission ?? 0;
 
   const maritimeTotal = getMaritimeTotal(offer);
   const taxeLocaleTotal = getTaxeLocaleTotal(offer);
   const transportTerestruTotal = getTransportTerestruTotal(offer);
-  const commissionBase =
-    (supplierCoversMaritime ? 0 : maritimeTotal) + taxeLocaleTotal + transportTerestruTotal;
-  const commissionAmount = Math.round((commissionBase * pct) / 100);
-  const commissionOverride = commissionAmount;
 
-  const adjustedTotal = computeTotalPrice(offer, incoterm, finalDestination, commissionOverride);
-  // Approximate MDL using ratio from original offer (guard div-by-zero → no NaN MDL)
+  const [commissionPercent, setCommissionPercent] = useState<string>(String(backendPercent));
+  const pct = parseFloat(commissionPercent);
+  const effectivePercent = Number.isFinite(pct) ? pct : backendPercent;
+
+  // Commission is charged on local handling + the land leg, never on the ocean
+  // freight — the same base the backend uses, whatever the incoterm.
+  const commissionBase = offer.commissionBase ?? taxeLocaleTotal + transportTerestruTotal;
+  const commissionAmount =
+    effectivePercent === backendPercent
+      ? backendCommission
+      : Math.round(((commissionBase * effectivePercent) / 100) * 100) / 100;
+
+  const adjustedTotal = offer.totalPriceUSD + (commissionAmount - backendCommission);
   const mdlRate = offer.totalPriceUSD > 0 ? offer.totalPriceMDL / offer.totalPriceUSD : 0;
   const adjustedTotalMDL = adjustedTotal * mdlRate;
 
@@ -366,12 +350,7 @@ export const OfferCard = ({
                 </div>
                 <p className="text-2xl font-bold text-green-700 dark:text-green-400">
                   $
-                  {(
-                    offer.terrestrialTransport +
-                    offer.customsTaxes +
-                    commissionOverride +
-                    (offer.insurance || 0)
-                  ).toFixed(0)}
+                  {(transportTerestruTotal + offer.customsTaxes + commissionAmount).toFixed(0)}
                 </p>
                 <p className="text-xs text-green-500 mt-1">
                   Transport terestru + vamă + comision (totul inclus)
@@ -405,8 +384,20 @@ export const OfferCard = ({
             className="w-full mt-4"
             onClick={(e) => {
               e.stopPropagation();
-              // Pass offer with overridden commission
-              onSelectOffer({ ...offer, commission: commissionOverride }, index);
+              // Hand over the offer already carrying the numbers shown on this card,
+              // plus the percentage used, so the server re-derives the same total.
+              onSelectOffer(
+                {
+                  ...offer,
+                  commission: commissionAmount,
+                  commissionAmount,
+                  commissionPercent: effectivePercent,
+                  totalPriceUSD: adjustedTotal,
+                  totalPriceMDL: adjustedTotalMDL,
+                },
+                index,
+                effectivePercent
+              );
             }}
           >
             Selectează Această Ofertă

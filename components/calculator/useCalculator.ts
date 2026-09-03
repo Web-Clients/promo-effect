@@ -41,6 +41,7 @@ export function useCalculator(user?: User): UseCalculatorReturn {
 
   const [showSupplierForm, setShowSupplierForm] = useState(false);
   const [selectedOfferData, setSelectedOfferData] = useState<PriceOffer | null>(null);
+  const [selectedCommissionPercent, setSelectedCommissionPercent] = useState<number | undefined>();
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
 
@@ -150,7 +151,7 @@ export function useCalculator(user?: User): UseCalculatorReturn {
         incoterm: params.incoterm,
         finalDestination: params.finalDestination,
         shippingLine: params.shippingLine,
-      } as never);
+      });
 
       setResult(calculatorResult);
     } catch (err: unknown) {
@@ -160,9 +161,13 @@ export function useCalculator(user?: User): UseCalculatorReturn {
     }
   };
 
-  const handleSelectOffer = (offer: PriceOffer, index: number) => {
+  const handleSelectOffer = (offer: PriceOffer, index: number, commissionPercent: number) => {
     setSelectedOffer(index);
+    // `offer` already carries the total shown on the card. Keeping the commission
+    // percentage alongside it lets the server re-derive that same number instead
+    // of taking the body on trust.
     setSelectedOfferData(offer);
+    setSelectedCommissionPercent(commissionPercent);
     setShowSupplierForm(true);
     setOrderSuccess(null);
   };
@@ -186,8 +191,13 @@ export function useCalculator(user?: User): UseCalculatorReturn {
           cargoCategory: params.cargoCategory,
           cargoWeight: params.cargoWeight,
           cargoReadyDate: params.cargoReadyDate,
+          // Without the incoterm the server would price every order as FOB and
+          // bill the ocean freight again on a CFR/CIF booking.
+          incoterm: params.incoterm,
+          finalDestination: params.finalDestination,
         },
         supplierData,
+        commissionPercent: selectedCommissionPercent,
       });
 
       setOrderSuccess(`Comanda a fost plasată cu succes! Număr rezervare: ${response.bookingId}`);

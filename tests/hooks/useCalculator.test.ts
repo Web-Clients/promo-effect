@@ -356,7 +356,7 @@ describe('useCalculator', () => {
       } as unknown as PriceOffer;
 
       act(() => {
-        result.current.handleSelectOffer(mockOffer, 0);
+        result.current.handleSelectOffer(mockOffer, 0, 10);
       });
 
       expect(result.current.selectedOffer).toBe(0);

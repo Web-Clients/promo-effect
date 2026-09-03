@@ -26,6 +26,12 @@ export interface CalculatePriceData {
   cargoCategory: string;
   cargoWeight: string;
   cargoReadyDate: string;
+  // Incoterm context. These were being sent already but the type did not admit
+  // them, so every call site cast itself away with `as never` — which is how the
+  // order request came to omit the incoterm entirely and price CFR bookings as FOB.
+  incoterm?: 'FOB' | 'EXW' | 'CFR' | 'CIF';
+  finalDestination?: string;
+  shippingLine?: string;
 }
 
 // Container price breakdown for individual container types
@@ -67,6 +73,20 @@ export interface PriceOffer {
 
   estimatedTransitDays: number;
   availability: 'AVAILABLE' | 'LIMITED' | 'UNAVAILABLE';
+
+  // Incoterm pricing, computed by the backend (calculator-incoterms.priceOffer).
+  // Render these; never re-derive the total in the browser — that divergence is
+  // what made a $2.475 offer card turn into a $9.005 order form.
+  incoterm?: 'FOB' | 'EXW' | 'CFR' | 'CIF';
+  /** Ocean freight actually billed — 0 under CFR/CIF. */
+  maritimeCharged?: number;
+  /** portTaxes + customsTaxes, the "Taxe locale Constanța" cell. */
+  localTaxesTotal?: number;
+  /** terrestrialTransport + insurance. */
+  landTransportTotal?: number;
+  commissionPercent?: number;
+  commissionBase?: number;
+  commissionAmount?: number;
 }
 
 export interface CalculatorResult {
@@ -178,6 +198,8 @@ export interface PlaceOrderRequest {
   offer: PriceOffer;
   calculatorInput: CalculatePriceData;
   supplierData: SupplierData;
+  /** Admin's effective commission % for this quote; re-validated server-side. */
+  commissionPercent?: number;
 }
 
 /**

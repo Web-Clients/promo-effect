@@ -359,6 +359,70 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
     );
   }
 
+  const handleClientSelect = (c: Client) => {
+    setBookingData((prev) => ({
+      ...prev,
+      clientId: c.id,
+      client_id: parseInt(c.id) || prev.client_id || 0,
+      client_name: c.companyName,
+      clientCompanyName: c.companyName,
+      clientContactPerson: c.contactPerson,
+      clientEmail: c.email,
+      clientPhone: c.phone,
+      clientAddress: c.address || '',
+      clientTaxId: c.taxId || '',
+      clientBankAccount: c.bankAccount || '',
+    }));
+  };
+
+  const handleSupplierSelect = (s: Supplier) => {
+    setBookingData((prev) => ({
+      ...prev,
+      supplierId: s.id,
+      supplierName: s.name,
+      supplierAddress: s.address || '',
+      supplierPhone: s.phone || '',
+      supplierEmail: s.email || '',
+      supplierContact: s.contact || '',
+    }));
+  };
+
+  const handleAgentSelect = (a: Agent) => {
+    setBookingData((prev) => ({
+      ...prev,
+      agentId: a.id,
+      agentCode: a.agentCode,
+      agentCompany: a.company,
+      agentContactName: a.contactName,
+      agentWechatId: a.wechatId || '',
+    }));
+  };
+
+  const handleCreateClient = async (initialName: string) => {
+    try {
+      const created = await createClient({
+        companyName: initialName,
+        contactPerson: '',
+        email: '',
+        phone: '',
+      });
+      handleClientSelect(created);
+      addToast(`Client „${created.companyName}" creat`, 'success');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Nu s-a putut crea clientul'), 'error');
+    }
+  };
+
+  const handleCreateSupplier = async (initialName: string) => {
+    try {
+      const created = await createSupplier({ name: initialName });
+      handleSupplierSelect(created);
+      addToast(`Furnizor „${created.name}" creat`, 'success');
+    } catch (err: unknown) {
+      addToast(getErrorMessage(err, 'Nu s-a putut crea furnizorul'), 'error');
+    }
+  };
+
   return (
     <div className="space-y-5">
       {/* A9: Header — BL number, status, back button */}
@@ -745,70 +809,6 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ user }) => {
       </div>
     );
   }
-
-  const handleClientSelect = (c: Client) => {
-    setBookingData((prev) => ({
-      ...prev,
-      clientId: c.id,
-      client_id: parseInt(c.id) || prev.client_id || 0,
-      client_name: c.companyName,
-      clientCompanyName: c.companyName,
-      clientContactPerson: c.contactPerson,
-      clientEmail: c.email,
-      clientPhone: c.phone,
-      clientAddress: c.address || '',
-      clientTaxId: c.taxId || '',
-      clientBankAccount: c.bankAccount || '',
-    }));
-  };
-
-  const handleSupplierSelect = (s: Supplier) => {
-    setBookingData((prev) => ({
-      ...prev,
-      supplierId: s.id,
-      supplierName: s.name,
-      supplierAddress: s.address || '',
-      supplierPhone: s.phone || '',
-      supplierEmail: s.email || '',
-      supplierContact: s.contact || '',
-    }));
-  };
-
-  const handleAgentSelect = (a: Agent) => {
-    setBookingData((prev) => ({
-      ...prev,
-      agentId: a.id,
-      agentCode: a.agentCode,
-      agentCompany: a.company,
-      agentContactName: a.contactName,
-      agentWechatId: a.wechatId || '',
-    }));
-  };
-
-  const handleCreateClient = async (initialName: string) => {
-    try {
-      const created = await createClient({
-        companyName: initialName,
-        contactPerson: '',
-        email: '',
-        phone: '',
-      });
-      handleClientSelect(created);
-      addToast(`Client „${created.companyName}" creat`, 'success');
-    } catch (err: unknown) {
-      addToast(getErrorMessage(err, 'Nu s-a putut crea clientul'), 'error');
-    }
-  };
-
-  const handleCreateSupplier = async (initialName: string) => {
-    try {
-      const created = await createSupplier({ name: initialName });
-      handleSupplierSelect(created);
-      addToast(`Furnizor „${created.name}" creat`, 'success');
-    } catch (err: unknown) {
-      addToast(getErrorMessage(err, 'Nu s-a putut crea furnizorul'), 'error');
-    }
-  };
 
   function renderSupplierSection() {
     return (

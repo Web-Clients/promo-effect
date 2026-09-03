@@ -2,6 +2,9 @@
   "compilerOptions": {
     "target": "ES2022",
     "strict": true,
+    // Guard: code after an unconditional return is dropped by the minifier while
+    // hoisted functions keep referencing it -> "X is not defined" only in prod.
+    "allowUnreachableCode": false,
     "module": "ESNext",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,

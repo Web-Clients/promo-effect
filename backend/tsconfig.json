@@ -8,6 +8,9 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
+    // Guard: code after an unconditional return is dropped by the minifier while
+    // hoisted functions keep referencing it -> "X is not defined" only in prod.
+    "allowUnreachableCode": false,
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "sourceMap": true,

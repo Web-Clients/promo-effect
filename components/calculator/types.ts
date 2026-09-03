@@ -100,6 +100,9 @@ export interface UseCalculatorReturn {
   orderSuccess: string | null;
   supplierData: SupplierData;
   setSupplierData: React.Dispatch<React.SetStateAction<SupplierData>>;
+  /** Files a CFR/CIF client attaches; uploaded once the booking exists. */
+  orderDocuments: File[];
+  setOrderDocuments: React.Dispatch<React.SetStateAction<File[]>>;
   // Handlers
   handleCalculate: (e: React.FormEvent) => Promise<void>;
   handleSelectOffer: (offer: PriceOffer, index: number, commissionPercent: number) => void;

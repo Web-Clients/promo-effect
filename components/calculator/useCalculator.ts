@@ -42,6 +42,7 @@ export function useCalculator(user?: User): UseCalculatorReturn {
   const [showSupplierForm, setShowSupplierForm] = useState(false);
   const [selectedOfferData, setSelectedOfferData] = useState<PriceOffer | null>(null);
   const [selectedCommissionPercent, setSelectedCommissionPercent] = useState<number | undefined>();
+  const [orderDocuments, setOrderDocuments] = useState<File[]>([]);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
 
@@ -138,8 +139,12 @@ export function useCalculator(user?: User): UseCalculatorReturn {
     }
 
     try {
+      // CFR/CIF: no origin port is sent — the seller chose it, and the server
+      // prices the remaining legs off the reference port.
+      const sellerPaysFreight = params.incoterm === 'CFR' || params.incoterm === 'CIF';
+
       const calculatorResult = await calculatorService.calculatePrices({
-        portOrigin: params.portOrigin,
+        portOrigin: sellerPaysFreight ? '' : params.portOrigin,
         portDestination: params.portDestination,
         containerType: containers[0].type,
         containers: containers.filter((c) => c.quantity > 0),
@@ -220,7 +225,8 @@ export function useCalculator(user?: User): UseCalculatorReturn {
         offerId: selectedOfferData.basePriceId,
         offer: selectedOfferData,
         calculatorInput: {
-          portOrigin: params.portOrigin,
+          portOrigin:
+            params.incoterm === 'CFR' || params.incoterm === 'CIF' ? '' : params.portOrigin,
           portDestination: params.portDestination,
           containerType: containers[0].type,
           containers: containers.filter((c) => c.quantity > 0),
@@ -236,7 +242,24 @@ export function useCalculator(user?: User): UseCalculatorReturn {
         commissionPercent: selectedCommissionPercent,
       });
 
-      setOrderSuccess(`Comanda a fost plasată cu succes! Număr rezervare: ${response.bookingId}`);
+      // Files can only be attached once the booking exists, so this is a second
+      // step. A failed upload must not read as a failed order — the booking is
+      // already placed and the operator needs to know exactly what is missing.
+      const failedUploads: string[] = [];
+      for (const file of orderDocuments) {
+        try {
+          await calculatorService.uploadBookingDocument(response.bookingId, file);
+        } catch {
+          failedUploads.push(file.name);
+        }
+      }
+
+      setOrderSuccess(
+        failedUploads.length === 0
+          ? `Comanda a fost plasată cu succes! Număr rezervare: ${response.bookingId}`
+          : `Comanda a fost plasată (${response.bookingId}), dar nu s-au putut încărca: ${failedUploads.join(', ')}. Atașați-le din fișa rezervării.`
+      );
+      setOrderDocuments([]);
       setShowSupplierForm(false);
     } catch (err: unknown) {
       // Prefix so a bare transport error ("Request failed with status code 400")
@@ -276,6 +299,8 @@ export function useCalculator(user?: User): UseCalculatorReturn {
     orderSuccess,
     supplierData,
     setSupplierData,
+    orderDocuments,
+    setOrderDocuments,
     handleCalculate,
     handleSelectOffer,
     handlePlaceOrder,

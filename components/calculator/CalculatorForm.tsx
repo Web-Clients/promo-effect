@@ -81,15 +81,24 @@ export const CalculatorForm = ({
     setParams({ ...params, incoterm: value });
   };
 
+  // Under CFR/CIF the supplier books the ocean leg, so the origin port is not the
+  // buyer's decision and we do not ask for it (client: "daca selectam cfr - nu
+  // trebue sa fie portul ningbo").
+  const supplierCoversMaritime = params.incoterm === 'CFR' || params.incoterm === 'CIF';
+
   // Compute route display string
   const getRouteDisplay = () => {
-    if (!params.portOrigin) return null;
     const portDest = params.portDestination || 'Constanța';
     const dest = FINAL_DESTINATIONS.find((d) => d.value === params.finalDestination);
     const finalLabel = dest?.label?.replace(' (port)', '') || portDest;
     const isPortOnly = params.finalDestination === 'constanta';
-    if (isPortOnly) return `${params.portOrigin} → ${portDest}`;
-    return `${params.portOrigin} → ${portDest} → ${finalLabel}`;
+    const origin = supplierCoversMaritime ? null : params.portOrigin;
+    if (!origin) {
+      // No origin to show — the route starts where our responsibility does.
+      return isPortOnly ? portDest : `${portDest} → ${finalLabel}`;
+    }
+    if (isPortOnly) return `${origin} → ${portDest}`;
+    return `${origin} → ${portDest} → ${finalLabel}`;
   };
 
   const routeDisplay = getRouteDisplay();
@@ -172,22 +181,24 @@ export const CalculatorForm = ({
             )}
           </FormField>
 
-          {/* Origin Port */}
-          <FormField label={t('calculator.originPort')} required>
-            <CalcSelect
-              value={params.portOrigin}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                setParams({ ...params, portOrigin: e.target.value })
-              }
-              required
-            >
-              {availablePorts.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </CalcSelect>
-          </FormField>
+          {/* Origin Port — only when the buyer pays the ocean freight */}
+          {!supplierCoversMaritime && (
+            <FormField label={t('calculator.originPort')} required>
+              <CalcSelect
+                value={params.portOrigin}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  setParams({ ...params, portOrigin: e.target.value })
+                }
+                required
+              >
+                {availablePorts.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </CalcSelect>
+            </FormField>
+          )}
 
           {/* Destination Port */}
           <FormField

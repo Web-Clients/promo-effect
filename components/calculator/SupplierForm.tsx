@@ -20,6 +20,9 @@ type Props = Pick<
   | 'handlePlaceOrder'
   | 'clients'
   | 'agents'
+  | 'incoterm'
+  | 'orderDocuments'
+  | 'setOrderDocuments'
 >;
 
 export const SupplierForm = ({
@@ -34,8 +37,16 @@ export const SupplierForm = ({
   handlePlaceOrder,
   clients,
   agents,
+  incoterm,
+  orderDocuments,
+  setOrderDocuments,
 }: Props) => {
   const { addToast } = useToast();
+  // CFR/CIF: the supplier already booked the ocean leg and the cargo is often
+  // under way, so we ask for the paperwork that exists rather than for supplier
+  // details we will never use (client, 3 Sep: "daca e cif/cfr nu trebue sa fie
+  // date furnizor, doar incarca BL si acte ... si un chinp pentru comentarii").
+  const supplierCoversMaritime = incoterm === 'CFR' || incoterm === 'CIF';
   const [showNewClientForm, setShowNewClientForm] = useState(false);
 
   // Supplier autocomplete state
@@ -226,7 +237,8 @@ export const SupplierForm = ({
       </div>
 
       <form onSubmit={handlePlaceOrder} className="space-y-5">
-        {/* ─── Date Furnizor (China) ─── */}
+        {/* ─── Date Furnizor (China) — only when we are the ones booking ─── */}
+        {!supplierCoversMaritime && (
         <div>
           <h4 className="text-sm font-semibold text-neutral-600 dark:text-neutral-300 uppercase tracking-wide mb-3">
             Date Furnizor (China)
@@ -316,6 +328,70 @@ export const SupplierForm = ({
             />
           </FormField>
         </div>
+        )}
+
+        {/* ─── Documente transport (CFR/CIF) ─── */}
+        {supplierCoversMaritime && (
+          <div>
+            <h4 className="text-sm font-semibold text-neutral-600 dark:text-neutral-300 uppercase tracking-wide mb-3">
+              Documente transport ({incoterm})
+            </h4>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">
+              Marfa e deja pe drum la {incoterm}. Nu avem nevoie de datele furnizorului —
+              trimiteți-ne conosamentul și actele existente.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField label="Număr BL / Conosament" hint="Opțional dacă nu a fost emis încă">
+                <CalcInput
+                  type="text"
+                  placeholder="Ex: MEDUKC298446"
+                  value={supplierData.blNumber || ''}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setSupplierData({ ...supplierData, blNumber: e.target.value })
+                  }
+                  autoComplete="off"
+                />
+              </FormField>
+
+              <FormField label="Acte (BL, factură, packing list)" hint="PDF sau imagini">
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setOrderDocuments(Array.from(e.target.files || []))
+                  }
+                  className="block w-full text-sm text-neutral-600 dark:text-neutral-300 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-accent-50 file:text-accent-700 hover:file:bg-accent-100 dark:file:bg-accent-500/20 dark:file:text-accent-400"
+                />
+              </FormField>
+            </div>
+
+            {orderDocuments.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {orderDocuments.map((f) => (
+                  <li key={f.name} className="text-xs text-neutral-500 dark:text-neutral-400">
+                    {f.name} · {(f.size / 1024).toFixed(0)} KB
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <FormField
+              label="Comentarii"
+              hint="Orice trebuie să știm despre transportul acesta"
+            >
+              <CalcTextArea
+                rows={3}
+                placeholder="Ex: containerul a plecat pe 28 aug, BL-ul vine de la agent săptămâna viitoare"
+                value={supplierData.documentNotes || ''}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                  setSupplierData({ ...supplierData, documentNotes: e.target.value })
+                }
+              />
+            </FormField>
+          </div>
+        )}
 
         {/* ─── Date Beneficiar ─── */}
         <div>
@@ -468,7 +544,9 @@ export const SupplierForm = ({
             {isPlacingOrder ? 'Se plasează comanda...' : 'Plasează Comanda'}
           </Button>
           <p className="text-xs text-neutral-400 text-center mt-3">
-            La plasarea comenzii, vom trimite 3 email-uri: către furnizor, agent și dvs.
+            {supplierCoversMaritime
+              ? 'La plasarea comenzii, trimitem email către agent și către dvs.'
+              : 'La plasarea comenzii, vom trimite 3 email-uri: către furnizor, agent și dvs.'}
           </p>
         </div>
       </form>

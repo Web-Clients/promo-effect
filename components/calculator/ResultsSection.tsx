@@ -28,6 +28,8 @@ type Props = Pick<
   | 'finalDestination'
   | 'clients'
   | 'agents'
+  | 'orderDocuments'
+  | 'setOrderDocuments'
 >;
 
 export const ResultsSection = ({
@@ -43,6 +45,8 @@ export const ResultsSection = ({
   orderSuccess,
   supplierData,
   setSupplierData,
+  orderDocuments,
+  setOrderDocuments,
   containers,
   handleSelectOffer,
   handlePlaceOrder,
@@ -114,6 +118,9 @@ export const ResultsSection = ({
           handlePlaceOrder={handlePlaceOrder}
           clients={clients}
           agents={agents}
+          incoterm={incoterm}
+          orderDocuments={orderDocuments}
+          setOrderDocuments={setOrderDocuments}
         />
       )}
 

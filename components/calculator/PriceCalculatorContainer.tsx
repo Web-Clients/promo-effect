@@ -60,6 +60,8 @@ export const PriceCalculatorContainer = ({ user }: PriceCalculatorProps) => {
           finalDestination={calc.finalDestination}
           clients={calc.clients}
           agents={calc.agents}
+          orderDocuments={calc.orderDocuments}
+          setOrderDocuments={calc.setOrderDocuments}
         />
       </div>
     </div>

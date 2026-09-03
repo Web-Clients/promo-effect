@@ -6,7 +6,12 @@
 import { z } from 'zod';
 import { CalculatorInput } from './calculator.types';
 import { t } from '../../utils/i18n';
-import { isIncoterm, requiresShippingLine, INCOTERMS } from './calculator-incoterms';
+import {
+  isIncoterm,
+  requiresShippingLine,
+  supplierCoversMaritime,
+  INCOTERMS,
+} from './calculator-incoterms';
 
 // Zod needs a non-empty tuple; keep it derived from the one list of incoterms so
 // a new one can never be accepted here and rejected downstream (or vice versa).
@@ -18,7 +23,7 @@ export const ContainerEntrySchema = z.object({
 });
 
 export const CalculatorInputSchema = z.object({
-  portOrigin: z.string().min(1, t('validation.portOriginRequired')),
+  portOrigin: z.string().optional().default(''),
   portDestination: z.string().optional().default('Constanta'),
   containerType: z.string().min(1, t('validation.containerTypeRequired')),
   containers: z.array(ContainerEntrySchema).optional(),
@@ -37,7 +42,14 @@ export type ValidatedCalculatorInput = z.infer<typeof CalculatorInputSchema>;
  * Validate calculator input — throws descriptive errors
  */
 export function validateCalculatorInput(input: CalculatorInput, lang: string = 'ro'): void {
-  if (!input.portOrigin) {
+  const rawIncoterm = (input as { incoterm?: unknown }).incoterm;
+  const sellerPaysFreight = isIncoterm(rawIncoterm) && supplierCoversMaritime(rawIncoterm);
+
+  // Under CFR/CIF the seller books the ocean leg, so the buyer is never asked for
+  // a port of origin (client: "daca selectam cfr - nu trebue sa fie portul
+  // ningbo"). The engine falls back to the reference port for the legs we do
+  // price, and the offer says so.
+  if (!input.portOrigin && !sellerPaysFreight) {
     throw new Error(t('validation.portOriginRequired', lang));
   }
 

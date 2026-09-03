@@ -143,6 +143,8 @@ export async function computeFromBasePrices(
   freightSurcharge: number,
   terrestrialSurcharge: number
 ): Promise<PriceOffer[]> {
+  // Shanghai is the reference port: the rate every other origin is derived from.
+  const REFERENCE_PORT = 'Shanghai';
   const portDestination = input.portDestination || 'Constanta';
   const readyDate = new Date(input.cargoReadyDate);
   const isConstanta = isConstantaDestination(portDestination);
@@ -166,20 +168,24 @@ export async function computeFromBasePrices(
     validUntil: { gte: readyDate },
   });
 
-  let basePrices = await prisma.basePrice.findMany({ where: baseWhere(input.portOrigin) });
+  // CFR/CIF quotes arrive without a port of origin — the seller chose it. Price
+  // the remaining legs off the reference port and mark the offer accordingly.
+  const originForLookup = input.portOrigin || REFERENCE_PORT;
+  let basePrices = await prisma.basePrice.findMany({ where: baseWhere(originForLookup) });
 
   // Reference-port logic: Shanghai is the reference port. If the selected origin
   // (e.g. Ningbo) has no own base price, use Shanghai's base price — the origin's
   // PortPricingMatrix adjustment (e.g. Ningbo +100) is applied on top below.
-  const REFERENCE_PORT = 'Shanghai';
   // Tracked so the quote can SAY it is a reference price. Promo-Efect has no
   // Ningbo rows at all, so every Ningbo quote is really a Shanghai rate plus the
   // Ningbo port adjustment — which read to the client as "the Ningbo price isn't
   // active today but it picks it anyway".
   let referencePortUsed: string | undefined;
-  if (
+  if (!input.portOrigin && basePrices.length > 0) {
+    referencePortUsed = REFERENCE_PORT;
+  } else if (
     basePrices.length === 0 &&
-    (input.portOrigin || '').trim().toLowerCase() !== REFERENCE_PORT.toLowerCase()
+    originForLookup.trim().toLowerCase() !== REFERENCE_PORT.toLowerCase()
   ) {
     basePrices = await prisma.basePrice.findMany({ where: baseWhere(REFERENCE_PORT) });
     if (basePrices.length > 0) referencePortUsed = REFERENCE_PORT;
@@ -235,7 +241,7 @@ export async function computeFromBasePrices(
 
   // Preload PortPricingMatrix adjustments for this port origin
   const portMatrixEntries = await prisma.portPricingMatrix.findMany({
-    where: { portName: input.portOrigin },
+    where: { portName: originForLookup },
   });
   const portMatrixMap = new Map<string, number>();
   for (const pm of portMatrixEntries) {
@@ -323,14 +329,14 @@ export async function computeFromBasePrices(
     const totalPriceUSD = adjustedFreight + totalPortAdjustment + totalFixedCosts;
 
     const portIntermediate = isConstanta ? 'Constanța' : 'Odessa';
-    const route = buildRouteString(input.portOrigin, portIntermediate, input.finalDestination);
+    const route = buildRouteString(originForLookup, portIntermediate, input.finalDestination);
 
     offers.push({
       rank: 0,
       shippingLine,
       basePriceId: prices[0].id,
       route,
-      portOrigin: input.portOrigin,
+      portOrigin: input.portOrigin || originForLookup,
       portIntermediate,
       portFinal: 'Chișinău',
       freightPrice: adjustedFreight,

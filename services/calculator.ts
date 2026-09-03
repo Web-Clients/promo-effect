@@ -192,6 +192,10 @@ export interface SupplierData {
   beneficiaryAddress?: string;
   // Agent from DB
   agentId?: string;
+  // CFR/CIF: the goods are already moving, so instead of supplier details the
+  // client hands us the paperwork that exists — BL number, scans, and a note.
+  blNumber?: string;
+  documentNotes?: string;
 }
 
 // Order placement request
@@ -216,6 +220,19 @@ export const getAvailableShippingLines = async (): Promise<string[]> => {
       cause: error,
     });
   }
+};
+
+/**
+ * Attach a file to a booking. Used right after an order is placed so a CFR/CIF
+ * client can hand over the BL and the documents already travelling with the
+ * cargo; the booking has to exist first, hence the two steps.
+ */
+export const uploadBookingDocument = async (bookingId: string, file: File): Promise<void> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  await api.post(`/bookings/${bookingId}/documents`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
 };
 
 /**
@@ -290,6 +307,7 @@ const calculatorService = {
   getAvailableDestinations,
   getAvailableShippingLines,
   placeOrder,
+  uploadBookingDocument,
   getClients,
   getAgents,
 };

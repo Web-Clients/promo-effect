@@ -451,6 +451,23 @@ export class CalculatorService {
 
     const totalContainers = containers.reduce((sum, c) => sum + c.quantity, 0);
 
+    // booking.blNumber is UNIQUE. Without this check a repeated BL fails deep in
+    // Prisma with "Unique constraint failed on the fields: (bl_number)", which is
+    // exactly the kind of unexplained "nu s-a putut plasa comanda" the client
+    // complained about.
+    const blNumber = supplierData.blNumber?.trim();
+    if (blNumber) {
+      const existing = await prisma.booking.findUnique({
+        where: { blNumber },
+        select: { id: true },
+      });
+      if (existing) {
+        throw new Error(
+          `Numărul BL ${blNumber} este deja folosit de rezervarea ${existing.id}.`
+        );
+      }
+    }
+
     // Generate booking reference using MDPE nomenclator
     const bookingRef = await generateBookingId();
 
@@ -465,10 +482,15 @@ export class CalculatorService {
         agentId: supplierData.agentId || undefined,
         status: 'CONFIRMED',
         shippingLine: offer.shippingLine,
-        portOrigin: calculatorInput.portOrigin,
+        // Under CFR/CIF no origin port is collected; fall back to what the offer
+        // was priced against so the booking still names a route.
+        portOrigin: calculatorInput.portOrigin || offer.portOrigin,
         portDestination: offer.portIntermediate,
         containerType: calculatorInput.containerType, // Primary container type
-        incoterm: (calculatorInput as any).incoterm || undefined,
+        incoterm,
+        // blNumber is UNIQUE — an empty string would collide on the second order.
+        blNumber: blNumber || undefined,
+        clientNotes: supplierData.documentNotes?.trim() || undefined,
         cargoCategory: calculatorInput.cargoCategory,
         cargoWeight: calculatorInput.cargoWeight,
         cargoReadyDate: new Date(calculatorInput.cargoReadyDate),

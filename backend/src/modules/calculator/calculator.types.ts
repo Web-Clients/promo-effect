@@ -107,6 +107,10 @@ export interface SupplierData {
   beneficiaryPhone?: string;
   // Agent selected from DB
   agentId?: string;
+  // CFR/CIF: the cargo is already moving, so the client hands over the paperwork
+  // that exists instead of supplier details we would never use.
+  blNumber?: string;
+  documentNotes?: string;
 }
 
 export interface PlaceOrderRequest {

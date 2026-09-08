@@ -100,8 +100,20 @@ const CONTAINER_NUMBER_STRICT = /\b([A-Z]{4}[0-9]{7})\b/g;
  * Strategy: extract from explicit label first; then match carrier-specific patterns
  * that can't be confused with container format (4+7).
  */
+// Label-anchored B/L extraction.
+//
+// The qualifier after the label is OPTIONAL and spelled several ways. Requiring
+// a literal "No" (the previous `N[Oo]\.?`) meant every real carrier mail missed:
+// "B/L Number:" cannot match, because "Nu" is not "No", and plenty of mail names
+// the document with no qualifier at all ("Bill of Lading COSU1234567890").
+//
+// The captured value is a single token, optionally followed by one numeric group
+// so forms like "ASG 202604078" survive. It deliberately does NOT run on across
+// spaces, or "Bill of Lading X has been released" would yield "X HAS".
+// `isBlNumber` is the second gate: >=5 chars, at least one letter and one digit,
+// and never the ISO 6346 container shape.
 const BL_FROM_LABEL =
-  /(?:B\/L\s*N[Oo]\.?|BL\s*N[Oo]\.?|H\.?B\.?L\.?:?|M\.?B\.?L\.?:?|Bill\s*of\s*Lading\s*N[Oo]\.?)\s*([A-Z0-9][A-Z0-9 \-]{2,19})/gi;
+  /(?:B\s*\/\s*L|\bBL\b|H\.?B\.?L\.?|M\.?B\.?L\.?|(?:Master\s+|House\s+|Ocean\s+)?Bill\s+of\s+Lading)\s*(?:Number|N[Oo]\.?|N[Rr]\.?|#)?\s*[:\-]?\s*([A-Z0-9][A-Z0-9\-]{2,19}(?:\s+[0-9]{4,})?)/gi;
 
 // Carrier-prefix BL patterns that are clearly NOT containers (5+ letters prefix, or <7 digits, or >7 digits)
 const BL_CARRIER_PATTERNS =

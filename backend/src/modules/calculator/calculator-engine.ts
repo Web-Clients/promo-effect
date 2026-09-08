@@ -26,6 +26,7 @@ import {
   DEFAULT_COMMISSION_POLICY,
   priceOffer,
 } from './calculator-incoterms';
+import { agentPriceWhere } from './rate-validity';
 import { validateCalculatorInput } from './calculator-validation';
 
 // Extend CalculatorInput with incoterms fields
@@ -382,12 +383,15 @@ export async function computeFromAgentPrices(
   const isConstanta = isConstantaDestination(portDestination);
   const containerTypes = [...new Set(containers.map((c) => c.type))];
 
+  // Approval state and the validity window are part of the filter, not an
+  // afterthought: without them a PENDING or expired agent rate is quotable.
   const agentPrices = await prisma.agentPrice.findMany({
-    where: {
-      portOrigin: { equals: input.portOrigin, mode: 'insensitive' },
-      containerType: { in: containerTypes },
+    where: agentPriceWhere({
+      portOrigin: input.portOrigin,
+      containerTypes,
       weightRange: input.cargoWeight,
-    },
+      readyDate,
+    }),
     include: { agent: true },
   });
 

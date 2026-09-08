@@ -121,3 +121,45 @@ have a multi-day gap. Dead reckoning (already implemented in `FleetMap.tsx`)
 carries the animation across it, Terminal49 milestones fill it with real
 events, and the map states plainly when a position is estimated rather than
 observed.
+
+## Accounts — who gets one, and what they can see
+
+Ion returned to this four times (51:38, 52:13, 53:19, 54:11). It is the spine of
+wave 5, not a detail of it.
+
+**Chinese agents.** Four to start, room for forty. Each gets his own login _and
+his own distinct profile link_. Addresses on the company domain — Ion's example
+was `copen@…promo-efect.md` — with a work-issued password. Oleg creates the
+profiles first so Ion can test them; Ion distributes them when he is satisfied.
+
+What an agent sees: **one page, one form.** Ports, container type (20DV / 40HC /
+40HQ), weight bands, departure date, rate, validity from–to with a calendar on
+_each row_, and the shipping line. Plus his own identity: supplier name, contact
+person, email, company name.
+
+What an agent must never see: **another agent's rates.** Ion was explicit and
+gave the reason — "ei la un moment dat se sună și se reglează", they phone each
+other and fix the price. Competition between them is the point of the portal, so
+isolation is a business requirement, not a privacy nicety.
+
+An agent also receives the order in parallel with the client (24:18), but only
+his own leg: Ningbo→Constanța. Constanța→Bălți is not his business and must not
+render for him.
+
+**Clients.** Start with a few named ones (Media Magnat, Profil) out of ~500
+prospects. Ion gets credentials so he can log in _as a client_ and place an
+order himself before anything reaches a real customer.
+
+## Three processes missed on the first pass
+
+- **The route renders backwards** (24:18). For an import it showed
+  "Bălți – Constanța" where it must read "Constanța – Bălți". Ion corrected this
+  twice in a row and it was not in the first extraction.
+- **Price history, "like a stock exchange"** (36:31, 46:36). Ion opens past
+  offers to see how a rate moved — rose, fell — and wants that visible rather
+  than reconstructed by hand. A rate needs a retained history and a chart, not
+  just a current value.
+- **Future-dated offers are legitimate** (38:00). "Noi azi punem oferta care-i
+  valabilă de pe 1 octombrie." Past validity is refused; _future_ validity is a
+  supported case and must not be rejected by the same guard. When no end date is
+  chosen the default is mid-month or the last day of the month (46:06).

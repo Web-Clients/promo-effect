@@ -311,6 +311,12 @@ export async function setContainerVessel(
   return response.data;
 }
 
+export interface PortCoords {
+  lat: number;
+  lng: number;
+  name: string;
+}
+
 export interface FleetContainer {
   containerId: string;
   containerNumber: string;
@@ -334,6 +340,10 @@ export interface FleetContainer {
     client?: string | null;
     origin?: string | null;
     destination?: string | null;
+    transit?: string | null;
+    originCoords?: PortCoords | null;
+    transitCoords?: PortCoords | null;
+    destinationCoords?: PortCoords | null;
   } | null;
   lastEvent: { eventType: string; eventDate: string; location: string } | null;
 }

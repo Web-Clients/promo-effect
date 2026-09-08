@@ -48,3 +48,4 @@ backend/coverage/
 test-results/
 playwright-report/
 uploads
+e2e/local-stack/shots/

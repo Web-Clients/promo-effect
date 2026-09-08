@@ -13,6 +13,24 @@ export default defineConfig({
   testDir: here,
   timeout: 60000,
   use: { baseURL: process.env.E2E_BASE_URL || 'http://localhost:3011', headless: true },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        // The fleet globe is WebGL2. Headless Chromium ships without a GPU, so
+        // without SwiftShader every map test fails on GPUInitializationError
+        // rather than on anything about the map.
+        launchOptions: {
+          args: [
+            '--use-gl=angle',
+            '--use-angle=swiftshader',
+            '--enable-unsafe-swiftshader',
+            '--ignore-gpu-blocklist',
+          ],
+        },
+      },
+    },
+  ],
   reporter: 'line',
 });

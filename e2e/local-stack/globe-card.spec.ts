@@ -1,0 +1,69 @@
+/**
+ * Clicking a vessel opens its tactical card.
+ *
+ * The card is where the map stops being decorative: it names the vessel, its
+ * MMSI and IMO, the bill of lading, and — the part that matters — how old the
+ * position is and whether it was observed at all.
+ */
+import { test, expect } from '@playwright/test';
+import type { Map as MlMap } from 'maplibre-gl';
+
+const BASE = process.env.E2E_BASE_URL || 'http://localhost:3011';
+
+// The vessel seeded alongside at Constanța.
+const CONSTANTA: [number, number] = [28.6348, 44.1598];
+// The one in the middle of the Indian Ocean, whose fix is three days old.
+const INDIAN_OCEAN: [number, number] = [74.9, 6.4];
+
+async function openGlobe(page: import('@playwright/test').Page) {
+  await page.goto(BASE + '/login');
+  await page.fill('input[type="email"]', 'e2e-admin@local.test');
+  await page.fill('input[type="password"]', 'E2ePassw0rd!');
+  await page.click('button[type="submit"]');
+  await page.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 20000 });
+
+  await page.goto(BASE + '/dashboard/fleet-map');
+  const canvas = page.locator('canvas.maplibregl-canvas');
+  await expect(canvas).toBeVisible({ timeout: 30000 });
+  await expect
+    .poll(async () => (await canvas.screenshot()).length, { timeout: 60000, intervals: [2000] })
+    .toBeGreaterThan(40_000);
+  // Let the fitBounds flight settle before projecting coordinates.
+  await page.waitForTimeout(2500);
+  return canvas;
+}
+
+async function clickAt(page: import('@playwright/test').Page, lngLat: [number, number]) {
+  const pt = await page.evaluate((ll) => {
+    const map = (window as unknown as { __fleetGlobeMap?: MlMap }).__fleetGlobeMap;
+    if (!map) return null;
+    const p = map.project(ll as [number, number]);
+    return { x: p.x, y: p.y };
+  }, lngLat);
+  if (!pt) throw new Error('map handle not exposed');
+  const box = await page.locator('canvas.maplibregl-canvas').boundingBox();
+  if (!box) throw new Error('no canvas box');
+  await page.mouse.click(box.x + pt.x, box.y + pt.y);
+}
+
+test('a vessel opens its tactical card', async ({ page }) => {
+  test.setTimeout(120_000);
+  await openGlobe(page);
+  await clickAt(page, CONSTANTA);
+
+  await expect(page.getByText('MAERSK KOWLOON')).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText('MRKU8601423')).toBeVisible();
+  await expect(page.getByText('271043300')).toBeVisible(); // MMSI
+  await page.screenshot({ path: 'e2e/local-stack/shots/globe-card.png' });
+});
+
+test('a stale fix says so instead of pretending to be live', async ({ page }) => {
+  test.setTimeout(120_000);
+  await openGlobe(page);
+  await clickAt(page, INDIAN_OCEAN);
+
+  await expect(page.getByText('CMA CGM BOUGAINVILLE')).toBeVisible({ timeout: 10000 });
+  // Seeded three days old: the card must age it and mark it as not observed.
+  await expect(page.getByText(/acum 3 zile/)).toBeVisible();
+  await expect(page.getByText(/nu e o observație live/)).toBeVisible();
+});

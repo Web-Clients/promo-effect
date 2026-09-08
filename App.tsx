@@ -32,7 +32,7 @@ const AdminPortsManager = lazy(() => import('./components/AdminPortsManager'));
 const ShippingLinesPage = lazy(() => import('./components/ShippingLinesPage'));
 // TransportRatesPage removed — consolidated into AdminPricingPanel → tab "Prețuri Terestru"
 const UserManagement = lazy(() => import('./components/UserManagement'));
-const FleetMap = lazy(() => import('./components/FleetMap'));
+const FleetGlobe = lazy(() => import('./components/FleetGlobe'));
 
 const DashboardFallback = () => (
   <div className="flex items-center justify-center h-64">
@@ -294,7 +294,7 @@ const App = () => {
             {/* A6: Tracking page removed — redirect to bookings */}
             <Route path="tracking" element={<Navigate to="/dashboard/bookings" replace />} />
             <Route path="tracking/*" element={<Navigate to="/dashboard/bookings" replace />} />
-            <Route path="fleet-map" element={<FleetMap />} />
+            <Route path="fleet-map" element={<FleetGlobe />} />
             {/* A7: ContainersInTransit removed — redirect to bookings?tab=transit */}
             <Route
               path="containers-transit"

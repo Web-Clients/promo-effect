@@ -278,6 +278,12 @@ router.get('/fleet/live', authMiddleware, async (_req: Request, res: Response) =
   try {
     const { geocodePort } = await import('../../services/port-geocoder.service');
 
+    /** Port name -> {lat,lng}, or null when the port is not in the table. */
+    const coordsOf = (name?: string | null) => {
+      const geo = geocodePort(name);
+      return geo ? { lat: geo.lat, lng: geo.lng, name: geo.name } : null;
+    };
+
     // Pull every active container — not just those with an MMSI — so the
     // map shows the operator's full inventory at a glance. Containers
     // without AIS still get a position via current_lat/lng, then via
@@ -293,6 +299,7 @@ router.get('/fleet/live', authMiddleware, async (_req: Request, res: Response) =
             id: true,
             portOrigin: true,
             portDestination: true,
+            portTransit: true,
             client: { select: { id: true, companyName: true } },
           },
         },
@@ -399,6 +406,12 @@ router.get('/fleet/live', authMiddleware, async (_req: Request, res: Response) =
               client: c.booking.client?.companyName,
               origin: c.booking.portOrigin,
               destination: c.booking.portDestination,
+              // Coordinates travel with the row so the map can draw the leg
+              // without keeping a second copy of the port table in the browser.
+              originCoords: coordsOf(c.booking.portOrigin),
+              transit: (c.booking as { portTransit?: string | null }).portTransit ?? null,
+              transitCoords: coordsOf((c.booking as { portTransit?: string | null }).portTransit),
+              destinationCoords: coordsOf(c.booking.portDestination),
             }
           : null,
         lastEvent: lastEvent

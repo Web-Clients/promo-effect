@@ -41,6 +41,12 @@ const mockPrisma: any = {
   auditLog: {
     create: jest.fn(),
   },
+  // BookingsService.create resolves the inland tariff through the calculator
+  // engine, which reads land_transport_rates. Without this the mock throws
+  // before any assertion runs.
+  landTransportRate: {
+    findMany: jest.fn(),
+  },
   $transaction: jest.fn(),
 };
 
@@ -130,6 +136,9 @@ describe('BookingsService', () => {
       if (Array.isArray(fns)) return Promise.all(fns as unknown[]);
     });
     mockPrisma.auditLog.create.mockResolvedValue({});
+    // No city-specific tariff configured: the service falls back to the
+    // admin-settings rate, which is what these cases assert on.
+    mockPrisma.landTransportRate.findMany.mockResolvedValue([]);
   });
 
   // ─── Create booking ────────────────────────────────────────────────────────
@@ -154,6 +163,12 @@ describe('BookingsService', () => {
       mockPrisma.booking.create.mockResolvedValue(bookingData);
       mockPrisma.user.findFirst.mockResolvedValue(null);
       mockPrisma.user.findMany.mockResolvedValue([]);
+      // The inland leg is resolved from land_transport_rates by weight band,
+      // not from the flat admin setting. Configure the rate this case expects
+      // so the assertion proves the stored tariff is the one that gets used.
+      mockPrisma.landTransportRate.findMany.mockResolvedValue([
+        { city: 'Chișinău', priceUSD: 300 },
+      ]);
 
       const result = await service.create(
         {
@@ -250,6 +265,7 @@ describe('Booking metadata routes logic', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockPrisma.auditLog.create.mockResolvedValue({});
+    mockPrisma.landTransportRate.findMany.mockResolvedValue([]);
   });
 
   describe('telex release (A3)', () => {

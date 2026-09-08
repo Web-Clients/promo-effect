@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { randomUUID } from 'crypto';
 
 interface JWTPayload {
   userId: string;
@@ -30,6 +31,11 @@ export const generateAccessToken = (user: User): string => {
   const expiresIn = process.env.JWT_EXPIRES_IN || '15m';
   return jwt.sign(payload, process.env.JWT_SECRET!, {
     expiresIn,
+    // sessions.token is UNIQUE, and iat/exp only resolve to the second: without
+    // a per-token id, two logins by the same user inside one second produced the
+    // same string and the second one failed the constraint — then counted as a
+    // failed attempt against authLimiter and locked the account for 15 minutes.
+    jwtid: randomUUID(),
   } as jwt.SignOptions);
 };
 
@@ -44,6 +50,8 @@ export const generateRefreshToken = (user: User): string => {
   // B3: use JWT_REFRESH_SECRET (separate from access token secret)
   return jwt.sign(payload, process.env.JWT_REFRESH_SECRET!, {
     expiresIn,
+    // sessions.refresh_token is UNIQUE for the same reason as the access token.
+    jwtid: randomUUID(),
   } as jwt.SignOptions);
 };
 

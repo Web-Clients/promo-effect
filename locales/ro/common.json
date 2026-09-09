@@ -251,7 +251,22 @@
     "orderEmailSent": "Am trimis email-uri către furnizor, agent și dvs. cu detaliile comenzii.",
     "offer": {
       "localCharges": "Cheltuieli Locale",
-      "commission": "Comision"
+      "commission": "Comision",
+      "rowMaritime": "Transport maritim",
+      "rowLocalAndInland": "Taxe locale + transport intern",
+      "rowCommission": "Comision expediție",
+      "maritimeInactive": "Inclus de furnizor",
+      "maritimeIncludedNote": "{{incoterm}}: transportul maritim{{insurance}} este plătit de furnizor ({{line}}), deci nu apare în preț.",
+      "insuranceAlso": " și asigurarea",
+      "validUntil": "Valabil până la {{date}}",
+      "expiresInDays_one": "Expiră mâine",
+      "expiresInDays_few": "Expiră în {{count}} zile",
+      "expiresInDays_other": "Expiră în {{count}} de zile",
+      "expiresToday": "Expiră azi",
+      "commissionBaseNote": "Comisionul se calculează la taxele locale plus transportul intern, niciodată la navlu.",
+      "transitDays_one": "{{count}} zi",
+      "transitDays_few": "{{count}} zile",
+      "transitDays_other": "{{count}} de zile"
     },
     "shippingLine": "Linie Maritimă",
     "subtitle": "Obțineți cele mai bune oferte de la toate liniile maritime",

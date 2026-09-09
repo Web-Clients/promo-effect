@@ -48,6 +48,8 @@ export interface PriceOffer {
   rank: number;
   shippingLine: string;
   basePriceId: string;
+  /** Last day this quote is good for; absent when no rate carries a window. */
+  validUntil?: string;
 
   // Route info
   route: string;

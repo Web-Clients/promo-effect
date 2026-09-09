@@ -326,6 +326,19 @@
         "title": "查看报价",
         "body": "您将看到各可用船公司的最优报价。卡片上的价格就是下单价格，选择报价后不会再变。"
       }
+    },
+    "offer": {
+      "rowMaritime": "海运费",
+      "rowLocalAndInland": "当地费用 + 内陆运输",
+      "rowCommission": "货代佣金",
+      "maritimeInactive": "由供应商支付",
+      "maritimeIncludedNote": "{{incoterm}}：海运费{{insurance}}由供应商（{{line}}）支付，因此不计入本报价。",
+      "insuranceAlso": "及保险",
+      "validUntil": "有效期至 {{date}}",
+      "expiresInDays_other": "{{count}} 天后到期",
+      "expiresToday": "今天到期",
+      "commissionBaseNote": "佣金按当地费用加内陆运输计算，从不按海运费计算。",
+      "transitDays_other": "{{count}} 天"
     }
   }
 }

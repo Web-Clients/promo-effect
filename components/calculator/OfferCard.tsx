@@ -4,6 +4,8 @@ import { cn } from '../../lib/utils';
 import { ClockIcon, CheckCircleIcon } from './Icons';
 import { RouteDisplay } from './RouteDisplay';
 import { PriceOffer, Incoterm, FinalDestination } from './types';
+import { useTranslation } from 'react-i18next';
+import { InfoTip } from '../ui/InfoTip';
 
 interface OfferCardProps {
   offer: PriceOffer;
@@ -34,6 +36,55 @@ const getTaxeLocaleTotal = (offer: PriceOffer) =>
 const getTransportTerestruTotal = (offer: PriceOffer) =>
   offer.landTransportTotal ?? offer.terrestrialTransport + (offer.insurance || 0);
 
+/**
+ * How much life is left in a quote.
+ *
+ * Amber inside a week, red on the last day: an offer that expires tomorrow and
+ * one that runs for another month should not look the same, because the person
+ * reading it is deciding whether to act now.
+ */
+function ValidityBadge({ validUntil }: { validUntil: string }) {
+  const { t, i18n } = useTranslation();
+  const end = new Date(validUntil);
+  if (Number.isNaN(end.getTime())) return null;
+
+  const DAY = 24 * 60 * 60 * 1000;
+  const days = Math.round(
+    (Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()) -
+      Date.UTC(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())) /
+      DAY
+  );
+
+  const locale =
+    ({ ro: 'ro-RO', ru: 'ru-RU', en: 'en-GB', zh: 'zh-CN' } as Record<string, string>)[
+      (i18n.language || 'ro').split('-')[0]
+    ] || 'en-GB';
+
+  const label =
+    days <= 0
+      ? t('calculator.offer.expiresToday')
+      : days <= 7
+        ? t('calculator.offer.expiresInDays', { count: days })
+        : t('calculator.offer.validUntil', {
+            date: end.toLocaleDateString(locale, { day: '2-digit', month: 'short' }),
+          });
+
+  return (
+    <span
+      className={cn(
+        'rounded-full px-2 py-0.5 text-xs font-medium',
+        days <= 0
+          ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
+          : days <= 7
+            ? 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-400'
+            : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300'
+      )}
+    >
+      {label}
+    </span>
+  );
+}
+
 export const OfferCard = ({
   offer,
   index,
@@ -44,6 +95,7 @@ export const OfferCard = ({
   onToggle,
   onSelectOffer,
 }: OfferCardProps) => {
+  const { t, i18n } = useTranslation();
   // The total comes from the backend (calculator-incoterms.priceOffer) and is
   // rendered as-is. This component used to recompute it — dropping the maritime
   // leg for CFR/CIF and applying its own commission — while the order form and
@@ -79,87 +131,114 @@ export const OfferCard = ({
   const adjustedTotalMDL = adjustedTotal * mdlRate;
 
   return (
-    <button
-      type="button"
-      onClick={() => onToggle(index)}
-      aria-pressed={isSelected}
+    /*
+      A section, not a <button>.
+      
+      The card carries interactive children — the admin's commission input, and
+      now the "i" that explains what the commission is charged on — and neither
+      is legal inside a button. The parser closes the outer button when it meets
+      a nested one, which tears the card apart; and clicking the input toggled
+      the card open and shut, which is why editing the percentage was awkward.
+      
+      The header keeps the click-to-expand behaviour and the keyboard semantics.
+    */
+    <section
       className={cn(
-        'w-full text-left bg-white dark:bg-neutral-800 rounded-xl border-2 p-5 cursor-pointer transition-all duration-300',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-900',
+        'w-full text-left bg-white dark:bg-neutral-800 rounded-xl border-2 p-5 transition-all duration-300',
         isSelected
           ? 'border-accent-500 shadow-lg shadow-accent-500/10'
           : 'border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600'
       )}
     >
-      <div className="flex items-start justify-between gap-4">
-        {/* Left: Rank & Shipping Line */}
-        <div className="flex items-center gap-4">
-          <div
-            className={cn(
-              'w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg',
-              offer.rank === 1
-                ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white'
-                : offer.rank === 2
-                  ? 'bg-gradient-to-br from-neutral-300 to-neutral-400 text-white'
-                  : offer.rank === 3
-                    ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-white'
-                    : 'bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
-            )}
-          >
-            #{offer.rank}
-          </div>
-          <div>
-            <h4 className="font-bold text-lg text-primary-800 dark:text-white">
-              {offer.shippingLine}
-            </h4>
-            <div className="flex items-center gap-3 mt-1">
-              <span className="flex items-center gap-1 text-sm text-neutral-700 dark:text-neutral-400">
-                <ClockIcon />
-                {offer.estimatedTransitDays} zile
-              </span>
-              <span
-                className={cn(
-                  'flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium',
-                  offer.availability === 'AVAILABLE'
-                    ? 'bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-500'
-                    : offer.availability === 'LIMITED'
-                      ? 'bg-warning-50 text-warning-700 dark:bg-warning-500/20 dark:text-warning-500'
-                      : 'bg-error-50 text-error-700 dark:bg-error-500/20 dark:text-error-500'
-                )}
-              >
-                <CheckCircleIcon />
-                {/* This badge is derived purely from how many days remain until the
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => onToggle(index)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onToggle(index);
+          }
+        }}
+        aria-pressed={isSelected}
+        aria-expanded={isSelected}
+        className="cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+      >
+        <div className="flex items-start justify-between gap-4">
+          {/* Left: Rank & Shipping Line */}
+          <div className="flex items-center gap-4">
+            <div
+              className={cn(
+                'w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg',
+                offer.rank === 1
+                  ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white'
+                  : offer.rank === 2
+                    ? 'bg-gradient-to-br from-neutral-300 to-neutral-400 text-white'
+                    : offer.rank === 3
+                      ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-white'
+                      : 'bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
+              )}
+            >
+              #{offer.rank}
+            </div>
+            <div>
+              <h4 className="font-bold text-lg text-primary-800 dark:text-white">
+                {offer.shippingLine}
+              </h4>
+              <div className="flex items-center gap-3 mt-1">
+                <span className="flex items-center gap-1 text-sm text-neutral-700 dark:text-neutral-400">
+                  <ClockIcon />
+                  {t('calculator.offer.transitDays', { count: offer.estimatedTransitDays })}
+                </span>
+                {/* How long the quote is good for. Ion asked for this on 8 Sep:
+                  rates arrive fortnightly, and he kept having to ask whether
+                  what he was looking at was still live. */}
+                {offer.validUntil && <ValidityBadge validUntil={offer.validUntil} />}
+                <span
+                  className={cn(
+                    'flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium',
+                    offer.availability === 'AVAILABLE'
+                      ? 'bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-500'
+                      : offer.availability === 'LIMITED'
+                        ? 'bg-warning-50 text-warning-700 dark:bg-warning-500/20 dark:text-warning-500'
+                        : 'bg-error-50 text-error-700 dark:bg-error-500/20 dark:text-error-500'
+                  )}
+                >
+                  <CheckCircleIcon />
+                  {/* This badge is derived purely from how many days remain until the
                     cargo-ready date — it says nothing about vessel space. Labelling
                     it "Disponibil/Indisponibil" made the client read it as real
                     availability and wonder why an "Indisponibil" offer was still
                     selectable. It now says what it actually measures. */}
-                {offer.availability === 'AVAILABLE'
-                  ? 'Termen confortabil'
-                  : offer.availability === 'LIMITED'
-                    ? 'Termen strâns'
-                    : 'Termen foarte scurt'}
-              </span>
+                  {offer.availability === 'AVAILABLE'
+                    ? 'Termen confortabil'
+                    : offer.availability === 'LIMITED'
+                      ? 'Termen strâns'
+                      : 'Termen foarte scurt'}
+                </span>
+              </div>
+              <div className="mt-2">
+                <RouteDisplay route={offer.route} />
+              </div>
+              {offer.priceFromReferencePort && (
+                <p className="mt-2 text-xs text-warning-700 dark:text-warning-500">
+                  Tarif de referință {offer.priceFromReferencePort} — pentru {offer.portOrigin} nu
+                  există tarif propriu, s-a aplicat ajustarea de port.
+                </p>
+              )}
             </div>
-            <div className="mt-2">
-              <RouteDisplay route={offer.route} />
-            </div>
-            {offer.priceFromReferencePort && (
-              <p className="mt-2 text-xs text-warning-700 dark:text-warning-500">
-                Tarif de referință {offer.priceFromReferencePort} — pentru{' '}
-                {offer.portOrigin} nu există tarif propriu, s-a aplicat ajustarea de port.
-              </p>
-            )}
           </div>
-        </div>
 
-        {/* Right: Price */}
-        <div className="text-right">
-          <p className="text-2xl font-bold text-accent-500">${adjustedTotal.toFixed(0)}</p>
-          <p className="text-sm text-neutral-400">{adjustedTotalMDL.toFixed(0)} MDL</p>
+          {/* Right: Price */}
+          <div className="text-right">
+            <p className="text-2xl font-bold text-accent-500">${adjustedTotal.toFixed(0)}</p>
+            <p className="text-sm text-neutral-400">{adjustedTotalMDL.toFixed(0)} MDL</p>
+          </div>
         </div>
       </div>
 
-      {/* Expanded Details */}
+      {/* Expanded Details — outside the clickable header, so the commission
+          input and the "i" do not toggle the card when used. */}
       {isSelected && (
         <div className="mt-5 pt-5 border-t border-neutral-200 dark:border-neutral-700 animate-fade-in">
           {isAdmin ? (
@@ -184,103 +263,111 @@ export const OfferCard = ({
                 </div>
               )}
 
-              {/* Admin: Rata 1 — Maritime (hidden for CFR/CIF). Single "Tarif Maritim"
-                  cell; the separate "Ajustare Port" cell was removed per client request. */}
-              {!supplierCoversMaritime && (
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h5 className="text-sm font-semibold text-primary-800 dark:text-white">
-                      Rata 1: {offer.portOrigin} → {offer.portIntermediate}
-                    </h5>
+              {/*
+                Three rows, in the shape Ion asked for on 8 Sep (14:52):
+                ocean freight, then local charges AND inland transport together
+                — "să nu fie separat cheltuielile locale de transport" — then the
+                forwarding commission on its own.
+
+                Under CFR/CIF the maritime row stays on screen but goes inactive
+                rather than disappearing: "Maritimul o să fie inactiv" (28:28).
+                A row that vanishes reads as an omission; one that is struck out
+                and labelled reads as an answer.
+              */}
+              <div className="mb-4 space-y-2">
+                <div
+                  className={cn(
+                    'flex items-center justify-between rounded-lg p-3',
+                    supplierCoversMaritime
+                      ? 'bg-neutral-100/60 dark:bg-neutral-700/30'
+                      : 'bg-neutral-50 dark:bg-neutral-700/50'
+                  )}
+                >
+                  <div>
+                    <p
+                      className={cn(
+                        'text-sm font-medium',
+                        supplierCoversMaritime
+                          ? 'text-neutral-400 line-through'
+                          : 'text-primary-800 dark:text-white'
+                      )}
+                    >
+                      {t('calculator.offer.rowMaritime')}
+                    </p>
+                    {!supplierCoversMaritime && (
+                      <p className="text-xs text-neutral-400">
+                        {offer.portOrigin} → {offer.portIntermediate}
+                      </p>
+                    )}
+                  </div>
+                  {supplierCoversMaritime ? (
+                    <span className="text-xs font-medium text-neutral-400">
+                      {t('calculator.offer.maritimeInactive')}
+                    </span>
+                  ) : (
                     <span className="text-sm font-bold text-accent-500">
                       ${maritimeTotal.toFixed(2)}
                     </span>
-                  </div>
-                  <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                    <p className="text-xs text-neutral-400 mb-1">Tarif Maritim</p>
-                    <p className="font-semibold text-primary-800 dark:text-white">
-                      ${maritimeTotal.toFixed(2)}
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg bg-neutral-50 p-3 dark:bg-neutral-700/50">
+                  <div>
+                    <p className="text-sm font-medium text-primary-800 dark:text-white">
+                      {t('calculator.offer.rowLocalAndInland')}
+                    </p>
+                    <p className="text-xs text-neutral-400">
+                      {offer.portIntermediate}
+                      {offer.portFinal && offer.portFinal !== offer.portIntermediate
+                        ? ` → ${offer.portFinal}`
+                        : ''}
                     </p>
                   </div>
-                </div>
-              )}
-
-              {/* Admin: CFR/CIF note */}
-              {supplierCoversMaritime && (
-                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/30 rounded-lg">
-                  <p className="text-sm text-blue-700 dark:text-blue-400">
-                    {incoterm}: Transportul maritim
-                    {incoterm === 'CIF' ? ' + asigurarea sunt incluse' : ' este inclus'} în prețul
-                    furnizorului ({offer.shippingLine})
-                  </p>
-                </div>
-              )}
-
-              {/* Admin: Rata 2 — "Taxe locale Constanța": cheltuieli locale + taxe vamale,
-                  o singură celulă cu totalul (client request). */}
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h5 className="text-sm font-semibold text-primary-800 dark:text-white">
-                    {supplierCoversMaritime ? 'Rata 1' : 'Rata 2'}: Taxe locale{' '}
-                    {offer.portIntermediate}
-                  </h5>
                   <span className="text-sm font-bold text-accent-500">
-                    ${taxeLocaleTotal.toFixed(2)}
+                    ${(taxeLocaleTotal + transportTerestruTotal).toFixed(2)}
                   </span>
                 </div>
-                <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                  <p className="text-xs text-neutral-400 mb-1">Cheltuieli locale + taxe vamale</p>
-                  <p className="font-semibold text-primary-800 dark:text-white">
-                    ${taxeLocaleTotal.toFixed(2)}
-                  </p>
+
+                <div className="flex items-center justify-between rounded-lg bg-neutral-50 p-3 dark:bg-neutral-700/50">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-medium text-primary-800 dark:text-white">
+                      {t('calculator.offer.rowCommission')}
+                    </p>
+                    <InfoTip text={t('calculator.offer.commissionBaseNote')} />
+                  </div>
+                  {isAdmin ? (
+                    <div className="flex items-baseline gap-1">
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        aria-label={t('calculator.offer.rowCommission')}
+                        className="w-12 border-b border-accent-400 bg-transparent text-right text-sm font-semibold text-primary-800 focus:border-accent-600 focus:outline-none dark:text-white"
+                        value={commissionPercent}
+                        onChange={(e) => setCommissionPercent(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span className="text-sm font-bold text-accent-500">
+                        % = ${commissionAmount.toFixed(2)}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-sm font-bold text-accent-500">
+                      ${commissionAmount.toFixed(2)}
+                    </span>
+                  )}
                 </div>
               </div>
 
-              {/* Admin: Rata 3 — leg terestru spre destinația finală: transport terestru +
-                  comision expediție ca procent (editabil). Ascuns dacă nu există leg terestru. */}
-              {offer.portFinal && offer.portFinal !== offer.portIntermediate && (
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h5 className="text-sm font-semibold text-primary-800 dark:text-white">
-                      {supplierCoversMaritime ? 'Rata 2' : 'Rata 3'}: {offer.portIntermediate} →{' '}
-                      {offer.portFinal}
-                    </h5>
-                    <span className="text-sm font-bold text-accent-500">
-                      ${(transportTerestruTotal + commissionAmount).toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                      <p className="text-xs text-neutral-400 mb-1">Transport terestru</p>
-                      <p className="font-semibold text-primary-800 dark:text-white">
-                        ${transportTerestruTotal.toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                      <p className="text-xs text-neutral-400 mb-1">Comision expediție</p>
-                      {isAdmin ? (
-                        <div className="flex items-baseline gap-1">
-                          <input
-                            type="number"
-                            min="0"
-                            step="1"
-                            aria-label="Procent comision expediție"
-                            className="w-12 text-sm font-semibold text-primary-800 dark:text-white bg-transparent border-b border-accent-400 focus:outline-none focus:border-accent-600"
-                            value={commissionPercent}
-                            onChange={(e) => setCommissionPercent(e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                          <span className="text-sm font-semibold text-primary-800 dark:text-white">
-                            % = ${commissionAmount.toFixed(0)}
-                          </span>
-                        </div>
-                      ) : (
-                        <p className="font-semibold text-primary-800 dark:text-white">
-                          {pct}% = ${commissionAmount.toFixed(2)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
+              {supplierCoversMaritime && (
+                <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800/30 dark:bg-blue-900/20">
+                  <p className="text-sm text-blue-700 dark:text-blue-400">
+                    {t('calculator.offer.maritimeIncludedNote', {
+                      incoterm,
+                      insurance: incoterm === 'CIF' ? t('calculator.offer.insuranceAlso') : '',
+                      line: offer.shippingLine,
+                    })}
+                  </p>
                 </div>
               )}
             </>
@@ -360,8 +447,7 @@ export const OfferCard = ({
                   </h5>
                 </div>
                 <p className="text-2xl font-bold text-green-700 dark:text-green-400">
-                  $
-                  {(transportTerestruTotal + offer.customsTaxes + commissionAmount).toFixed(0)}
+                  ${(transportTerestruTotal + offer.customsTaxes + commissionAmount).toFixed(0)}
                 </p>
                 <p className="text-xs text-green-500 mt-1">
                   Transport terestru + vamă + comision (totul inclus)
@@ -415,6 +501,6 @@ export const OfferCard = ({
           </Button>
         </div>
       )}
-    </button>
+    </section>
   );
 };

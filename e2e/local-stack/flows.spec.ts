@@ -73,7 +73,10 @@ test('the price on the offer card survives "Selectează Această Ofertă"', asyn
   await page.waitForResponse((r) => r.url().includes('/calculator/calculate'), { timeout: 30000 });
 
   // The headline price on the card
-  const card = page.locator('button[aria-pressed]').first();
+  // The card header carries aria-pressed. It is a div with role=button rather
+  // than a <button>: the card contains the admin's commission input and the "i"
+  // beside it, and neither is legal inside a button element.
+  const card = page.locator('[role="button"][aria-pressed]').first();
   await card.waitFor({ timeout: 15000 });
   const cardPrice = (await card.locator('p.text-2xl').first().innerText()).trim();
 

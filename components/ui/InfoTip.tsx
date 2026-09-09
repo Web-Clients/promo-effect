@@ -27,7 +27,14 @@ export interface InfoTipProps {
 }
 
 export function InfoTip({ text, side = 'top', className, label }: InfoTipProps) {
-  const [open, setOpen] = useState(false);
+  // Hovering and clicking are separate reasons to be open, and conflating them
+  // is a real bug: on a laptop the pointer enters the button before the click
+  // lands, so a single toggle would open on hover and immediately close on
+  // click. Hover shows it while the pointer is there; a click pins it until
+  // dismissed.
+  const [hovered, setHovered] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  const open = hovered || pinned;
   const [flipped, setFlipped] = useState(false);
   const wrapRef = useRef<HTMLSpanElement | null>(null);
   const tipRef = useRef<HTMLSpanElement | null>(null);
@@ -38,11 +45,15 @@ export function InfoTip({ text, side = 'top', className, label }: InfoTipProps) 
   useEffect(() => {
     if (!open) return;
 
+    const close = () => {
+      setPinned(false);
+      setHovered(false);
+    };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape') close();
     };
     const onDown = (e: MouseEvent | TouchEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+      if (!wrapRef.current?.contains(e.target as Node)) close();
     };
 
     document.addEventListener('keydown', onKey);
@@ -77,12 +88,12 @@ export function InfoTip({ text, side = 'top', className, label }: InfoTipProps) 
           // Never submit the form the control lives in.
           e.preventDefault();
           e.stopPropagation();
-          setOpen((v) => !v);
+          setPinned((v) => !v);
         }}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onFocus={() => setHovered(true)}
+        onBlur={() => setHovered(false)}
         className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-neutral-300 text-[10px] font-semibold leading-none text-neutral-500 transition-colors hover:border-primary-500 hover:text-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:border-neutral-600 dark:text-neutral-400 dark:hover:text-white"
       >
         i

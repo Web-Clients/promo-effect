@@ -26,7 +26,7 @@ import {
   DEFAULT_COMMISSION_POLICY,
   priceOffer,
 } from './calculator-incoterms';
-import { agentPriceWhere } from './rate-validity';
+import { agentPriceWhere, narrowestWindow } from './rate-validity';
 import { validateCalculatorInput } from './calculator-validation';
 
 // Extend CalculatorInput with incoterms fields
@@ -357,6 +357,10 @@ export async function computeFromBasePrices(
           : estimateTransitDays(input.portOrigin, portDestination),
       availability: checkAvailability(readyDate),
       priceFromReferencePort: referencePortUsed,
+      // How long the quote is good for. Ion asked for this in the 8 Sep meeting:
+      // rates arrive roughly fortnightly, and an offer with no visible end date
+      // is one nobody can act on with confidence.
+      validUntil: narrowestWindow(prices)?.validUntil ?? undefined,
     });
   }
 

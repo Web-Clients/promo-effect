@@ -34,6 +34,8 @@ export interface PriceOffer {
   rank: number;
   shippingLine: string;
   basePriceId: string;
+  /** Last day this quote is good for, from the narrowest rate behind it. */
+  validUntil?: Date;
 
   // Route info
   route: string; // "Shanghai → Constanța → Chișinău"

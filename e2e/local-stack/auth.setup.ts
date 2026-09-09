@@ -27,6 +27,16 @@ async function signIn(
   await page.fill('input[type="password"]', password);
   await page.click('button[type="submit"]');
   await page.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 30000 });
+
+  // Mark the page walkthroughs as seen. They are modal by design, so leaving
+  // them armed would make every other test fight an overlay instead of testing
+  // its subject. tour.spec.ts clears these itself to exercise the first visit.
+  await page.evaluate(() => {
+    for (const id of ['calculator', 'my-prices', 'bookings', 'fleet-map']) {
+      localStorage.setItem(`tour.seen.${id}`, '1');
+    }
+  });
+
   await page.context().storageState({ path: file });
 }
 

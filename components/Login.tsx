@@ -6,6 +6,7 @@ import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import authService from '../services/auth';
 import { getErrorMessage } from '../utils/formatters';
+import { LanguageSwitcher } from './shared/LanguageSwitcher';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -99,26 +100,23 @@ const Login = ({ onLogin }: LoginProps) => {
 
         <div className="space-y-8">
           <h2 className="text-4xl font-heading font-bold leading-tight">
-            Simplificăm logistica
+            {t('auth.heroTitle')}
             <br />
             <span className="text-accent-400">China → Moldova</span>
           </h2>
-          <p className="text-white/70 text-lg max-w-md">
-            Platforma completă pentru gestionarea transportului maritim de containere. Prețuri
-            transparente, urmărire în timp real.
-          </p>
+          <p className="text-white/70 text-lg max-w-md">{t('auth.heroSubtitle')}</p>
           <div className="flex gap-8">
             <div>
               <p className="text-3xl font-bold text-accent-400">500+</p>
-              <p className="text-white/60 text-sm">Containere/An</p>
+              <p className="text-white/60 text-sm">{t('auth.statContainers')}</p>
             </div>
             <div>
               <p className="text-3xl font-bold text-accent-400">6</p>
-              <p className="text-white/60 text-sm">Linii Maritime</p>
+              <p className="text-white/60 text-sm">{t('auth.statLines')}</p>
             </div>
             <div>
               <p className="text-3xl font-bold text-accent-400">98%</p>
-              <p className="text-white/60 text-sm">Livrări la Timp</p>
+              <p className="text-white/60 text-sm">{t('auth.statOnTime')}</p>
             </div>
           </div>
         </div>
@@ -154,6 +152,12 @@ const Login = ({ onLogin }: LoginProps) => {
                 Promo-Efect
               </span>
             </div>
+          </div>
+
+          {/* A Chinese agent arrives here first. Without a switcher he would meet
+              the platform in Romanian and have no way out of it. */}
+          <div className="flex justify-end">
+            <LanguageSwitcher all />
           </div>
 
           {/* Form Header */}

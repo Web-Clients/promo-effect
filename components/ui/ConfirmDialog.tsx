@@ -63,8 +63,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
   if (!isOpen) return null;
 
-  const resolvedConfirmText = confirmText ?? t('common.confirm', 'Confirmă');
-  const resolvedCancelText = cancelText ?? t('common.cancel', 'Anulează');
+  const resolvedConfirmText = confirmText ?? t('actions.confirm');
+  const resolvedCancelText = cancelText ?? t('actions.cancel');
 
   return (
     <div
@@ -212,7 +212,7 @@ export const TextInputDialog: React.FC<TextInputDialogProps> = ({
         />
         <div className="flex gap-3">
           <Button variant="outline" onClick={onClose} className="flex-1">
-            {cancelText ?? t('common.cancel', 'Anulează')}
+            {cancelText ?? t('actions.cancel')}
           </Button>
           <Button
             variant="accent"
@@ -222,7 +222,7 @@ export const TextInputDialog: React.FC<TextInputDialogProps> = ({
             }}
             className="flex-1"
           >
-            {confirmText ?? t('common.confirm', 'Confirmă')}
+            {confirmText ?? t('actions.confirm')}
           </Button>
         </div>
       </div>

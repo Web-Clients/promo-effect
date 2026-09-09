@@ -118,7 +118,12 @@
     "backToLoginBtn": "Înapoi la autentificare",
     "resend": "Trimite din nou",
     "tooManyAttempts": "Prea multe încercări. Vă rugăm să așteptați o oră.",
-    "note": "Notă"
+    "note": "Notă",
+    "heroTitle": "Simplificăm logistica",
+    "heroSubtitle": "Platforma completă pentru gestionarea transportului maritim de containere. Prețuri transparente, urmărire în timp real.",
+    "statContainers": "Containere/An",
+    "statLines": "Linii Maritime",
+    "statOnTime": "Livrări la Timp"
   },
   "status": {
     "loading": "La Încărcare",
@@ -471,7 +476,9 @@
     "twoFactorDeactivated": "2FA dezactivat cu succes",
     "invalidCode": "Introdu un cod valid de 6 cifre",
     "enterPasswordFor2FA": "Introdu parola pentru a dezactiva 2FA",
-    "notImplemented": "Funcționalitate neimplementată."
+    "notImplemented": "Funcționalitate neimplementată.",
+    "resetLinkSent": "Ți-am trimis un link de resetare pe email",
+    "sendResetLink": "Trimite link de resetare"
   },
   "pricing": {
     "title": "Administrare Prețuri",
@@ -666,7 +673,11 @@
     "services": "Servicii",
     "prices": "Prețuri",
     "contact": "Contact",
-    "faq": "Întrebări Frecvente"
+    "faq": "Întrebări Frecvente",
+    "notifications": "Notificări",
+    "dismissNotification": "Închide notificarea",
+    "active": "Activ",
+    "skipToContent": "Sari la conținutul principal"
   },
   "legal": {
     "termsTitle": "Termeni și Condiții",

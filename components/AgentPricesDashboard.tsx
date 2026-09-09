@@ -112,18 +112,33 @@ function expiryClass(validUntil?: string | Date | null): string {
   return isExpired(validUntil) ? 'text-red-600 dark:text-red-400 line-through' : '';
 }
 
-function shortDate(value?: string | Date | null): string {
+/**
+ * A short date in the reader's own conventions. A Chinese agent should see
+ * 9月15日, not "15 Sept"; the locale follows the active UI language rather than
+ * the browser's, because the two diverge the moment anyone switches.
+ */
+function shortDate(value: string | Date | null | undefined, locale: string): string {
   if (!value) return '—';
   const d = new Date(value);
   return Number.isNaN(d.getTime())
     ? '—'
-    : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    : d.toLocaleDateString(locale, { day: '2-digit', month: 'short' });
+}
+
+/** BCP-47 tag for a UI language code. */
+function dateLocale(language: string): string {
+  const base = (language || 'ro').split('-')[0];
+  return (
+    ({ ro: 'ro-RO', ru: 'ru-RU', en: 'en-GB', zh: 'zh-CN' } as Record<string, string>)[base] ||
+    'en-GB'
+  );
 }
 
 const FALLBACK_PORTS = ['Shanghai', 'Ningbo', 'Qingdao', 'Shenzhen', 'Guangzhou', 'Xiamen'];
 
 const AgentPricesDashboard: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = dateLocale(i18n.language);
   const { confirm: confirmDialog, ConfirmDialogNode } = useConfirm();
   const [profile, setProfile] = useState<AgentProfile | null>(null);
   const [prices, setPrices] = useState<AgentPrice[]>([]);
@@ -463,7 +478,7 @@ const AgentPricesDashboard: React.FC = () => {
                     </td>
                     <td className="p-4 text-neutral-600 dark:text-neutral-300 whitespace-nowrap">
                       <span className={expiryClass(price.validUntil)}>
-                        {shortDate(price.validFrom)} – {shortDate(price.validUntil)}
+                        {shortDate(price.validFrom, locale)} – {shortDate(price.validUntil, locale)}
                       </span>
                       {isExpired(price.validUntil) && (
                         <p className="text-xs text-red-600 dark:text-red-400">
@@ -472,7 +487,7 @@ const AgentPricesDashboard: React.FC = () => {
                       )}
                     </td>
                     <td className="p-4 text-neutral-600 dark:text-neutral-300 whitespace-nowrap">
-                      {shortDate(price.departureDate)}
+                      {shortDate(price.departureDate, locale)}
                     </td>
                     <td className="p-4">
                       <span
@@ -612,7 +627,7 @@ const AgentPricesDashboard: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                  Preț Freight (USD)
+                  {t('agentPortal.form.price')}
                 </label>
                 <input
                   type="number"
@@ -674,7 +689,7 @@ const AgentPricesDashboard: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                  Motiv / Note (opțional)
+                  {t('agentPortal.form.notes')}
                 </label>
                 <textarea
                   value={formData.reason || ''}

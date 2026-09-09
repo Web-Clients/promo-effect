@@ -118,7 +118,12 @@
     "backToLoginBtn": "Back to login",
     "resend": "Resend",
     "tooManyAttempts": "Too many attempts. Please wait one hour.",
-    "note": "Note"
+    "note": "Note",
+    "heroTitle": "Logistics, made simple",
+    "heroSubtitle": "The complete platform for managing container shipping. Transparent pricing, real-time tracking.",
+    "statContainers": "Containers/year",
+    "statLines": "Shipping lines",
+    "statOnTime": "On-time delivery"
   },
   "status": {
     "loading": "Loading",
@@ -471,7 +476,9 @@
     "twoFactorDeactivated": "2FA deactivated successfully",
     "invalidCode": "Enter a valid 6-digit code",
     "enterPasswordFor2FA": "Enter your password to disable 2FA",
-    "notImplemented": "Feature not implemented."
+    "notImplemented": "Feature not implemented.",
+    "resetLinkSent": "We have sent you a reset link by email",
+    "sendResetLink": "Send reset link"
   },
   "pricing": {
     "title": "Pricing Management",
@@ -666,7 +673,11 @@
     "services": "Services",
     "prices": "Prices",
     "contact": "Contact",
-    "faq": "FAQ"
+    "faq": "FAQ",
+    "notifications": "Notifications",
+    "dismissNotification": "Dismiss notification",
+    "active": "Active",
+    "skipToContent": "Skip to main content"
   },
   "legal": {
     "termsTitle": "Terms and Conditions",

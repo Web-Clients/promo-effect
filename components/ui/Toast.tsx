@@ -2,6 +2,7 @@ import React, { createContext, useState, useCallback, useRef, useEffect } from '
 import { createPortal } from 'react-dom';
 import { cn } from '../../lib/utils';
 import { AlertCircleIcon, XIcon, CheckIcon } from '../icons';
+import { useTranslation } from 'react-i18next';
 
 export type ToastVariant = 'info' | 'success' | 'warning' | 'error';
 
@@ -66,11 +67,12 @@ const ToastContainer = ({
   toasts: ToastMessage[];
   removeToast: (id: number) => void;
 }) => {
+  const { t } = useTranslation();
   return (
     <div
       className="fixed top-5 right-5 z-[100] space-y-2 w-full max-w-sm"
       aria-live="polite"
-      aria-label="Notificări"
+      aria-label={t('common.notifications', 'Notificări')}
     >
       {toasts.map((toast) => (
         <Toast key={toast.id} {...toast} onDismiss={() => removeToast(toast.id)} />
@@ -92,6 +94,7 @@ const VARIANT_CLASSES: Record<ToastVariant, string> = {
 
 // FIX: Changed Toast to be a React.FC to correctly handle the 'key' prop.
 const Toast: React.FC<ToastProps> = ({ message, variant, onDismiss }) => {
+  const { t } = useTranslation();
   const Icon = ICONS[variant];
   const duration = TOAST_DURATIONS[variant];
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -144,7 +147,7 @@ const Toast: React.FC<ToastProps> = ({ message, variant, onDismiss }) => {
       <div className="flex-1">{message}</div>
       <button
         onClick={onDismiss}
-        aria-label="Închide notificarea"
+        aria-label={t('common.dismissNotification', 'Închide notificarea')}
         className="ml-3 p-1 rounded-full hover:bg-black/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
       >
         <XIcon className="h-4 w-4" aria-hidden="true" />

@@ -6,6 +6,7 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 import ro from './locales/ro/common.json';
 import ru from './locales/ru/common.json';
 import en from './locales/en/common.json';
+import zh from './locales/zh/common.json';
 
 i18n
   .use(LanguageDetector)
@@ -15,8 +16,13 @@ i18n
       ro: { translation: ro },
       ru: { translation: ru },
       en: { translation: en },
+      zh: { translation: zh },
     },
-    fallbackLng: 'ro',
+    // Chinese covers the agent portal and the screens around it, not the whole
+    // back office. Anything it does not carry falls through to English rather
+    // than to Romanian — a forwarder in Ningbo can work around an English
+    // label, not a Romanian one.
+    fallbackLng: { zh: ['en'], default: ['ro'] },
     interpolation: {
       escapeValue: false,
     },

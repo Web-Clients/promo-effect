@@ -82,7 +82,7 @@ const UserProfile = ({ user }: { user: User }) => {
     setSendingReset(true);
     try {
       await authService.requestPasswordReset(user.email);
-      addToast('Ți-am trimis un link de resetare pe email', 'success');
+      addToast(t('profile.resetLinkSent'), 'success');
     } catch (error: unknown) {
       addToast(getErrorMessage(error, t('errors.saveFailed')), 'error');
     } finally {
@@ -257,7 +257,7 @@ const UserProfile = ({ user }: { user: User }) => {
                       loading={sendingReset}
                       disabled={sendingReset}
                     >
-                      Trimite link de resetare
+                      {t('profile.sendResetLink')}
                     </Button>
                   </div>
                 </div>
@@ -378,7 +378,7 @@ const UserProfile = ({ user }: { user: User }) => {
                             {t('profile.twoFactorEnabledDesc')}
                           </p>
                         </div>
-                        <Badge variant="green">Activ</Badge>
+                        <Badge variant="green">{t('common.active')}</Badge>
                       </div>
 
                       <Card className="p-4">

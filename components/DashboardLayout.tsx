@@ -110,6 +110,9 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
     { name: t('nav.fleetMap'), path: 'fleet-map', icon: MapPinIcon, visible: !isAgent },
     { name: t('nav.calculator'), path: 'calculator', icon: CalculatorIcon, visible: !isAgent },
     { name: t('nav.myProfile'), path: 'userProfile', icon: UserIcon, visible: true },
+    // Visible to everyone, agents included: an agent has as much reason to know
+    // a pricing rule changed as the office does.
+    { name: t('nav.changelog'), path: 'changelog', icon: FileTextIcon, visible: true },
     { name: t('nav.clients'), path: 'clients', icon: UsersIcon, visible: isAdminOrManager },
     { name: t('nav.invoices'), path: 'invoices', icon: FileTextIcon, visible: isAdminOrManager },
     // AI Email Parser moved to Settings → tab "emailParser"

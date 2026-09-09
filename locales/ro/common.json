@@ -23,7 +23,8 @@
     "myPrices": "Prețurile Mele",
     "collapse": "Restrânge",
     "expand": "Extinde",
-    "fleetMap": "Hartă Flotă"
+    "fleetMap": "Hartă Flotă",
+    "changelog": "Noutăți"
   },
   "actions": {
     "save": "Salvează",
@@ -917,6 +918,27 @@
       "days_few": "acum {{count}} zile",
       "days_other": "acum {{count}} de zile",
       "unknown": "necunoscut"
+    }
+  },
+  "changelog": {
+    "title": "Noutăți și cum funcționează",
+    "subtitle": "Ce s-a schimbat pe platformă și cum lucrează fiecare parte.",
+    "tabChanges": "Ce s-a schimbat",
+    "tabHowItWorks": "Cum funcționează",
+    "emptyForFilter": "Nicio intrare pentru filtrul ales.",
+    "kinds": {
+      "all": "Toate",
+      "feature": "Funcție nouă",
+      "fix": "Reparat",
+      "improvement": "Îmbunătățit"
+    },
+    "areas": {
+      "agents": "Agenți",
+      "pricing": "Prețuri",
+      "documents": "Documente",
+      "tracking": "Urmărire",
+      "account": "Cont",
+      "calculator": "Calculator"
     }
   }
 }

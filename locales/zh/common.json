@@ -109,7 +109,8 @@
     "expand": "展开",
     "dashboard": "工作台",
     "fleetMap": "船队地图",
-    "calculator": "运价计算器"
+    "calculator": "运价计算器",
+    "changelog": "更新"
   },
   "common": {
     "status": "状态",
@@ -272,6 +273,27 @@
       "hours": "{{n}} 小时前",
       "days_other": "{{count}} 天前",
       "unknown": "未知"
+    }
+  },
+  "changelog": {
+    "title": "更新与说明",
+    "subtitle": "平台的变更记录，以及各功能的说明。",
+    "tabChanges": "变更记录",
+    "tabHowItWorks": "功能说明",
+    "emptyForFilter": "该筛选条件下暂无内容。",
+    "kinds": {
+      "all": "全部",
+      "feature": "新增",
+      "fix": "修复",
+      "improvement": "优化"
+    },
+    "areas": {
+      "agents": "代理",
+      "pricing": "运价",
+      "documents": "单证",
+      "tracking": "跟踪",
+      "account": "账户",
+      "calculator": "计算器"
     }
   }
 }

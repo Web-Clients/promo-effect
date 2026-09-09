@@ -23,7 +23,8 @@
     "myPrices": "My Prices",
     "collapse": "Collapse",
     "expand": "Expand",
-    "fleetMap": "Fleet Map"
+    "fleetMap": "Fleet Map",
+    "changelog": "What's new"
   },
   "actions": {
     "save": "Save",
@@ -916,6 +917,27 @@
       "days_one": "a day ago",
       "days_other": "{{count}} days ago",
       "unknown": "unknown"
+    }
+  },
+  "changelog": {
+    "title": "What's new, and how it works",
+    "subtitle": "What changed on the platform, and what each part does.",
+    "tabChanges": "What changed",
+    "tabHowItWorks": "How it works",
+    "emptyForFilter": "Nothing matches this filter.",
+    "kinds": {
+      "all": "All",
+      "feature": "New",
+      "fix": "Fixed",
+      "improvement": "Improved"
+    },
+    "areas": {
+      "agents": "Agents",
+      "pricing": "Pricing",
+      "documents": "Documents",
+      "tracking": "Tracking",
+      "account": "Account",
+      "calculator": "Calculator"
     }
   }
 }

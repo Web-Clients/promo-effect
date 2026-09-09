@@ -23,7 +23,8 @@
     "myPrices": "Мои цены",
     "collapse": "Свернуть",
     "expand": "Развернуть",
-    "fleetMap": "Карта флота"
+    "fleetMap": "Карта флота",
+    "changelog": "Что нового"
   },
   "actions": {
     "save": "Сохранить",
@@ -918,6 +919,27 @@
       "days_many": "{{count}} дней назад",
       "days_other": "{{count}} дня назад",
       "unknown": "неизвестно"
+    }
+  },
+  "changelog": {
+    "title": "Что нового и как это работает",
+    "subtitle": "Что изменилось на платформе и как работает каждая часть.",
+    "tabChanges": "Что изменилось",
+    "tabHowItWorks": "Как это работает",
+    "emptyForFilter": "По этому фильтру ничего нет.",
+    "kinds": {
+      "all": "Все",
+      "feature": "Новое",
+      "fix": "Исправлено",
+      "improvement": "Улучшено"
+    },
+    "areas": {
+      "agents": "Агенты",
+      "pricing": "Тарифы",
+      "documents": "Документы",
+      "tracking": "Отслеживание",
+      "account": "Аккаунт",
+      "calculator": "Калькулятор"
     }
   }
 }

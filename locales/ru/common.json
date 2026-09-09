@@ -22,7 +22,8 @@
     "adminSettings": "Настройки администратора",
     "myPrices": "Мои цены",
     "collapse": "Свернуть",
-    "expand": "Развернуть"
+    "expand": "Развернуть",
+    "fleetMap": "Карта флота"
   },
   "actions": {
     "save": "Сохранить",
@@ -791,5 +792,74 @@
       "invoiceOverdue": "Счёт {{invoiceNumber}} просрочен на {{days}} дн.",
       "priceChanged": "Цена обновлена: {{route}} → ${{price}}"
     }
+  },
+  "agentPortal": {
+    "title": "Мои тарифы",
+    "retry": "Повторить",
+    "addPrice": "Добавить тариф",
+    "addNewPrice": "Добавить новый тариф",
+    "addFirstPrice": "Добавить первый тариф",
+    "editPrice": "Изменить тариф",
+    "edit": "Изменить",
+    "delete": "Удалить",
+    "cancel": "Отмена",
+    "update": "Обновить",
+    "saving": "Сохранение...",
+    "noPrices": "Тарифов пока нет",
+    "stats": {
+      "total": "Всего тарифов",
+      "pending": "На согласовании",
+      "approved": "Согласованы",
+      "rejected": "Отклонены"
+    },
+    "tabs": {
+      "all": "Все",
+      "pending": "На согласовании",
+      "approved": "Согласованы",
+      "rejected": "Отклонены"
+    },
+    "table": {
+      "line": "Линия",
+      "port": "Порт",
+      "container": "Контейнер",
+      "weight": "Вес",
+      "price": "Ставка",
+      "validity": "Действует",
+      "departure": "Отход",
+      "status": "Статус",
+      "actions": "Действия"
+    },
+    "form": {
+      "shippingLine": "Морская линия",
+      "portOrigin": "Порт погрузки",
+      "containerType": "Тип контейнера",
+      "weight": "Вес",
+      "price": "Ставка (USD)",
+      "validFrom": "Действует с",
+      "validUntil": "Действует до",
+      "departureDate": "Дата отхода",
+      "notes": "Примечания",
+      "notesPlaceholder": "Напр.: спецпредложение, рыночные условия..."
+    },
+    "status": {
+      "PENDING": "На согласовании",
+      "APPROVED": "Согласован",
+      "REJECTED": "Отклонён"
+    },
+    "msg": {
+      "created": "Тариф отправлен на согласование",
+      "updated": "Тариф обновлён и отправлен на согласование",
+      "deleted": "Тариф удалён",
+      "deleteTitle": "Удалить тариф?",
+      "deleteConfirm": "Вы уверены, что хотите удалить этот тариф?",
+      "willBeApproved": "Тариф будет отправлен администратору на согласование",
+      "changeWillBeApproved": "Изменение будет отправлено на согласование"
+    },
+    "validation": {
+      "validUntilBeforeFrom": "«Действует до» не может быть раньше «Действует с».",
+      "departureBeforeFrom": "Дата отхода не может быть раньше «Действует с»."
+    },
+    "submitForApproval": "Отправить на согласование",
+    "expired": "Истёк"
   }
 }

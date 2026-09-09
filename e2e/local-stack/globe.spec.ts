@@ -8,16 +8,14 @@
  */
 import { test, expect } from '@playwright/test';
 
+import { ADMIN_STATE } from './auth-paths';
+
+test.use({ storageState: ADMIN_STATE });
+
 const BASE = process.env.E2E_BASE_URL || 'http://localhost:3011';
 
 test('globe paints the Earth and the fleet', async ({ page }) => {
   test.setTimeout(120_000);
-
-  await page.goto(BASE + '/login');
-  await page.fill('input[type="email"]', 'e2e-admin@local.test');
-  await page.fill('input[type="password"]', 'E2ePassw0rd!');
-  await page.click('button[type="submit"]');
-  await page.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 20000 });
 
   await page.goto(BASE + '/dashboard/fleet-map');
 

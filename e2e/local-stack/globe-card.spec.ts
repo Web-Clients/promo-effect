@@ -8,6 +8,10 @@
 import { test, expect } from '@playwright/test';
 import type { Map as MlMap } from 'maplibre-gl';
 
+import { ADMIN_STATE } from './auth-paths';
+
+test.use({ storageState: ADMIN_STATE });
+
 const BASE = process.env.E2E_BASE_URL || 'http://localhost:3011';
 
 // The vessel seeded alongside at Constanța.
@@ -16,12 +20,6 @@ const CONSTANTA: [number, number] = [28.6348, 44.1598];
 const INDIAN_OCEAN: [number, number] = [74.9, 6.4];
 
 async function openGlobe(page: import('@playwright/test').Page) {
-  await page.goto(BASE + '/login');
-  await page.fill('input[type="email"]', 'e2e-admin@local.test');
-  await page.fill('input[type="password"]', 'E2ePassw0rd!');
-  await page.click('button[type="submit"]');
-  await page.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 20000 });
-
   await page.goto(BASE + '/dashboard/fleet-map');
   const canvas = page.locator('canvas.maplibregl-canvas');
   await expect(canvas).toBeVisible({ timeout: 30000 });

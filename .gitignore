@@ -49,3 +49,4 @@ test-results/
 playwright-report/
 uploads
 e2e/local-stack/shots/
+e2e/local-stack/.auth/

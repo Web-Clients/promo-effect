@@ -6,17 +6,13 @@
  */
 import { test } from '@playwright/test';
 
-const BASE = process.env.E2E_BASE_URL || 'http://localhost:3011';
-const EMAIL = 'e2e-admin@local.test';
-const PASS = 'E2ePassw0rd!';
+import { ADMIN_STATE } from './auth-paths';
 
-async function login(page: import('@playwright/test').Page) {
-  await page.goto(BASE + '/login');
-  await page.fill('input[type="email"]', EMAIL);
-  await page.fill('input[type="password"]', PASS);
-  await page.click('button[type="submit"]');
-  await page.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 20000 });
-}
+test.use({ storageState: ADMIN_STATE });
+
+const BASE = process.env.E2E_BASE_URL || 'http://localhost:3011';
+
+// The session comes from auth.setup.ts.
 
 const SCREENS: [string, string][] = [
   ['fleet-map', '/dashboard/fleet-map'],
@@ -34,8 +30,6 @@ test('capture every screen the meeting touched', async ({ page }) => {
   page.on('console', (m) => {
     if (m.type() === 'error') errors.push('console: ' + m.text());
   });
-
-  await login(page);
 
   for (const [name, path] of SCREENS) {
     await page.goto(BASE + path);

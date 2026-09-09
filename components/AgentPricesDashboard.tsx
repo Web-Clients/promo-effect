@@ -82,17 +82,44 @@ const statusIcons: Record<string, React.ReactNode> = {
   REJECTED: <XIcon />,
 };
 
-const statusText: Record<string, string> = {
-  PENDING: 'În așteptare',
-  APPROVED: 'Aprobat',
-  REJECTED: 'Respins',
+// Status wording is translated at render time — a Chinese agent reads this
+// page, and a module-level constant cannot see the active language.
+const STATUS_KEYS: Record<string, string> = {
+  PENDING: 'agentPortal.status.PENDING',
+  APPROVED: 'agentPortal.status.APPROVED',
+  REJECTED: 'agentPortal.status.REJECTED',
 };
 
 // Available options
 const SHIPPING_LINES = ['MSC', 'Maersk', 'Hapag-Lloyd', 'CMA CGM', 'Cosco', 'Yangming'];
-const CONTAINER_TYPES = ['20ft', '40ft', '40ft HC'];
-const WEIGHT_RANGES = ['1-5 tone', '5-10 tone', '10-15 tone', '15-20 tone', '20-24 tone'];
+// Used only until /agent-portal/vocabulary answers, and if it never does.
+const FALLBACK_CONTAINER_TYPES = ['20DV', '40DV', '40HC', '40HQ'];
+const FALLBACK_WEIGHT_RANGES = ['<23', '23-24', '24-25', '25-26', '26-27', '27-28'];
 // Fallback ports if API fails
+/**
+ * An expired rate is the agent's problem to fix, so it has to be visible on his
+ * own screen. The calculator refuses to quote it — silently, from his point of
+ * view — and Ion's complaint about being offered a rate that had lapsed came
+ * from exactly this blind spot.
+ */
+function isExpired(validUntil?: string | Date | null): boolean {
+  if (!validUntil) return false;
+  const d = new Date(validUntil);
+  return !Number.isNaN(d.getTime()) && d.getTime() < Date.now();
+}
+
+function expiryClass(validUntil?: string | Date | null): string {
+  return isExpired(validUntil) ? 'text-red-600 dark:text-red-400 line-through' : '';
+}
+
+function shortDate(value?: string | Date | null): string {
+  if (!value) return '—';
+  const d = new Date(value);
+  return Number.isNaN(d.getTime())
+    ? '—'
+    : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+}
+
 const FALLBACK_PORTS = ['Shanghai', 'Ningbo', 'Qingdao', 'Shenzhen', 'Guangzhou', 'Xiamen'];
 
 const AgentPricesDashboard: React.FC = () => {
@@ -108,6 +135,12 @@ const AgentPricesDashboard: React.FC = () => {
   // Ports loaded from API
   const [originPorts, setOriginPorts] = useState<string[]>(FALLBACK_PORTS);
 
+  // Container labels and weight bands come from the pricing tables. Hardcoding
+  // them is what let the form offer '40ft HC' against a database speaking
+  // '40HQ': the rate saved fine and no quote could ever match it.
+  const [containerTypes, setContainerTypes] = useState<string[]>(FALLBACK_CONTAINER_TYPES);
+  const [weightRanges, setWeightRanges] = useState<string[]>(FALLBACK_WEIGHT_RANGES);
+
   // Modal state
   const [showModal, setShowModal] = useState(false);
   const [editingPrice, setEditingPrice] = useState<AgentPrice | null>(null);
@@ -118,8 +151,8 @@ const AgentPricesDashboard: React.FC = () => {
     freightPrice: 0,
     shippingLine: SHIPPING_LINES[0],
     portOrigin: FALLBACK_PORTS[0],
-    containerType: CONTAINER_TYPES[0],
-    weightRange: WEIGHT_RANGES[0],
+    containerType: FALLBACK_CONTAINER_TYPES[0],
+    weightRange: FALLBACK_WEIGHT_RANGES[0],
     validFrom: new Date().toISOString().split('T')[0],
     validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     departureDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -142,6 +175,17 @@ const AgentPricesDashboard: React.FC = () => {
       }
     };
     loadPorts();
+
+    const loadVocabulary = async () => {
+      try {
+        const v = await agentPortalService.getAgentVocabulary();
+        if (v.containerTypes?.length) setContainerTypes(v.containerTypes);
+        if (v.weightRanges?.length) setWeightRanges(v.weightRanges);
+      } catch (err) {
+        console.warn('Failed to load vocabulary, using fallback:', err);
+      }
+    };
+    loadVocabulary();
   }, []);
 
   const loadData = useCallback(async () => {
@@ -190,8 +234,8 @@ const AgentPricesDashboard: React.FC = () => {
         freightPrice: 0,
         shippingLine: SHIPPING_LINES[0],
         portOrigin: originPorts[0] || FALLBACK_PORTS[0],
-        containerType: CONTAINER_TYPES[0],
-        weightRange: WEIGHT_RANGES[0],
+        containerType: FALLBACK_CONTAINER_TYPES[0],
+        weightRange: FALLBACK_WEIGHT_RANGES[0],
         validFrom: new Date().toISOString().split('T')[0],
         validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         departureDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -210,11 +254,11 @@ const AgentPricesDashboard: React.FC = () => {
     e.preventDefault();
     // Date-order guards
     if (new Date(formData.validUntil) < new Date(formData.validFrom)) {
-      addToast('Data "Valid Până" nu poate fi înainte de "Valid Din".', 'error');
+      addToast(t('agentPortal.validation.validUntilBeforeFrom'), 'error');
       return;
     }
     if (new Date(formData.departureDate) < new Date(formData.validFrom)) {
-      addToast('Data plecării nu poate fi înainte de "Valid Din".', 'error');
+      addToast(t('agentPortal.validation.departureBeforeFrom'), 'error');
       return;
     }
     setIsSaving(true);
@@ -222,10 +266,10 @@ const AgentPricesDashboard: React.FC = () => {
     try {
       if (editingPrice) {
         await agentPortalService.updatePrice(editingPrice.id, formData);
-        addToast('Prețul a fost actualizat și trimis pentru aprobare', 'success');
+        addToast(t('agentPortal.msg.updated'), 'success');
       } else {
         await agentPortalService.submitPrice(formData);
-        addToast('Prețul a fost trimis pentru aprobare', 'success');
+        addToast(t('agentPortal.msg.created'), 'success');
       }
       handleCloseModal();
       loadData();
@@ -238,16 +282,16 @@ const AgentPricesDashboard: React.FC = () => {
 
   const handleDelete = async (priceId: string) => {
     const ok = await confirmDialog({
-      title: 'Ștergeți prețul?',
-      message: 'Sigur doriți să ștergeți acest preț?',
+      title: t('agentPortal.msg.deleteTitle'),
+      message: t('agentPortal.msg.deleteConfirm'),
       variant: 'danger',
-      confirmText: 'Șterge',
+      confirmText: t('agentPortal.delete'),
     });
     if (!ok) return;
 
     try {
       await agentPortalService.deletePrice(priceId);
-      addToast('Prețul a fost șters', 'success');
+      addToast(t('agentPortal.msg.deleted'), 'success');
       loadData();
     } catch (err: unknown) {
       addToast(getErrorMessage(err, t('errors.deleting')), 'error');
@@ -267,7 +311,7 @@ const AgentPricesDashboard: React.FC = () => {
       <div className="p-6 bg-error-50 dark:bg-error-500/20 border border-error-200 dark:border-error-500/30 rounded-xl">
         <p className="text-error-700 dark:text-error-400">{error}</p>
         <Button variant="secondary" onClick={loadData} className="mt-4">
-          Reîncearcă
+          {t('agentPortal.retry')}
         </Button>
       </div>
     );
@@ -280,7 +324,7 @@ const AgentPricesDashboard: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-primary-800 dark:text-white font-heading">
-            Prețurile Mele
+            {t('agentPortal.title')}
           </h1>
           <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
             {profile?.company} ({profile?.agentCode})
@@ -288,7 +332,7 @@ const AgentPricesDashboard: React.FC = () => {
         </div>
         <Button variant="accent" onClick={() => handleOpenModal()}>
           <PlusIcon />
-          <span className="ml-2">Adaugă Preț</span>
+          <span className="ml-2">{t('agentPortal.addPrice')}</span>
         </Button>
       </div>
 
@@ -296,25 +340,33 @@ const AgentPricesDashboard: React.FC = () => {
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white dark:bg-neutral-800 rounded-xl p-4 shadow-card border border-neutral-200/50 dark:border-neutral-700/50">
-            <p className="text-sm text-neutral-500 dark:text-neutral-400">Total Prețuri</p>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+              {t('agentPortal.stats.total')}
+            </p>
             <p className="text-2xl font-bold text-primary-800 dark:text-white">
               {stats.prices.total}
             </p>
           </div>
           <div className="bg-yellow-50 dark:bg-yellow-500/10 rounded-xl p-4 border border-yellow-200/50 dark:border-yellow-500/20">
-            <p className="text-sm text-yellow-700 dark:text-yellow-400">În Așteptare</p>
+            <p className="text-sm text-yellow-700 dark:text-yellow-400">
+              {t('agentPortal.stats.pending')}
+            </p>
             <p className="text-2xl font-bold text-yellow-800 dark:text-yellow-300">
               {stats.prices.pending}
             </p>
           </div>
           <div className="bg-green-50 dark:bg-green-500/10 rounded-xl p-4 border border-green-200/50 dark:border-green-500/20">
-            <p className="text-sm text-green-700 dark:text-green-400">Aprobate</p>
+            <p className="text-sm text-green-700 dark:text-green-400">
+              {t('agentPortal.stats.approved')}
+            </p>
             <p className="text-2xl font-bold text-green-800 dark:text-green-300">
               {stats.prices.approved}
             </p>
           </div>
           <div className="bg-red-50 dark:bg-red-500/10 rounded-xl p-4 border border-red-200/50 dark:border-red-500/20">
-            <p className="text-sm text-red-700 dark:text-red-400">Respinse</p>
+            <p className="text-sm text-red-700 dark:text-red-400">
+              {t('agentPortal.stats.rejected')}
+            </p>
             <p className="text-2xl font-bold text-red-800 dark:text-red-300">
               {stats.prices.rejected}
             </p>
@@ -326,10 +378,10 @@ const AgentPricesDashboard: React.FC = () => {
       <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 p-4">
         <div className="flex gap-2 overflow-x-auto">
           {[
-            { value: '', label: 'Toate' },
-            { value: 'PENDING', label: 'În Așteptare' },
-            { value: 'APPROVED', label: 'Aprobate' },
-            { value: 'REJECTED', label: 'Respinse' },
+            { value: '', label: t('agentPortal.tabs.all') },
+            { value: 'PENDING', label: t('agentPortal.tabs.pending') },
+            { value: 'APPROVED', label: t('agentPortal.tabs.approved') },
+            { value: 'REJECTED', label: t('agentPortal.tabs.rejected') },
           ].map((tab) => (
             <button
               key={tab.value}
@@ -351,10 +403,10 @@ const AgentPricesDashboard: React.FC = () => {
       <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 overflow-hidden">
         {prices.length === 0 ? (
           <div className="p-12 text-center">
-            <p className="text-neutral-500 dark:text-neutral-400">Nu există prețuri</p>
+            <p className="text-neutral-500 dark:text-neutral-400">{t('agentPortal.noPrices')}</p>
             <Button variant="accent" onClick={() => handleOpenModal()} className="mt-4">
               <PlusIcon />
-              <span className="ml-2">Adaugă Primul Preț</span>
+              <span className="ml-2">{t('agentPortal.addFirstPrice')}</span>
             </Button>
           </div>
         ) : (
@@ -363,25 +415,31 @@ const AgentPricesDashboard: React.FC = () => {
               <thead>
                 <tr className="bg-neutral-50 dark:bg-neutral-700/50 border-b border-neutral-200 dark:border-neutral-700">
                   <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">
-                    Linie
+                    {t('agentPortal.table.line')}
                   </th>
                   <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">
-                    Port
+                    {t('agentPortal.table.port')}
                   </th>
                   <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">
-                    Container
+                    {t('agentPortal.table.container')}
                   </th>
                   <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">
-                    Greutate
+                    {t('agentPortal.form.weight')}
                   </th>
                   <th className="text-right p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">
-                    Preț
+                    {t('agentPortal.table.price')}
                   </th>
                   <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">
-                    Status
+                    {t('agentPortal.table.validity')}
                   </th>
                   <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">
-                    Acțiuni
+                    {t('agentPortal.table.departure')}
+                  </th>
+                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                    {t('agentPortal.table.status')}
+                  </th>
+                  <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                    {t('agentPortal.table.actions')}
                   </th>
                 </tr>
               </thead>
@@ -403,6 +461,19 @@ const AgentPricesDashboard: React.FC = () => {
                     <td className="p-4 text-right font-semibold text-accent-500">
                       ${price.freightPrice}
                     </td>
+                    <td className="p-4 text-neutral-600 dark:text-neutral-300 whitespace-nowrap">
+                      <span className={expiryClass(price.validUntil)}>
+                        {shortDate(price.validFrom)} – {shortDate(price.validUntil)}
+                      </span>
+                      {isExpired(price.validUntil) && (
+                        <p className="text-xs text-red-600 dark:text-red-400">
+                          {t('agentPortal.expired')}
+                        </p>
+                      )}
+                    </td>
+                    <td className="p-4 text-neutral-600 dark:text-neutral-300 whitespace-nowrap">
+                      {shortDate(price.departureDate)}
+                    </td>
                     <td className="p-4">
                       <span
                         className={cn(
@@ -411,7 +482,7 @@ const AgentPricesDashboard: React.FC = () => {
                         )}
                       >
                         {statusIcons[price.approvalStatus]}
-                        {statusText[price.approvalStatus]}
+                        {t(STATUS_KEYS[price.approvalStatus] || 'agentPortal.status.PENDING')}
                       </span>
                       {price.rejectionReason && (
                         <p className="text-xs text-red-600 dark:text-red-400 mt-1">
@@ -424,7 +495,7 @@ const AgentPricesDashboard: React.FC = () => {
                         <button
                           onClick={() => handleOpenModal(price)}
                           className="p-2 text-neutral-500 hover:text-primary-800 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg transition-colors"
-                          title="Editează"
+                          title={t('agentPortal.edit')}
                         >
                           <EditIcon />
                         </button>
@@ -432,7 +503,7 @@ const AgentPricesDashboard: React.FC = () => {
                           <button
                             onClick={() => handleDelete(price.id)}
                             className="p-2 text-neutral-500 hover:text-error-600 hover:bg-error-50 dark:hover:bg-error-500/20 rounded-lg transition-colors"
-                            title="Șterge"
+                            title={t('agentPortal.delete')}
                           >
                             <TrashIcon />
                           </button>
@@ -453,12 +524,12 @@ const AgentPricesDashboard: React.FC = () => {
           <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-neutral-200 dark:border-neutral-700">
               <h2 className="text-xl font-semibold text-primary-800 dark:text-white">
-                {editingPrice ? 'Editează Preț' : 'Adaugă Preț Nou'}
+                {editingPrice ? t('agentPortal.editPrice') : t('agentPortal.addNewPrice')}
               </h2>
               <p className="text-sm text-neutral-500 mt-1">
                 {editingPrice
-                  ? 'Modificarea va fi trimisă pentru aprobare'
-                  : 'Prețul va fi trimis pentru aprobare de către administrator'}
+                  ? t('agentPortal.msg.changeWillBeApproved')
+                  : t('agentPortal.msg.willBeApproved')}
               </p>
             </div>
 
@@ -466,7 +537,7 @@ const AgentPricesDashboard: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                    Linie Maritimă
+                    {t('agentPortal.form.shippingLine')}
                   </label>
                   <select
                     value={formData.shippingLine}
@@ -484,7 +555,7 @@ const AgentPricesDashboard: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                    Port Origine
+                    {t('agentPortal.form.portOrigin')}
                   </label>
                   <select
                     value={formData.portOrigin}
@@ -504,7 +575,7 @@ const AgentPricesDashboard: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                    Tip Container
+                    {t('agentPortal.form.containerType')}
                   </label>
                   <select
                     value={formData.containerType}
@@ -512,7 +583,7 @@ const AgentPricesDashboard: React.FC = () => {
                     className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 rounded-lg"
                     required
                   >
-                    {CONTAINER_TYPES.map((type) => (
+                    {containerTypes.map((type) => (
                       <option key={type} value={type}>
                         {type}
                       </option>
@@ -522,7 +593,7 @@ const AgentPricesDashboard: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                    Greutate
+                    {t('agentPortal.form.weight')}
                   </label>
                   <select
                     value={formData.weightRange}
@@ -530,7 +601,7 @@ const AgentPricesDashboard: React.FC = () => {
                     className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 rounded-lg"
                     required
                   >
-                    {WEIGHT_RANGES.map((range) => (
+                    {weightRanges.map((range) => (
                       <option key={range} value={range}>
                         {range}
                       </option>
@@ -562,7 +633,7 @@ const AgentPricesDashboard: React.FC = () => {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                    Valid Din
+                    {t('agentPortal.form.validFrom')}
                   </label>
                   <input
                     type="date"
@@ -575,7 +646,7 @@ const AgentPricesDashboard: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                    Valid Până
+                    {t('agentPortal.form.validUntil')}
                   </label>
                   <input
                     type="date"
@@ -589,7 +660,7 @@ const AgentPricesDashboard: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-                    Data Plecării
+                    {t('agentPortal.form.departureDate')}
                   </label>
                   <input
                     type="date"
@@ -610,20 +681,20 @@ const AgentPricesDashboard: React.FC = () => {
                   onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
                   className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 rounded-lg resize-none"
                   rows={2}
-                  placeholder="Ex: Promoție specială, condiții de piață..."
+                  placeholder={t('agentPortal.form.notesPlaceholder')}
                 />
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200 dark:border-neutral-700">
                 <Button type="button" variant="secondary" onClick={handleCloseModal}>
-                  Anulează
+                  {t('agentPortal.cancel')}
                 </Button>
                 <Button type="submit" variant="accent" disabled={isSaving}>
                   {isSaving
-                    ? 'Se salvează...'
+                    ? t('agentPortal.saving')
                     : editingPrice
-                      ? 'Actualizează'
-                      : 'Trimite pentru Aprobare'}
+                      ? t('agentPortal.update')
+                      : t('agentPortal.submitForApproval')}
                 </Button>
               </div>
             </form>

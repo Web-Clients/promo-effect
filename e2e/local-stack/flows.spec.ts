@@ -5,23 +5,18 @@
  */
 import { test, expect } from '@playwright/test';
 
-const BASE = process.env.E2E_BASE_URL || 'http://localhost:3011';
-const EMAIL = 'e2e-admin@local.test';
-const PASS = 'E2ePassw0rd!';
+import { ADMIN_STATE } from './auth-paths';
 
-async function login(page: import('@playwright/test').Page) {
-  await page.goto(BASE + '/login');
-  await page.fill('input[type="email"]', EMAIL);
-  await page.fill('input[type="password"]', PASS);
-  await page.click('button[type="submit"]');
-  await page.waitForURL((u) => !u.pathname.includes('/login'), { timeout: 20000 });
-}
+test.use({ storageState: ADMIN_STATE });
+
+const BASE = process.env.E2E_BASE_URL || 'http://localhost:3011';
+
+// The session comes from auth.setup.ts; nothing here drives the login form.
 
 test('booking detail opens without the white screen', async ({ page }) => {
   const crashes: string[] = [];
   page.on('pageerror', (e) => crashes.push(String(e)));
 
-  await login(page);
   await page.goto(BASE + '/dashboard/bookings');
   await expect(page.getByText('Ceva nu a mers bine')).toHaveCount(0);
 
@@ -36,7 +31,6 @@ test('booking detail opens without the white screen', async ({ page }) => {
 });
 
 test('calculator: CFR hides the origin port, FOB shows it', async ({ page }) => {
-  await login(page);
   await page.goto(BASE + '/dashboard/calculator');
   await page.waitForLoadState('networkidle');
 
@@ -59,14 +53,16 @@ test('calculator: CFR hides the origin port, FOB shows it', async ({ page }) => 
 });
 
 test('the price on the offer card survives "Selectează Această Ofertă"', async ({ page }) => {
-  await login(page);
   await page.goto(BASE + '/dashboard/calculator');
   await page.waitForLoadState('networkidle');
 
   await page.getByRole('button', { name: 'CFR', exact: true }).click();
 
   // Shipping line is mandatory for CFR
-  const lineSelect = page.locator('select').filter({ has: page.locator('option', { hasText: 'Maersk' }) }).first();
+  const lineSelect = page
+    .locator('select')
+    .filter({ has: page.locator('option', { hasText: 'Maersk' }) })
+    .first();
   await lineSelect.selectOption('Maersk');
 
   await page.locator('input[placeholder="ex. 23500"]').fill('23555');
@@ -82,7 +78,10 @@ test('the price on the offer card survives "Selectează Această Ofertă"', asyn
   const cardPrice = (await card.locator('p.text-2xl').first().innerText()).trim();
 
   await card.click(); // expand
-  await page.getByRole('button', { name: /Selectează Această Ofertă|Select This Offer/ }).first().click();
+  await page
+    .getByRole('button', { name: /Selectează Această Ofertă|Select This Offer/ })
+    .first()
+    .click();
 
   // Same number on the order form. This is the exact regression the client hit:
   // $2475 on the card became $9005 here.

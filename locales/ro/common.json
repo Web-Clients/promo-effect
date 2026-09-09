@@ -22,7 +22,8 @@
     "adminSettings": "Setări Admin",
     "myPrices": "Prețurile Mele",
     "collapse": "Restrânge",
-    "expand": "Extinde"
+    "expand": "Extinde",
+    "fleetMap": "Hartă Flotă"
   },
   "actions": {
     "save": "Salvează",
@@ -791,5 +792,74 @@
       "invoiceOverdue": "Factura {{invoiceNumber}} este restantă cu {{days}} zile",
       "priceChanged": "Preț actualizat: {{route}} → ${{price}}"
     }
+  },
+  "agentPortal": {
+    "title": "Prețurile Mele",
+    "retry": "Reîncearcă",
+    "addPrice": "Adaugă Preț",
+    "addNewPrice": "Adaugă Preț Nou",
+    "addFirstPrice": "Adaugă Primul Preț",
+    "editPrice": "Editează Preț",
+    "edit": "Editează",
+    "delete": "Șterge",
+    "cancel": "Anulează",
+    "update": "Actualizează",
+    "saving": "Se salvează...",
+    "noPrices": "Nu există prețuri",
+    "stats": {
+      "total": "Total Prețuri",
+      "pending": "În Așteptare",
+      "approved": "Aprobate",
+      "rejected": "Respinse"
+    },
+    "tabs": {
+      "all": "Toate",
+      "pending": "În Așteptare",
+      "approved": "Aprobate",
+      "rejected": "Respinse"
+    },
+    "table": {
+      "line": "Linie",
+      "port": "Port",
+      "container": "Container",
+      "weight": "Greutate",
+      "price": "Preț",
+      "validity": "Valabilitate",
+      "departure": "Plecare",
+      "status": "Status",
+      "actions": "Acțiuni"
+    },
+    "form": {
+      "shippingLine": "Linie Maritimă",
+      "portOrigin": "Port Origine",
+      "containerType": "Tip Container",
+      "weight": "Greutate",
+      "price": "Preț (USD)",
+      "validFrom": "Valid Din",
+      "validUntil": "Valid Până",
+      "departureDate": "Data Plecării",
+      "notes": "Observații",
+      "notesPlaceholder": "Ex: Promoție specială, condiții de piață..."
+    },
+    "status": {
+      "PENDING": "În așteptare",
+      "APPROVED": "Aprobat",
+      "REJECTED": "Respins"
+    },
+    "msg": {
+      "created": "Prețul a fost trimis pentru aprobare",
+      "updated": "Prețul a fost actualizat și trimis pentru aprobare",
+      "deleted": "Prețul a fost șters",
+      "deleteTitle": "Ștergeți prețul?",
+      "deleteConfirm": "Sigur doriți să ștergeți acest preț?",
+      "willBeApproved": "Prețul va fi trimis pentru aprobare de către administrator",
+      "changeWillBeApproved": "Modificarea va fi trimisă pentru aprobare"
+    },
+    "validation": {
+      "validUntilBeforeFrom": "Data „Valid Până” nu poate fi înainte de „Valid Din”.",
+      "departureBeforeFrom": "Data plecării nu poate fi înainte de „Valid Din”."
+    },
+    "submitForApproval": "Trimite pentru Aprobare",
+    "expired": "Expirat"
   }
 }

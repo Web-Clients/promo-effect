@@ -88,6 +88,11 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
   };
 
   const isAdmin = [UserRole.SUPER_ADMIN, UserRole.ADMIN].includes(user.role);
+  // A Chinese forwarding agent gets one page and one form. The API already
+  // refuses him the calculator (403) and the approval queue, so advertising
+  // them in the sidebar only offered him dead ends — and the calculator is
+  // precisely where he would have seen his competitors' rates.
+  const isAgent = user.role === UserRole.AGENT;
   const isAdminOrManager = [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER].includes(
     user.role
   );
@@ -97,13 +102,13 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
       name: t('nav.dashboard'),
       path: '/dashboard',
       icon: LayoutDashboardIcon,
-      visible: true,
+      visible: !isAgent,
       end: true,
     },
-    { name: t('nav.bookings'), path: 'bookings', icon: PackageIcon, visible: true },
+    { name: t('nav.bookings'), path: 'bookings', icon: PackageIcon, visible: !isAgent },
     // tracking (A6) and containers-transit (A7) removed — merged into bookings tabs
-    { name: 'Hartă Flotă', path: 'fleet-map', icon: MapPinIcon, visible: true },
-    { name: t('nav.calculator'), path: 'calculator', icon: CalculatorIcon, visible: true },
+    { name: t('nav.fleetMap'), path: 'fleet-map', icon: MapPinIcon, visible: !isAgent },
+    { name: t('nav.calculator'), path: 'calculator', icon: CalculatorIcon, visible: !isAgent },
     { name: t('nav.myProfile'), path: 'userProfile', icon: UserIcon, visible: true },
     { name: t('nav.clients'), path: 'clients', icon: UsersIcon, visible: isAdminOrManager },
     { name: t('nav.invoices'), path: 'invoices', icon: FileTextIcon, visible: isAdminOrManager },
@@ -125,7 +130,7 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
       name: t('nav.myPrices'),
       path: 'my-prices',
       icon: DollarSignIcon,
-      visible: user.role === UserRole.AGENT,
+      visible: isAgent,
     },
   ];
 
@@ -325,13 +330,16 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
                 )}
               </button>
 
-              <button
-                onClick={() => onNewBooking()}
-                className="hidden sm:inline-flex items-center justify-center text-sm font-medium transition-all h-10 px-4 bg-accent-500 text-white shadow-sm hover:bg-accent-600 hover:shadow-md rounded-lg"
-              >
-                <PlusIcon className="mr-2 h-4 w-4" />
-                {t('actions.newBooking')}
-              </button>
+              {/* A forwarding agent quotes rates; he does not place bookings. */}
+              {!isAgent && (
+                <button
+                  onClick={() => onNewBooking()}
+                  className="hidden sm:inline-flex items-center justify-center text-sm font-medium transition-all h-10 px-4 bg-accent-500 text-white shadow-sm hover:bg-accent-600 hover:shadow-md rounded-lg"
+                >
+                  <PlusIcon className="mr-2 h-4 w-4" />
+                  {t('actions.newBooking')}
+                </button>
+              )}
 
               <button
                 onClick={onLogout}
@@ -350,15 +358,17 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
       </div>
 
       {/* Floating Action Button for Mobile */}
-      <div className="md:hidden fixed bottom-20 right-4 z-40">
-        <button
-          onClick={() => onNewBooking()}
-          className="bg-accent-500 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:bg-accent-600 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent-500 hover:scale-105"
-          aria-label={t('actions.newBooking')}
-        >
-          <PlusIcon className="h-7 w-7" />
-        </button>
-      </div>
+      {!isAgent && (
+        <div className="md:hidden fixed bottom-20 right-4 z-40">
+          <button
+            onClick={() => onNewBooking()}
+            className="bg-accent-500 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:bg-accent-600 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent-500 hover:scale-105"
+            aria-label={t('actions.newBooking')}
+          >
+            <PlusIcon className="h-7 w-7" />
+          </button>
+        </div>
+      )}
 
       {/* Mobile Bottom Navigation - Flexport Style */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0A2540] border-t border-white/10 z-50 safe-area-pb">

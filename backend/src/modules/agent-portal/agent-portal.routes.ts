@@ -5,6 +5,8 @@
 
 import { Router, Request, Response } from 'express';
 import { agentPortalService } from './agent-portal.service';
+import prisma from '../../lib/prisma';
+import { canonicalContainerTypes, agreesWithPricing, FALLBACK_WEIGHT_RANGES } from './vocabulary';
 import { authMiddleware } from '../../middleware/auth.middleware';
 
 const router = Router();
@@ -136,6 +138,19 @@ router.post('/prices', authMiddleware, agentOnly, async (req: Request, res: Resp
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // Refuse a label the calculator could never match, rather than storing a
+    // rate that looks right in the agent's table and is invisible to every quote.
+    const known = await prisma.basePrice.findMany({
+      distinct: ['containerType'],
+      select: { containerType: true },
+    });
+    const allowed = canonicalContainerTypes(known);
+    if (!agreesWithPricing(data.containerType, allowed)) {
+      return res.status(400).json({
+        error: `Tip container necunoscut: ${data.containerType}. Valori acceptate: ${allowed.join(', ')}.`,
+      });
+    }
+
     const price = await agentPortalService.submitPrice(agent.id, data);
     res.status(201).json(price);
   } catch (error) {
@@ -197,6 +212,37 @@ router.delete('/prices/:id', authMiddleware, agentOnly, async (req: Request, res
  * GET /api/agent-portal/shipping-lines
  * Get agent's shipping lines
  */
+/**
+ * GET /api/agent-portal/vocabulary
+ *
+ * The container labels and weight bands the pricing engine actually queries.
+ * The form must offer these and nothing else: computeFromAgentPrices matches
+ * containerType exactly, so a rate typed as '40ft HC' against a database
+ * speaking '40HQ' is stored successfully and then never found by any quote.
+ */
+router.get('/vocabulary', authMiddleware, agentOnly, async (_req: Request, res: Response) => {
+  try {
+    const [basePrices, settings] = await Promise.all([
+      prisma.basePrice.findMany({ distinct: ['containerType'], select: { containerType: true } }),
+      prisma.adminSettings.findFirst(),
+    ]);
+
+    let weightRanges: string[] = [];
+    try {
+      const parsed = JSON.parse(settings?.weightRanges || '[]');
+      if (Array.isArray(parsed)) weightRanges = parsed.filter((w) => typeof w === 'string');
+    } catch {
+      // A malformed settings row must not empty the agent's dropdown.
+    }
+    if (weightRanges.length === 0) weightRanges = [...FALLBACK_WEIGHT_RANGES];
+
+    res.json({ containerTypes: canonicalContainerTypes(basePrices), weightRanges });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to load vocabulary';
+    res.status(500).json({ error: message });
+  }
+});
+
 router.get('/shipping-lines', authMiddleware, agentOnly, async (req: Request, res: Response) => {
   try {
     const agent = (req as any).agent;
@@ -248,20 +294,25 @@ router.get('/admin/stats', authMiddleware, adminOnly, async (req: Request, res: 
  * POST /api/agent-portal/admin/approve/:id
  * Approve a price
  */
-router.post('/admin/approve/:id', authMiddleware, adminOnly, async (req: Request, res: Response) => {
-  try {
-    const adminUserId = (req as any).user?.userId;
-    if (!adminUserId) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+router.post(
+  '/admin/approve/:id',
+  authMiddleware,
+  adminOnly,
+  async (req: Request, res: Response) => {
+    try {
+      const adminUserId = (req as any).user?.userId;
+      if (!adminUserId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
 
-    await agentPortalService.approvePrice(req.params.id, adminUserId);
-    res.json({ message: 'Price approved successfully' });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to approve price';
-    res.status(400).json({ error: message });
+      await agentPortalService.approvePrice(req.params.id, adminUserId);
+      res.json({ message: 'Price approved successfully' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to approve price';
+      res.status(400).json({ error: message });
+    }
   }
-});
+);
 
 /**
  * POST /api/agent-portal/admin/reject/:id

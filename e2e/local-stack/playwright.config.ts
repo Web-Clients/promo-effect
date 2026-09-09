@@ -14,8 +14,11 @@ export default defineConfig({
   timeout: 60000,
   use: { baseURL: process.env.E2E_BASE_URL || 'http://localhost:3011', headless: true },
   projects: [
+    // One login per role for the whole run — see auth.setup.ts.
+    { name: 'setup', testMatch: /auth\.setup\.ts/ },
     {
       name: 'chromium',
+      dependencies: ['setup'],
       use: {
         ...devices['Desktop Chrome'],
         // The fleet globe is WebGL2. Headless Chromium ships without a GPU, so

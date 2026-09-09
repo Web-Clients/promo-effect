@@ -22,7 +22,8 @@
     "adminSettings": "Admin Settings",
     "myPrices": "My Prices",
     "collapse": "Collapse",
-    "expand": "Expand"
+    "expand": "Expand",
+    "fleetMap": "Fleet Map"
   },
   "actions": {
     "save": "Save",
@@ -791,5 +792,74 @@
       "invoiceOverdue": "Invoice {{invoiceNumber}} is {{days}} days overdue",
       "priceChanged": "Price updated: {{route}} → ${{price}}"
     }
+  },
+  "agentPortal": {
+    "title": "My Rates",
+    "retry": "Try again",
+    "addPrice": "Add rate",
+    "addNewPrice": "Add a new rate",
+    "addFirstPrice": "Add your first rate",
+    "editPrice": "Edit rate",
+    "edit": "Edit",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "update": "Update",
+    "saving": "Saving...",
+    "noPrices": "No rates yet",
+    "stats": {
+      "total": "Total rates",
+      "pending": "Awaiting approval",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "tabs": {
+      "all": "All",
+      "pending": "Awaiting approval",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "table": {
+      "line": "Line",
+      "port": "Port",
+      "container": "Container",
+      "weight": "Weight",
+      "price": "Rate",
+      "validity": "Valid",
+      "departure": "Departure",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "form": {
+      "shippingLine": "Shipping line",
+      "portOrigin": "Port of loading",
+      "containerType": "Container type",
+      "weight": "Weight",
+      "price": "Rate (USD)",
+      "validFrom": "Valid from",
+      "validUntil": "Valid until",
+      "departureDate": "Departure date",
+      "notes": "Notes",
+      "notesPlaceholder": "e.g. special promotion, market conditions..."
+    },
+    "status": {
+      "PENDING": "Awaiting approval",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected"
+    },
+    "msg": {
+      "created": "Rate submitted for approval",
+      "updated": "Rate updated and submitted for approval",
+      "deleted": "Rate deleted",
+      "deleteTitle": "Delete this rate?",
+      "deleteConfirm": "Are you sure you want to delete this rate?",
+      "willBeApproved": "The rate will be sent to an administrator for approval",
+      "changeWillBeApproved": "The change will be sent for approval"
+    },
+    "validation": {
+      "validUntilBeforeFrom": "“Valid until” cannot be earlier than “Valid from”.",
+      "departureBeforeFrom": "The departure date cannot be earlier than “Valid from”."
+    },
+    "submitForApproval": "Submit for approval",
+    "expired": "Expired"
   }
 }

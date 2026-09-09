@@ -153,6 +153,22 @@ export const getAgentShippingLines = async (): Promise<string[]> => {
   return response.data.shippingLines;
 };
 
+export interface AgentVocabulary {
+  containerTypes: string[];
+  weightRanges: string[];
+}
+
+/**
+ * The container labels and weight bands the pricing engine actually queries.
+ *
+ * Hardcoding them in the form is what let '40ft HC' be offered against a
+ * database speaking '40HQ': the rate saved, and no quote ever found it.
+ */
+export const getAgentVocabulary = async (): Promise<AgentVocabulary> => {
+  const response = await api.get<AgentVocabulary>('/agent-portal/vocabulary');
+  return response.data;
+};
+
 // ============================================
 // ADMIN FUNCTIONS
 // ============================================
@@ -161,7 +177,9 @@ export const getAgentShippingLines = async (): Promise<string[]> => {
  * Get pending prices for approval
  */
 export const getPendingPrices = async (): Promise<PendingPriceWithAgent[]> => {
-  const response = await api.get<{ prices: PendingPriceWithAgent[] }>('/agent-portal/admin/pending');
+  const response = await api.get<{ prices: PendingPriceWithAgent[] }>(
+    '/agent-portal/admin/pending'
+  );
   return response.data.prices;
 };
 
@@ -197,6 +215,7 @@ const agentPortalService = {
   updatePrice,
   deletePrice,
   getAgentShippingLines,
+  getAgentVocabulary,
   // Admin functions
   getPendingPrices,
   getApprovalStats,

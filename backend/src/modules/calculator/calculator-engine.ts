@@ -27,6 +27,8 @@ import {
   priceOffer,
 } from './calculator-incoterms';
 import { agentPriceWhere, narrowestWindow } from './rate-validity';
+import { bestPerLineAndWeek } from './offer-aggregation';
+import { weightBandMatches } from './weight-band';
 import { validateCalculatorInput } from './calculator-validation';
 
 // Extend CalculatorInput with incoterms fields
@@ -389,15 +391,15 @@ export async function computeFromAgentPrices(
 
   // Approval state and the validity window are part of the filter, not an
   // afterthought: without them a PENDING or expired agent rate is quotable.
-  const agentPrices = await prisma.agentPrice.findMany({
-    where: agentPriceWhere({
-      portOrigin: input.portOrigin,
-      containerTypes,
-      weightRange: input.cargoWeight,
-      readyDate,
-    }),
+  const candidates = await prisma.agentPrice.findMany({
+    where: agentPriceWhere({ portOrigin: input.portOrigin, containerTypes, readyDate }),
     include: { agent: true },
   });
+
+  // Weight is matched here rather than in SQL: the client's weight is in
+  // kilograms and an agent's band is in tonnes, so the string comparison the
+  // query used to do could never be true.
+  const agentPrices = candidates.filter((p) => weightBandMatches(p.weightRange, input.cargoWeight));
 
   if (agentPrices.length === 0) return [];
 
@@ -481,6 +483,11 @@ export async function computeFromAgentPrices(
       totalContainers: totalContainerCount,
       estimatedTransitDays: estimateTransitDays(input.portOrigin, portDestination),
       availability: checkAvailability(latestDeparture || readyDate),
+      // Carried so the client's offer screen can group by sailing week and name
+      // whose rate it is. Agents never see each other's; the client sees the market.
+      departureDate: latestDeparture || undefined,
+      agentCompany: prices[0]?.agent?.company || undefined,
+      validUntil: narrowestWindow(prices)?.validUntil ?? undefined,
     });
   }
 
@@ -524,16 +531,22 @@ export function finalizeOffers(
     });
   }
 
-  offers.sort((a, b) => a.totalPriceUSD - b.totalPriceUSD);
+  // One offer per carrier per sailing week, cheapest first. Sorting on price
+  // alone filled the screen with the same carrier three times when several
+  // agents quoted the same lane — the "zece oferte inutile" Ion objected to.
+  const distinct = bestPerLineAndWeek(offers);
 
-  const top5 = offers.slice(0, 5).map((offer, index) => ({
+  // Eight rather than five: the client's screen lays them out four to a row, so
+  // the cap should be a whole number of rows.
+  const MAX_OFFERS = 8;
+  const shown = distinct.slice(0, MAX_OFFERS).map((offer, index) => ({
     ...offer,
     rank: index + 1,
     totalPriceMDL: Math.round(offer.totalPriceUSD * exchangeRate * 100) / 100,
   }));
 
   return {
-    offers: top5,
+    offers: shown,
     exchangeRate,
     calculatedAt: new Date(),
     totalContainers: totalContainerCount,

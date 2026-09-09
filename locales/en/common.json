@@ -264,7 +264,9 @@
       "expiresToday": "Expires today",
       "commissionBaseNote": "Commission is charged on local charges plus inland transport, never on the ocean freight.",
       "transitDays_one": "{{count}} day",
-      "transitDays_other": "{{count}} days"
+      "transitDays_other": "{{count}} days",
+      "viaAgent": "via {{agent}}",
+      "departs": "departs {{date}}"
     },
     "shippingLine": "Shipping line",
     "subtitle": "Get the best offers from every shipping line",
@@ -940,7 +942,9 @@
       "client": "Client",
       "status": "Status",
       "eta": "ETA",
-      "knots": "knots"
+      "knots": "knots",
+      "progress": "Voyage",
+      "distance": "{{sailed}} km sailed · {{remaining}} km to go of {{total}} km"
     },
     "age": {
       "seconds": "seconds ago",

@@ -74,7 +74,6 @@ describe('agentPriceWhere', () => {
   const where = agentPriceWhere({
     portOrigin: 'Ningbo',
     containerTypes: ['40HQ'],
-    weightRange: '23-24 mt',
     readyDate: d('2026-09-15'),
   });
 
@@ -87,8 +86,13 @@ describe('agentPriceWhere', () => {
 
   it('still narrows by route and container as before', () => {
     expect(where.containerType).toEqual({ in: ['40HQ'] });
-    expect(where.weightRange).toBe('23-24 mt');
     expect(where.portOrigin).toEqual({ equals: 'Ningbo', mode: 'insensitive' });
+  });
+
+  it('carries no weight clause — that comparison can never be true in SQL', () => {
+    // The client's weight is kilograms; an agent's band is tonnes. Matching
+    // them is weightBandMatches' job, in memory.
+    expect('weightRange' in where).toBe(false);
   });
 
   it('agrees with the predicate on the same fixtures', () => {

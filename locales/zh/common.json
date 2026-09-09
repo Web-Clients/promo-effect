@@ -268,7 +268,9 @@
       "client": "客户",
       "status": "状态",
       "eta": "预计到港",
-      "knots": "节"
+      "knots": "节",
+      "progress": "航程",
+      "distance": "已航行 {{sailed}} 公里 · 剩余 {{remaining}} 公里，共 {{total}} 公里"
     },
     "age": {
       "seconds": "几秒前",
@@ -338,7 +340,9 @@
       "expiresInDays_other": "{{count}} 天后到期",
       "expiresToday": "今天到期",
       "commissionBaseNote": "佣金按当地费用加内陆运输计算，从不按海运费计算。",
-      "transitDays_other": "{{count}} 天"
+      "transitDays_other": "{{count}} 天",
+      "viaAgent": "来自 {{agent}}",
+      "departs": "{{date}} 开船"
     }
   }
 }

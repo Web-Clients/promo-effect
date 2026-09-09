@@ -10,6 +10,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import trackingService, { FleetContainer, AmbientVessel } from '../services/tracking';
+import { seaRoute, greatCircle, progressAlong, routeLengthKm, type Coord } from '../utils/seaLanes';
 
 /**
  * Fleet globe — every container Promo-Efect is carrying, on a 3D Earth.
@@ -86,44 +87,7 @@ function isStale(timestamp?: string | null): boolean {
   return Date.now() - new Date(timestamp).getTime() > STALE_AFTER_MS;
 }
 
-// ─── Great-circle interpolation ──────────────────────────────────────────────
-
-/**
- * Points along the great circle between two coordinates.
- *
- * A straight LineString between Ningbo and Constanța is not the route a ship
- * takes and, on a globe, does not even look like a path — it cuts through the
- * Earth. Interpolating on the sphere gives the arc the eye expects.
- */
-function greatCircle(from: [number, number], to: [number, number], steps = 64): [number, number][] {
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const toDeg = (r: number) => (r * 180) / Math.PI;
-
-  const [lon1, lat1] = [toRad(from[0]), toRad(from[1])];
-  const [lon2, lat2] = [toRad(to[0]), toRad(to[1])];
-
-  const d =
-    2 *
-    Math.asin(
-      Math.sqrt(
-        Math.sin((lat2 - lat1) / 2) ** 2 +
-          Math.cos(lat1) * Math.cos(lat2) * Math.sin((lon2 - lon1) / 2) ** 2
-      )
-    );
-  if (!Number.isFinite(d) || d === 0) return [from, to];
-
-  const out: [number, number][] = [];
-  for (let i = 0; i <= steps; i++) {
-    const f = i / steps;
-    const a = Math.sin((1 - f) * d) / Math.sin(d);
-    const b = Math.sin(f * d) / Math.sin(d);
-    const x = a * Math.cos(lat1) * Math.cos(lon1) + b * Math.cos(lat2) * Math.cos(lon2);
-    const y = a * Math.cos(lat1) * Math.sin(lon1) + b * Math.cos(lat2) * Math.sin(lon2);
-    const z = a * Math.sin(lat1) + b * Math.sin(lat2);
-    out.push([toDeg(Math.atan2(y, x)), toDeg(Math.atan2(z, Math.sqrt(x * x + y * y)))]);
-  }
-  return out;
-}
+// ─── Routes ──────────────────────────────────────────────────────────────────
 
 // ─── Icons drawn at runtime ──────────────────────────────────────────────────
 
@@ -181,34 +145,69 @@ function vesselFeatures(fleet: FleetContainer[]): FC {
   };
 }
 
+/**
+ * The voyage each container is on, split at the ship.
+ *
+ * Two lines per shipment: what has been sailed, drawn solid, and what is left,
+ * drawn dashed. The split is the vessel's nearest point on the route rather
+ * than its straight-line distance from the loading port — a ship in the Red Sea
+ * is physically closer to Ningbo than one mid-Indian Ocean, so distance from
+ * origin would show it sailing backwards.
+ *
+ * Where the lane is one we route (see seaLanes), the path follows real
+ * waypoints — Singapore, Bab-el-Mandeb, Suez, the Bosphorus. Where it is not,
+ * we fall back to a great circle and do not pretend otherwise.
+ */
 function routeFeatures(fleet: FleetContainer[]): FC {
   const features: FC['features'] = [];
+
   for (const c of fleet) {
     const b = c.booking;
-    if (!b?.originCoords || !c.position) continue;
+    if (!b || !c.position) continue;
 
-    const legs: [number, number][][] = [];
-    const origin: [number, number] = [b.originCoords.lng, b.originCoords.lat];
-    const here: [number, number] = [c.position.longitude, c.position.latitude];
+    const here: Coord = [c.position.longitude, c.position.latitude];
+    const endName = b.transit || b.destination;
+    let path = seaRoute(b.origin, endName);
+    let charted = true;
 
-    legs.push(greatCircle(origin, here));
+    if (!path) {
+      charted = false;
+      if (!b.originCoords) continue;
+      const end = b.transitCoords || b.destinationCoords;
+      path = end
+        ? [
+            ...greatCircle([b.originCoords.lng, b.originCoords.lat], here),
+            ...greatCircle(here, [end.lng, end.lat]).slice(1),
+          ]
+        : greatCircle([b.originCoords.lng, b.originCoords.lat], here);
+    }
 
-    const ahead = b.transitCoords || b.destinationCoords;
-    if (ahead) legs.push(greatCircle(here, [ahead.lng, ahead.lat]));
+    const progress = progressAlong(path, here);
+    const cut = progress ? progress.index : path.length - 1;
+    const color = styleFor(c.position.source).color;
 
-    legs.forEach((coords, i) => {
+    const sailed = path.slice(0, Math.max(2, cut + 1));
+    // Join the track to the ship's actual fix, so the line ends at the vessel
+    // rather than at the nearest waypoint to it.
+    if (sailed.length) sailed[sailed.length - 1] = here;
+
+    const ahead = [here, ...path.slice(cut + 1)];
+
+    features.push({
+      type: 'Feature',
+      geometry: { type: 'LineString', coordinates: sailed },
+      properties: { containerId: c.containerId, sailed: 1, charted: charted ? 1 : 0, color },
+    });
+
+    if (ahead.length > 1) {
       features.push({
         type: 'Feature',
-        geometry: { type: 'LineString', coordinates: coords },
-        properties: {
-          containerId: c.containerId,
-          // The leg already sailed is solid; the leg ahead is a projection.
-          sailed: i === 0 ? 1 : 0,
-          color: styleFor(c.position?.source).color,
-        },
+        geometry: { type: 'LineString', coordinates: ahead },
+        properties: { containerId: c.containerId, sailed: 0, charted: charted ? 1 : 0, color },
       });
-    });
+    }
   }
+
   return { type: 'FeatureCollection', features };
 }
 
@@ -324,6 +323,7 @@ export default function FleetGlobe() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MlMap | null>(null);
   const readyRef = useRef(false);
+  const dashTimerRef = useRef<number | null>(null);
   const fittedRef = useRef(false);
 
   const [fleet, setFleet] = useState<FleetContainer[]>([]);
@@ -410,17 +410,35 @@ export default function FleetGlobe() {
         },
       });
 
+      // The leg still to sail: dashed, and animated so the eye follows the
+      // direction of travel rather than guessing it from the chevron alone.
       map.addLayer({
         id: 'route-ahead',
         type: 'line',
         source: 'routes',
         filter: ['==', ['get', 'sailed'], 0],
-        layout: { 'line-cap': 'round' },
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
           'line-color': ['get', 'color'],
-          'line-width': 1.4,
-          'line-opacity': 0.45,
-          'line-dasharray': [2, 2.5],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 1, 1.2, 6, 2.2],
+          'line-opacity': 0.5,
+          'line-dasharray': [0, 2.6, 1.6],
+        },
+      });
+
+      // A soft glow under the track already sailed, so a route reads at a
+      // glance on a dark globe without the line itself becoming heavy.
+      map.addLayer({
+        id: 'route-sailed-glow',
+        type: 'line',
+        source: 'routes',
+        filter: ['==', ['get', 'sailed'], 1],
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': ['get', 'color'],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 1, 6, 6, 12],
+          'line-opacity': 0.16,
+          'line-blur': 4,
         },
       });
 
@@ -429,11 +447,11 @@ export default function FleetGlobe() {
         type: 'line',
         source: 'routes',
         filter: ['==', ['get', 'sailed'], 1],
-        layout: { 'line-cap': 'round' },
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
           'line-color': ['get', 'color'],
-          'line-width': 2,
-          'line-opacity': 0.85,
+          'line-width': ['interpolate', ['linear'], ['zoom'], 1, 1.8, 6, 3],
+          'line-opacity': 0.9,
         },
       });
 
@@ -538,6 +556,29 @@ export default function FleetGlobe() {
 
       retintForContrast(map);
 
+      // March the dashes along the unsailed leg. Cheap — it only rewrites one
+      // paint property — and it is what makes a static line read as a heading.
+      const DASH_STEPS: [number, number, number][] = [
+        [0, 4, 3],
+        [0.5, 4, 2.5],
+        [1, 4, 2],
+        [1.5, 4, 1.5],
+        [2, 4, 1],
+        [2.5, 4, 0.5],
+        [3, 4, 0],
+        [0, 0.5, 3, 3.5] as unknown as [number, number, number],
+      ];
+      let dashStep = 0;
+      dashTimerRef.current = window.setInterval(() => {
+        if (!map.getLayer('route-ahead')) return;
+        dashStep = (dashStep + 1) % DASH_STEPS.length;
+        try {
+          map.setPaintProperty('route-ahead', 'line-dasharray', DASH_STEPS[dashStep] as never);
+        } catch {
+          /* style reloading; skip this frame */
+        }
+      }, 90);
+
       readyRef.current = true;
       map.resize();
       setMapReady(true);
@@ -558,6 +599,7 @@ export default function FleetGlobe() {
 
     return () => {
       ro.disconnect();
+      if (dashTimerRef.current) window.clearInterval(dashTimerRef.current);
       readyRef.current = false;
       map.remove();
       mapRef.current = null;
@@ -718,6 +760,11 @@ function TacticalCard({ container, onClose }: { container: FleetContainer; onClo
   const st = styleFor(p?.source);
   const b = container.booking;
 
+  // How far along the voyage is. Only shown for a lane we chart: a percentage
+  // derived from a straight line nobody sails would be a made-up number.
+  const route = b ? seaRoute(b.origin, b.transit || b.destination) : null;
+  const progress = route && p ? progressAlong(route, [p.longitude, p.latitude]) : null;
+
   return (
     <div className="absolute right-3 top-3 w-80 rounded-xl border border-slate-700/60 bg-slate-900/92 p-4 text-sm backdrop-blur">
       <div className="mb-3 flex items-start justify-between gap-2">
@@ -744,6 +791,30 @@ function TacticalCard({ container, onClose }: { container: FleetContainer; onClo
           </p>
         </div>
       </div>
+
+      {progress && route && (
+        <div className="mb-3">
+          <div className="mb-1 flex items-baseline justify-between text-xs">
+            <span className="text-slate-400">{t('fleetMap.card.progress')}</span>
+            <span className="font-medium text-slate-200">
+              {Math.round(progress.fraction * 100)}%
+            </span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-slate-700">
+            <div
+              className="h-full rounded-full bg-cyan-400 transition-all"
+              style={{ width: `${Math.round(progress.fraction * 100)}%` }}
+            />
+          </div>
+          <p className="mt-1 text-[11px] text-slate-500">
+            {t('fleetMap.card.distance', {
+              sailed: progress.sailedKm.toLocaleString(),
+              remaining: progress.remainingKm.toLocaleString(),
+              total: routeLengthKm(route).toLocaleString(),
+            })}
+          </p>
+        </div>
+      )}
 
       <dl className="space-y-1.5 text-xs">
         <Row label={t('fleetMap.card.mmsi')} value={container.vessel?.mmsi} mono />

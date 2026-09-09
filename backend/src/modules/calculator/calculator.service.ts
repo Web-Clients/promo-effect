@@ -138,12 +138,19 @@ export class CalculatorService {
       terrestrialSurcharge,
     ];
 
-    // 4. Try BasePrice, fall back to AgentPrice
-    let offers = await computeFromBasePrices(...commonArgs);
-
-    if (offers.length === 0) {
-      offers = await computeFromAgentPrices(...commonArgs);
-    }
+    // 4. Both sources, not one or the other.
+    //
+    // Agent rates used to be a fallback, reached only when no base price
+    // existed — so everything Promo-Efect's Chinese agents entered was
+    // invisible the moment a base price covered the same lane. Ion's whole
+    // reason for the agent portal is that the client should see what the agents
+    // are quoting, and the aggregation step below keeps that from becoming
+    // noise: one offer per carrier per sailing week, cheapest first.
+    const [baseOffers, agentOffers] = await Promise.all([
+      computeFromBasePrices(...commonArgs),
+      computeFromAgentPrices(...commonArgs),
+    ]);
+    const offers = [...baseOffers, ...agentOffers];
 
     if (offers.length === 0) {
       throw new Error(
@@ -462,9 +469,7 @@ export class CalculatorService {
         select: { id: true },
       });
       if (existing) {
-        throw new Error(
-          `Numărul BL ${blNumber} este deja folosit de rezervarea ${existing.id}.`
-        );
+        throw new Error(`Numărul BL ${blNumber} este deja folosit de rezervarea ${existing.id}.`);
       }
     }
 

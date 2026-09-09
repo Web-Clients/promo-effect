@@ -50,6 +50,10 @@ export interface PriceOffer {
   basePriceId: string;
   /** Last day this quote is good for; absent when no rate carries a window. */
   validUntil?: string;
+  /** Sailing date, when the offer came from an agent rate that names one. */
+  departureDate?: string;
+  /** Which Chinese agent quoted it. Office only — never shown to another agent. */
+  agentCompany?: string;
 
   // Route info
   route: string;

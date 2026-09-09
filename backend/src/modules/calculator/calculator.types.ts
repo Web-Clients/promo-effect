@@ -36,6 +36,10 @@ export interface PriceOffer {
   basePriceId: string;
   /** Last day this quote is good for, from the narrowest rate behind it. */
   validUntil?: Date;
+  /** Sailing date, when the offer comes from an agent rate that names one. */
+  departureDate?: Date;
+  /** Which Chinese agent quoted it. Never shown to another agent. */
+  agentCompany?: string;
 
   // Route info
   route: string; // "Shanghai → Constanța → Chișinău"

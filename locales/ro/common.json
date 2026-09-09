@@ -266,7 +266,9 @@
       "commissionBaseNote": "Comisionul se calculează la taxele locale plus transportul intern, niciodată la navlu.",
       "transitDays_one": "{{count}} zi",
       "transitDays_few": "{{count}} zile",
-      "transitDays_other": "{{count}} de zile"
+      "transitDays_other": "{{count}} de zile",
+      "viaAgent": "prin {{agent}}",
+      "departs": "plecare {{date}}"
     },
     "shippingLine": "Linie Maritimă",
     "subtitle": "Obțineți cele mai bune oferte de la toate liniile maritime",
@@ -942,7 +944,9 @@
       "client": "Client",
       "status": "Status",
       "eta": "ETA",
-      "knots": "noduri"
+      "knots": "noduri",
+      "progress": "Parcurs",
+      "distance": "{{sailed}} km parcurși · {{remaining}} km rămași din {{total}} km"
     },
     "age": {
       "seconds": "acum câteva secunde",

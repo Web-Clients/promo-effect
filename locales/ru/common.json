@@ -268,7 +268,9 @@
       "transitDays_one": "{{count}} день",
       "transitDays_few": "{{count}} дня",
       "transitDays_many": "{{count}} дней",
-      "transitDays_other": "{{count}} дня"
+      "transitDays_other": "{{count}} дня",
+      "viaAgent": "через {{agent}}",
+      "departs": "отход {{date}}"
     },
     "shippingLine": "Морская линия",
     "subtitle": "Лучшие предложения от всех морских линий",
@@ -944,7 +946,9 @@
       "client": "Клиент",
       "status": "Статус",
       "eta": "ETA",
-      "knots": "узлов"
+      "knots": "узлов",
+      "progress": "Пройдено",
+      "distance": "{{sailed}} км пройдено · осталось {{remaining}} км из {{total}} км"
     },
     "age": {
       "seconds": "несколько секунд назад",

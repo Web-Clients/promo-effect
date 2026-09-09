@@ -38,16 +38,22 @@ export function isQuotableOn(rate: ApprovableRate, readyDate: Date): boolean {
 export interface AgentPriceQuery {
   portOrigin: string;
   containerTypes: string[];
-  weightRange: string;
   readyDate: Date;
 }
 
-/** The Prisma translation of `isQuotableOn`, narrowed to one route. */
+/**
+ * The Prisma translation of `isQuotableOn`, narrowed to one route.
+ *
+ * Deliberately no weight filter. The calculator holds the weight the client
+ * typed, in kilograms, while an agent stores a band in tonnes — comparing the
+ * two in SQL is a string comparison that can never be true. Weight is matched
+ * in memory by `weightBandMatches` instead; the clauses here are the ones that
+ * are both cheap and exact.
+ */
 export function agentPriceWhere(q: AgentPriceQuery) {
   return {
     portOrigin: { equals: q.portOrigin, mode: 'insensitive' as const },
     containerType: { in: q.containerTypes },
-    weightRange: q.weightRange,
     approvalStatus: APPROVED,
     validFrom: { lte: q.readyDate },
     validUntil: { gte: q.readyDate },

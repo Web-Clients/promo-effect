@@ -5,7 +5,9 @@ import { ArrowRightIcon } from './Icons';
 export const RouteDisplay = ({ route }: { route: string }) => {
   const parts = route.split(' → ');
   return (
-    <div className="flex items-center gap-2 text-sm">
+    /* Wraps rather than overflowing: the offer cards now sit in a grid and a
+       three-leg route does not fit on one line in a narrow cell. */
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
       {parts.map((part, idx) => (
         <React.Fragment key={idx}>
           <span

@@ -66,7 +66,13 @@ function ValidityBadge({ validUntil }: { validUntil: string }) {
       : days <= 7
         ? t('calculator.offer.expiresInDays', { count: days })
         : t('calculator.offer.validUntil', {
-            date: end.toLocaleDateString(locale, { day: '2-digit', month: 'short' }),
+            date: end.toLocaleDateString(locale, {
+              day: '2-digit',
+              month: 'short',
+              // A bare "15 iul." on a September quote reads as the past. Show
+              // the year whenever it is not the current one.
+              ...(end.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}),
+            }),
           });
 
   return (
@@ -145,6 +151,9 @@ export const OfferCard = ({
     <section
       className={cn(
         'w-full text-left bg-white dark:bg-neutral-800 rounded-xl border-2 p-5 transition-all duration-300',
+        // The open card takes the whole row; a cell tall enough for the full
+        // breakdown would leave the cards beside it standing in empty space.
+        isSelected && 'col-span-full',
         isSelected
           ? 'border-accent-500 shadow-lg shadow-accent-500/10'
           : 'border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600'
@@ -164,12 +173,14 @@ export const OfferCard = ({
         aria-expanded={isSelected}
         className="cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
       >
-        <div className="flex items-start justify-between gap-4">
+        {/* Wraps in a narrow grid cell instead of pushing the price out of the
+          card; side by side again as soon as there is room. */}
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
           {/* Left: Rank & Shipping Line */}
-          <div className="flex items-center gap-4">
+          <div className="flex min-w-0 flex-1 items-center gap-4">
             <div
               className={cn(
-                'w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg',
+                'w-12 h-12 shrink-0 rounded-xl flex items-center justify-center font-bold text-lg',
                 offer.rank === 1
                   ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white'
                   : offer.rank === 2
@@ -181,11 +192,27 @@ export const OfferCard = ({
             >
               #{offer.rank}
             </div>
-            <div>
+            {/* No min-w-0 here: with it this block shrinks to zero inside the
+                flex row and its contents disappear entirely rather than wrap. */}
+            <div className="flex-1">
               <h4 className="font-bold text-lg text-primary-800 dark:text-white">
                 {offer.shippingLine}
               </h4>
-              <div className="flex items-center gap-3 mt-1">
+              {/* Whose rate this is. Office only: an agent must never learn what
+                  a competitor quoted, which is the reason the portal keeps them
+                  apart in the first place. */}
+              {/* Not truncated: inside a flex cell with min-w-0 a nowrap line
+                  collapses to zero width and disappears entirely. Wrapping
+                  costs a line and keeps the agent's name readable. */}
+              {isAdmin && offer.agentCompany && (
+                <p className="text-xs leading-snug text-neutral-400">
+                  {t('calculator.offer.viaAgent', { agent: offer.agentCompany })}
+                </p>
+              )}
+              {/* Wraps: in a narrow grid cell the transit time, the validity and
+                  the availability badge do not fit on one line, and pushing them
+                  past the card edge is worse than a second line. */}
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
                 <span className="flex items-center gap-1 text-sm text-neutral-700 dark:text-neutral-400">
                   <ClockIcon />
                   {t('calculator.offer.transitDays', { count: offer.estimatedTransitDays })}
@@ -194,6 +221,24 @@ export const OfferCard = ({
                   rates arrive fortnightly, and he kept having to ask whether
                   what he was looking at was still live. */}
                 {offer.validUntil && <ValidityBadge validUntil={offer.validUntil} />}
+                {/* The sailing this rate is for. Ion asked for different dates to
+                    be distinguishable — "zile diferite" — and without it two
+                    offers from the same carrier read as a duplicate. */}
+                {offer.departureDate && (
+                  <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-500/20 dark:text-sky-300">
+                    {t('calculator.offer.departs', {
+                      date: new Date(offer.departureDate).toLocaleDateString(
+                        (
+                          { ro: 'ro-RO', ru: 'ru-RU', en: 'en-GB', zh: 'zh-CN' } as Record<
+                            string,
+                            string
+                          >
+                        )[(i18n.language || 'ro').split('-')[0]] || 'en-GB',
+                        { day: '2-digit', month: 'short' }
+                      ),
+                    })}
+                  </span>
+                )}
                 <span
                   className={cn(
                     'flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium',

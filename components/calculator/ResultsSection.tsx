@@ -224,8 +224,21 @@ export const ResultsSection = ({
             </div>
           </div>
 
-          {/* Offer Cards */}
-          <div className="grid gap-4">
+          {/*
+            Offers laid out as cards side by side — Ion asked for four across on
+            8 Sep, so the client sees the market at a glance instead of scrolling
+            a list.
+
+            The breakpoints are tuned to the width this column actually gets,
+            not to the viewport: results sit in eight of twelve columns, so a
+            1280px screen leaves about 660px here and three cards would be 220px
+            wide — narrow enough that the carrier name and the price collapse on
+            top of each other. Four across arrives on a genuinely wide monitor.
+
+            The card being read expands across the whole row: a grid cell tall
+            enough for the full breakdown would leave the ones beside it empty.
+          */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3 min-[1800px]:grid-cols-4">
             {result.offers.map((offer, index) => (
               <OfferCard
                 key={offer.rank}

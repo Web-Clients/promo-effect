@@ -65,7 +65,9 @@ test('a stale fix says so instead of pretending to be live', async ({ page }) =>
   await clickAt(page, INDIAN_OCEAN);
 
   await expect(page.getByText('CMA CGM BOUGAINVILLE')).toBeVisible({ timeout: 10000 });
-  // Seeded three days old: the card must age it and mark it as not observed.
-  await expect(page.getByText(/acum 3 zile/)).toBeVisible();
+  // Seeded days old. The exact number grows as the fixture ages, so assert the
+  // shape — the point is that the card states an age at all and does not
+  // present a stale fix as a live one.
+  await expect(page.getByText(/acum \d+ zile/)).toBeVisible();
   await expect(page.getByText(/nu e o observație live/)).toBeVisible();
 });

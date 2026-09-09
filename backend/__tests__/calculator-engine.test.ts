@@ -295,9 +295,9 @@ describe('finalizeOffers', () => {
   // land leg must not win just because its stale pre-incoterm sum was lower.
   it('sorts by the derived total, not by the incoming totalPriceUSD', () => {
     const offers = [
-      makeOffer({ freightPrice: 3000, totalPriceUSD: 1 }),
-      makeOffer({ freightPrice: 1000, totalPriceUSD: 99999 }),
-      makeOffer({ freightPrice: 2000, totalPriceUSD: 500 }),
+      makeOffer({ shippingLine: 'Maersk', freightPrice: 3000, totalPriceUSD: 1 }),
+      makeOffer({ shippingLine: 'Evergreen', freightPrice: 1000, totalPriceUSD: 99999 }),
+      makeOffer({ freightPrice: 2000, totalPriceUSD: 500, shippingLine: 'Cosco' }),
     ];
     const result = finalizeOffers(offers, 18, 1, {
       portOrigin: 'Shanghai',
@@ -327,7 +327,12 @@ describe('finalizeOffers', () => {
   });
 
   it('assigns rank 1..N to offers', () => {
-    const offers = [makeOffer({ totalPriceUSD: 1000 }), makeOffer({ totalPriceUSD: 2000 })];
+    // Distinct carriers: offers are now deduplicated per carrier and sailing
+    // week, so three MSC quotes are one offer rather than three.
+    const offers = [
+      makeOffer({ totalPriceUSD: 1000, shippingLine: 'Maersk' }),
+      makeOffer({ totalPriceUSD: 2000, shippingLine: 'Evergreen' }),
+    ];
     const result = finalizeOffers(offers, 18, 2, {
       portOrigin: 'Shanghai',
       containerType: '20DV',
@@ -340,9 +345,9 @@ describe('finalizeOffers', () => {
     expect(result.offers[1].rank).toBe(2);
   });
 
-  it('caps output at 5 offers', () => {
-    const offers = Array.from({ length: 8 }, (_, i) =>
-      makeOffer({ totalPriceUSD: 1000 + i * 100 })
+  it('caps output at 8 offers — the client screen lays them out four to a row', () => {
+    const offers = Array.from({ length: 12 }, (_, i) =>
+      makeOffer({ totalPriceUSD: 1000 + i * 100, shippingLine: `Line ${i}` })
     );
     const result = finalizeOffers(offers, 18, 1, {
       portOrigin: 'Shanghai',
@@ -352,7 +357,7 @@ describe('finalizeOffers', () => {
       portDestination: 'Constanta',
       containers: [],
     } as any);
-    expect(result.offers.length).toBeLessThanOrEqual(5);
+    expect(result.offers.length).toBe(8);
   });
 
   it('empty offers → returns empty array', () => {

@@ -867,7 +867,10 @@
       "validUntil": "Valid Până",
       "departureDate": "Data Plecării",
       "notes": "Observații",
-      "notesPlaceholder": "Ex: Promoție specială, condiții de piață..."
+      "notesPlaceholder": "Ex: Promoție specială, condiții de piață...",
+      "weekPlaceholder": "ex. wk 24",
+      "weekLabel": "Săptămâna (ISO)",
+      "weekHint": "sau scrie săptămâna"
     },
     "status": {
       "PENDING": "În așteptare",
@@ -964,6 +967,7 @@
     "next": "Mai departe",
     "done": "Am înțeles",
     "replay": "Arată-mi din nou",
-    "help": "Ghid pagină"
+    "help": "Ghid pagină",
+    "currentWeek": "Săptămâna curentă (ISO)"
   }
 }

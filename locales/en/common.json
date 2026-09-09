@@ -867,7 +867,10 @@
       "validUntil": "Valid until",
       "departureDate": "Departure date",
       "notes": "Notes",
-      "notesPlaceholder": "e.g. special promotion, market conditions..."
+      "notesPlaceholder": "e.g. special promotion, market conditions...",
+      "weekPlaceholder": "e.g. wk 24",
+      "weekLabel": "Week (ISO)",
+      "weekHint": "or type the week"
     },
     "status": {
       "PENDING": "Awaiting approval",
@@ -963,6 +966,7 @@
     "next": "Next",
     "done": "Got it",
     "replay": "Show me again",
-    "help": "Page guide"
+    "help": "Page guide",
+    "currentWeek": "Current week (ISO)"
   }
 }

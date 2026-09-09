@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { formatWeek, parseWeek, weekToDate } from '../utils/isoWeek';
 import { Button } from './ui/Button';
 import { useToast } from './ui/Toast';
 import agentPortalService, {
@@ -160,6 +161,8 @@ const AgentPricesDashboard: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingPrice, setEditingPrice] = useState<AgentPrice | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  // Free-text week box beside the departure date; see applyWeek.
+  const [weekInput, setWeekInput] = useState('');
 
   // Form state
   const [formData, setFormData] = useState<AgentPriceInput>({
@@ -202,6 +205,21 @@ const AgentPricesDashboard: React.FC = () => {
     };
     loadVocabulary();
   }, []);
+
+  /**
+   * Turn what was typed in the week box into a departure date.
+   *
+   * Deliberately silent on nonsense: the box is an accelerator, not a required
+   * field, so a stray character must not block the form. An unparseable value
+   * simply leaves the date alone.
+   */
+  const applyWeek = () => {
+    const parsed = parseWeek(weekInput);
+    if (!parsed) return;
+    const monday = weekToDate(parsed.week, parsed.year);
+    setFormData((prev) => ({ ...prev, departureDate: monday.toISOString().slice(0, 10) }));
+    setWeekInput('');
+  };
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -488,6 +506,11 @@ const AgentPricesDashboard: React.FC = () => {
                     </td>
                     <td className="p-4 text-neutral-600 dark:text-neutral-300 whitespace-nowrap">
                       {shortDate(price.departureDate, locale)}
+                      {price.departureDate && (
+                        <span className="ml-1.5 text-xs text-neutral-400">
+                          {formatWeek(new Date(price.departureDate))}
+                        </span>
+                      )}
                     </td>
                     <td className="p-4">
                       <span
@@ -684,6 +707,30 @@ const AgentPricesDashboard: React.FC = () => {
                     className="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 rounded-lg"
                     required
                   />
+                  {/* Agents quote in weeks — "3000 USD / wk 24" — so accept a
+                      week here rather than making them look up the dates. */}
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={weekInput}
+                      onChange={(e) => setWeekInput(e.target.value)}
+                      onBlur={() => applyWeek()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          applyWeek();
+                        }
+                      }}
+                      placeholder={t('agentPortal.form.weekPlaceholder')}
+                      aria-label={t('agentPortal.form.weekLabel')}
+                      className="w-28 rounded-lg border border-neutral-200 bg-neutral-50 px-2 py-1 text-xs dark:border-neutral-600 dark:bg-neutral-700"
+                    />
+                    <span className="text-xs text-neutral-400">
+                      {formData.departureDate
+                        ? formatWeek(new Date(formData.departureDate))
+                        : t('agentPortal.form.weekHint')}
+                    </span>
+                  </div>
                 </div>
               </div>
 

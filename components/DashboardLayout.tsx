@@ -30,6 +30,7 @@ import {
 } from './icons';
 import NotificationsDropdown from './NotificationsDropdown';
 import { LanguageSwitcher } from './shared/LanguageSwitcher';
+import { formatWeek } from '../utils/isoWeek';
 
 interface DashboardLayoutProps {
   children?: React.ReactNode;
@@ -319,6 +320,15 @@ const DashboardLayout = ({ children, user, onLogout, onNewBooking }: DashboardLa
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
+              {/* Ion, 8 Sep: agents quote "wk 24" and he had to google which
+                  dates that meant. The current week now sits in the header. */}
+              <span
+                className="hidden md:inline-flex items-center rounded-md bg-neutral-100 px-2 py-1 text-xs font-medium text-neutral-500 dark:bg-neutral-700 dark:text-neutral-300"
+                title={t('tour.currentWeek')}
+              >
+                {formatWeek(new Date())}
+              </span>
+
               <LanguageSwitcher isAgent={isAgent} />
               <NotificationsDropdown />
 

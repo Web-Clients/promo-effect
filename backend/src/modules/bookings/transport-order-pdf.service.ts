@@ -15,7 +15,12 @@ const COMPANY_INFO = {
 };
 
 // Font paths (optional — will fall back to built-in Helvetica if missing)
-const FONTS_DIR = path.join(__dirname, '../../fonts');
+// Three levels up, not two: this file sits at src/modules/bookings, so '../../'
+// resolves to src/fonts — which does not exist, so hasCustomFonts was always
+// false and every document silently fell back to WinAnsi Helvetica, printing
+// Romanian without its diacritics. The same path also holds once compiled,
+// from dist/modules/bookings.
+const FONTS_DIR = path.join(__dirname, '../../../fonts');
 const FONT_REGULAR = path.join(FONTS_DIR, 'Roboto-Regular.ttf');
 const FONT_BOLD = path.join(FONTS_DIR, 'Roboto-Bold.ttf');
 const hasCustomFonts = fs.existsSync(FONT_REGULAR) && fs.existsSync(FONT_BOLD);

@@ -16,6 +16,8 @@
 import fs from 'fs';
 import path from 'path';
 import { generateInvoicePDF } from '../src/services/pdf.service';
+import { generateTransportOrderPDF } from '../src/modules/bookings/transport-order-pdf.service';
+import { generatePaymentInvoicePDF } from '../src/modules/bookings/payment-invoice-pdf.service';
 
 const FONTS_DIR = path.join(__dirname, '../fonts');
 const ROMANIAN = 'Recepție mărfuri: transport Constanța – Chișinău, taxă vamală și comision';
@@ -74,5 +76,59 @@ describe('generateInvoicePDF', () => {
     const pdf = await generateInvoicePDF(invoice, lineItems);
     const raw = pdf.toString('latin1');
     expect(raw).toMatch(/Roboto/);
+  });
+});
+
+/**
+ * The other two documents the client actually receives.
+ *
+ * These two guarded the font with `hasCustomFonts` and fell back to Helvetica
+ * when it was absent — so unlike the invoice they did not crash, they just
+ * quietly printed mangled Romanian. That is the failure Ion saw.
+ */
+describe('the other client-facing documents', () => {
+  it('the transport order embeds Roboto and renders Romanian', async () => {
+    const pdf = await generateTransportOrderPDF({
+      bookingId: 'MDPE2026090001',
+      blNumber: 'MEDUKC298446',
+      portOrigin: 'Ningbo',
+      portDestination: 'Chișinău',
+      containerType: '40HQ',
+      shippingLine: 'Maersk',
+      incoterm: 'FOB',
+      shipperName: 'Întreprinderea Mărfuri Grele SRL',
+      beneficiaryName: 'Beneficiar Ștefan Țăranu SRL',
+      beneficiaryAddress: 'str. Ștefan cel Mare 1, Chișinău',
+      beneficiaryPhone: '+373 69 000 000',
+      beneficiaryEmail: 'a@b.md',
+      createdAt: new Date('2026-09-08'),
+    });
+    expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
+    expect(pdf.toString('latin1')).toMatch(/Roboto/);
+  });
+
+  it('the payment invoice embeds Roboto and renders Romanian', async () => {
+    const pdf = await generatePaymentInvoicePDF({
+      bookingId: 'MDPE2026090001',
+      invoiceNumber: 'PE-2026-0001',
+      issueDate: new Date('2026-09-08'),
+      clientName: 'Întreprinderea Mărfuri Grele SRL',
+      clientIdno: '1234567890123',
+      clientAddress: 'str. Ștefan cel Mare 1, Chișinău',
+      clientPhone: '+373 69 000 000',
+      clientEmail: 'a@b.md',
+      items: [
+        {
+          description: 'Transport Constanța – Chișinău, taxă vamală și comision expediție',
+          quantity: 1,
+          unitPrice: 2475,
+          total: 2475,
+        },
+      ],
+      currency: 'USD',
+      vatRate: 0,
+    });
+    expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
+    expect(pdf.toString('latin1')).toMatch(/Roboto/);
   });
 });

@@ -60,7 +60,7 @@ export const ResultsSection = ({
   const [showContactModal, setShowContactModal] = useState(false);
 
   return (
-    <div className="lg:col-span-8">
+    <div className="lg:col-span-9">
       {/* Loading State */}
       {isLoading && (
         <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 p-12 flex flex-col items-center justify-center min-h-[500px]">
@@ -229,16 +229,20 @@ export const ResultsSection = ({
             8 Sep, so the client sees the market at a glance instead of scrolling
             a list.
 
-            The breakpoints are tuned to the width this column actually gets,
-            not to the viewport: results sit in eight of twelve columns, so a
-            1280px screen leaves about 660px here and three cards would be 220px
-            wide — narrow enough that the carrier name and the price collapse on
-            top of each other. Four across arrives on a genuinely wide monitor.
+            auto-fill with a minimum card width rather than viewport
+            breakpoints. The results sit in eight of twelve columns, so what
+            decides how many fit is this column's width, not the window's — and
+            a card narrower than about 16rem collapses the carrier name onto the
+            price. On a wide monitor that lands on the four across Ion asked
+            for; on a laptop it steps down to two by itself.
 
             The card being read expands across the whole row: a grid cell tall
             enough for the full breakdown would leave the ones beside it empty.
           */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3 min-[1800px]:grid-cols-4">
+          <div
+            className="grid gap-4"
+            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(16rem, 1fr))' }}
+          >
             {result.offers.map((offer, index) => (
               <OfferCard
                 key={offer.rank}

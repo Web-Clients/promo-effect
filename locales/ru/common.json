@@ -270,7 +270,11 @@
       "transitDays_many": "{{count}} дней",
       "transitDays_other": "{{count}} дня",
       "viaAgent": "через {{agent}}",
-      "departs": "отход {{date}}"
+      "departs": "отход {{date}}",
+      "leadComfortable": "Достаточный срок",
+      "leadTight": "Сжатый срок",
+      "leadVeryShort": "Очень короткий срок",
+      "referencePortNote": "Базовая ставка {{reference}} — для {{origin}} собственной ставки нет, применена портовая надбавка."
     },
     "shippingLine": "Морская линия",
     "subtitle": "Лучшие предложения от всех морских линий",

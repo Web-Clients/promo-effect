@@ -268,7 +268,11 @@
       "transitDays_few": "{{count}} zile",
       "transitDays_other": "{{count}} de zile",
       "viaAgent": "prin {{agent}}",
-      "departs": "plecare {{date}}"
+      "departs": "plecare {{date}}",
+      "leadComfortable": "Termen confortabil",
+      "leadTight": "Termen strâns",
+      "leadVeryShort": "Termen foarte scurt",
+      "referencePortNote": "Tarif de referință {{reference}} — pentru {{origin}} nu există tarif propriu, s-a aplicat ajustarea de port."
     },
     "shippingLine": "Linie Maritimă",
     "subtitle": "Obțineți cele mai bune oferte de la toate liniile maritime",

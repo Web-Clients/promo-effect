@@ -342,7 +342,11 @@
       "commissionBaseNote": "佣金按当地费用加内陆运输计算，从不按海运费计算。",
       "transitDays_other": "{{count}} 天",
       "viaAgent": "来自 {{agent}}",
-      "departs": "{{date}} 开船"
+      "departs": "{{date}} 开船",
+      "leadComfortable": "时间充裕",
+      "leadTight": "时间紧张",
+      "leadVeryShort": "时间非常紧",
+      "referencePortNote": "参考运价 {{reference}} — {{origin}} 无自有运价，已按港口附加费调整。"
     }
   }
 }

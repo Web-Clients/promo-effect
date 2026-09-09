@@ -173,75 +173,88 @@ export const OfferCard = ({
         aria-expanded={isSelected}
         className="cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
       >
-        {/* Wraps in a narrow grid cell instead of pushing the price out of the
-          card; side by side again as soon as there is room. */}
-        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-          {/* Left: Rank & Shipping Line */}
-          <div className="flex min-w-0 flex-1 items-center gap-4">
-            <div
-              className={cn(
-                'w-12 h-12 shrink-0 rounded-xl flex items-center justify-center font-bold text-lg',
-                offer.rank === 1
-                  ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white'
-                  : offer.rank === 2
-                    ? 'bg-gradient-to-br from-neutral-300 to-neutral-400 text-white'
-                    : offer.rank === 3
-                      ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-white'
-                      : 'bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
-              )}
-            >
-              #{offer.rank}
-            </div>
-            {/* No min-w-0 here: with it this block shrinks to zero inside the
-                flex row and its contents disappear entirely rather than wrap. */}
-            <div className="flex-1">
-              <h4 className="font-bold text-lg text-primary-800 dark:text-white">
+        {/*
+          A summary, not a dossier.
+
+          The offers sit four to a row on a wide screen, so a collapsed card has
+          about 16rem to work with. Everything that explains the price — the
+          breakdown, the reference-port note, the commission — belongs in the
+          expansion; what stays here is what someone scanning a row of offers
+          compares: who is carrying it, what it costs, when it sails, and how
+          long the quote holds.
+        */}
+        <div className="flex items-start gap-3">
+          <div
+            className={cn(
+              'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold',
+              offer.rank === 1
+                ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white'
+                : offer.rank === 2
+                  ? 'bg-gradient-to-br from-neutral-300 to-neutral-400 text-white'
+                  : offer.rank === 3
+                    ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-white'
+                    : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300'
+            )}
+          >
+            {offer.rank}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <h4 className="truncate text-base font-bold text-primary-800 dark:text-white">
                 {offer.shippingLine}
               </h4>
-              {/* Whose rate this is. Office only: an agent must never learn what
-                  a competitor quoted, which is the reason the portal keeps them
-                  apart in the first place. */}
-              {/* Not truncated: inside a flex cell with min-w-0 a nowrap line
-                  collapses to zero width and disappears entirely. Wrapping
-                  costs a line and keeps the agent's name readable. */}
-              {isAdmin && offer.agentCompany && (
-                <p className="text-xs leading-snug text-neutral-400">
-                  {t('calculator.offer.viaAgent', { agent: offer.agentCompany })}
-                </p>
-              )}
-              {/* Wraps: in a narrow grid cell the transit time, the validity and
-                  the availability badge do not fit on one line, and pushing them
-                  past the card edge is worse than a second line. */}
-              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span className="flex items-center gap-1 text-sm text-neutral-700 dark:text-neutral-400">
-                  <ClockIcon />
-                  {t('calculator.offer.transitDays', { count: offer.estimatedTransitDays })}
+              <p className="shrink-0 text-xl font-bold leading-none text-accent-500">
+                ${adjustedTotal.toFixed(0)}
+              </p>
+            </div>
+
+            <div className="flex items-baseline justify-between gap-2">
+              {/* Office only: an agent must never learn what a competitor quoted. */}
+              <p className="truncate text-xs text-neutral-400">
+                {isAdmin && offer.agentCompany
+                  ? t('calculator.offer.viaAgent', { agent: offer.agentCompany })
+                  : offer.route.replace(/\s*→\s*/g, ' → ')}
+              </p>
+              <p className="shrink-0 text-xs text-neutral-400">{adjustedTotalMDL.toFixed(0)} MDL</p>
+            </div>
+
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300">
+                <ClockIcon />
+                {t('calculator.offer.transitDays', { count: offer.estimatedTransitDays })}
+              </span>
+
+              {offer.departureDate && (
+                <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-500/20 dark:text-sky-300">
+                  {t('calculator.offer.departs', {
+                    date: new Date(offer.departureDate).toLocaleDateString(
+                      (
+                        { ro: 'ro-RO', ru: 'ru-RU', en: 'en-GB', zh: 'zh-CN' } as Record<
+                          string,
+                          string
+                        >
+                      )[(i18n.language || 'ro').split('-')[0]] || 'en-GB',
+                      { day: '2-digit', month: 'short' }
+                    ),
+                  })}
                 </span>
-                {/* How long the quote is good for. Ion asked for this on 8 Sep:
-                  rates arrive fortnightly, and he kept having to ask whether
-                  what he was looking at was still live. */}
-                {offer.validUntil && <ValidityBadge validUntil={offer.validUntil} />}
-                {/* The sailing this rate is for. Ion asked for different dates to
-                    be distinguishable — "zile diferite" — and without it two
-                    offers from the same carrier read as a duplicate. */}
-                {offer.departureDate && (
-                  <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-500/20 dark:text-sky-300">
-                    {t('calculator.offer.departs', {
-                      date: new Date(offer.departureDate).toLocaleDateString(
-                        (
-                          { ro: 'ro-RO', ru: 'ru-RU', en: 'en-GB', zh: 'zh-CN' } as Record<
-                            string,
-                            string
-                          >
-                        )[(i18n.language || 'ro').split('-')[0]] || 'en-GB',
-                        { day: '2-digit', month: 'short' }
-                      ),
-                    })}
-                  </span>
-                )}
+              )}
+
+              {offer.validUntil && <ValidityBadge validUntil={offer.validUntil} />}
+            </div>
+
+            {/* The full route and the availability wording only once there is
+                room for them — in the collapsed card they would wrap to four
+                lines and bury the price. */}
+            {isSelected && (
+              <>
+                <div className="mt-2">
+                  <RouteDisplay route={offer.route} />
+                </div>
                 <span
                   className={cn(
-                    'flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium',
+                    'mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
                     offer.availability === 'AVAILABLE'
                       ? 'bg-success-50 text-success-700 dark:bg-success-500/20 dark:text-success-500'
                       : offer.availability === 'LIMITED'
@@ -250,34 +263,26 @@ export const OfferCard = ({
                   )}
                 >
                   <CheckCircleIcon />
-                  {/* This badge is derived purely from how many days remain until the
-                    cargo-ready date — it says nothing about vessel space. Labelling
-                    it "Disponibil/Indisponibil" made the client read it as real
-                    availability and wonder why an "Indisponibil" offer was still
-                    selectable. It now says what it actually measures. */}
+                  {/* Derived purely from days remaining until cargo-ready — it says
+                      nothing about vessel space. Labelling it "Disponibil" made the
+                      client read it as real availability and ask why an
+                      "Indisponibil" offer was still selectable. */}
                   {offer.availability === 'AVAILABLE'
-                    ? 'Termen confortabil'
+                    ? t('calculator.offer.leadComfortable')
                     : offer.availability === 'LIMITED'
-                      ? 'Termen strâns'
-                      : 'Termen foarte scurt'}
+                      ? t('calculator.offer.leadTight')
+                      : t('calculator.offer.leadVeryShort')}
                 </span>
-              </div>
-              <div className="mt-2">
-                <RouteDisplay route={offer.route} />
-              </div>
-              {offer.priceFromReferencePort && (
-                <p className="mt-2 text-xs text-warning-700 dark:text-warning-500">
-                  Tarif de referință {offer.priceFromReferencePort} — pentru {offer.portOrigin} nu
-                  există tarif propriu, s-a aplicat ajustarea de port.
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Right: Price */}
-          <div className="text-right">
-            <p className="text-2xl font-bold text-accent-500">${adjustedTotal.toFixed(0)}</p>
-            <p className="text-sm text-neutral-400">{adjustedTotalMDL.toFixed(0)} MDL</p>
+                {offer.priceFromReferencePort && (
+                  <p className="mt-2 text-xs text-warning-700 dark:text-warning-500">
+                    {t('calculator.offer.referencePortNote', {
+                      reference: offer.priceFromReferencePort,
+                      origin: offer.portOrigin,
+                    })}
+                  </p>
+                )}
+              </>
+            )}
           </div>
         </div>
       </div>

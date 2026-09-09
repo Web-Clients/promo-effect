@@ -103,8 +103,11 @@ export const CalculatorForm = ({
 
   const routeDisplay = getRouteDisplay();
 
+  // Three of twelve, not four: the form is a column of single fields and does
+  // not need the extra width, while the offers beside it do — four cards across
+  // is what Ion asked for and they need the room.
   return (
-    <div className="lg:col-span-4">
+    <div className="lg:col-span-3">
       <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-card border border-neutral-200/50 dark:border-neutral-700/50 p-6 sticky top-24">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-lg bg-primary-800 flex items-center justify-center text-white">

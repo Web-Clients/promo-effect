@@ -266,7 +266,11 @@
       "transitDays_one": "{{count}} day",
       "transitDays_other": "{{count}} days",
       "viaAgent": "via {{agent}}",
-      "departs": "departs {{date}}"
+      "departs": "departs {{date}}",
+      "leadComfortable": "Comfortable lead time",
+      "leadTight": "Tight lead time",
+      "leadVeryShort": "Very short lead time",
+      "referencePortNote": "Reference rate {{reference}} — {{origin}} has no rate of its own, so the port adjustment was applied."
     },
     "shippingLine": "Shipping line",
     "subtitle": "Get the best offers from every shipping line",

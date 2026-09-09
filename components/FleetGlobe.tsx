@@ -7,6 +7,8 @@ import {
   type MapLayerMouseEvent,
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import trackingService, { FleetContainer, AmbientVessel } from '../services/tracking';
 
 /**
@@ -29,36 +31,48 @@ const POLL_MS = 15000;
 
 interface SourceStyle {
   color: string;
-  label: string;
+  labelKey: string;
   /** Whether the fix was actually observed, as opposed to inferred. */
   observed: boolean;
 }
 
 const SOURCE_STYLES: Record<string, SourceStyle> = {
-  AIS_LIVE: { color: '#22d3ee', label: 'AIS live', observed: true },
-  LAST_KNOWN: { color: '#f59e0b', label: 'Ultima poziție cunoscută', observed: false },
-  LAST_EVENT: { color: '#a78bfa', label: 'Ultimul eveniment', observed: false },
-  PORT_FALLBACK: { color: '#64748b', label: 'Estimat din port', observed: false },
+  AIS_LIVE: { color: '#22d3ee', labelKey: 'fleetMap.source.AIS_LIVE', observed: true },
+  LAST_KNOWN: { color: '#f59e0b', labelKey: 'fleetMap.source.LAST_KNOWN', observed: false },
+  LAST_EVENT: { color: '#a78bfa', labelKey: 'fleetMap.source.LAST_EVENT', observed: false },
+  PORT_FALLBACK: { color: '#64748b', labelKey: 'fleetMap.source.PORT_FALLBACK', observed: false },
 };
 
-const UNKNOWN_STYLE: SourceStyle = { color: '#475569', label: 'Fără poziție', observed: false };
+const UNKNOWN_STYLE: SourceStyle = {
+  color: '#475569',
+  labelKey: 'fleetMap.source.UNKNOWN',
+  observed: false,
+};
 
 function styleFor(source?: string | null): SourceStyle {
   return (source && SOURCE_STYLES[source]) || UNKNOWN_STYLE;
 }
 
-/** Human age of a fix, in the operator's language. */
-function ageLabel(timestamp?: string | null): string {
-  if (!timestamp) return 'necunoscut';
+/**
+ * How old a fix is, in words, in the reader's language.
+ *
+ * Takes `t` rather than reaching for a global: this is the sentence that tells
+ * an operator whether the dot in front of him means anything, so it has to be
+ * in the language he actually reads.
+ */
+function ageLabel(timestamp: string | null | undefined, t: TFunction): string {
+  if (!timestamp) return t('fleetMap.age.unknown');
   const ms = Date.now() - new Date(timestamp).getTime();
-  if (!Number.isFinite(ms) || ms < 0) return 'necunoscut';
+  if (!Number.isFinite(ms) || ms < 0) return t('fleetMap.age.unknown');
   const min = Math.floor(ms / 60000);
-  if (min < 1) return 'acum câteva secunde';
-  if (min < 60) return `acum ${min} min`;
+  if (min < 1) return t('fleetMap.age.seconds');
+  if (min < 60) return t('fleetMap.age.minutes', { n: min });
   const h = Math.floor(min / 60);
-  if (h < 24) return `acum ${h} h`;
+  if (h < 24) return t('fleetMap.age.hours', { n: h });
   const d = Math.floor(h / 24);
-  return `acum ${d} ${d === 1 ? 'zi' : 'zile'}`;
+  // Romanian has three plural forms and Russian four, so the count goes to
+  // i18next rather than being formatted here.
+  return t('fleetMap.age.days', { count: d });
 }
 
 /**
@@ -154,7 +168,7 @@ function vesselFeatures(fleet: FleetContainer[]): FC {
           properties: {
             containerId: c.containerId,
             containerNumber: c.containerNumber,
-            vesselName: c.vessel?.name || 'Navă necunoscută',
+            vesselName: c.vessel?.name || '',
             color: st.color,
             // cog is the direction actually made good; heading is where the bow
             // points. Prefer cog, fall back to heading, then to north.
@@ -210,9 +224,10 @@ function portFeatures(fleet: FleetContainer[]): FC {
     const b = c.booking;
     if (!b) continue;
     const ends: [typeof b.originCoords, string][] = [
-      [b.originCoords, 'origine'],
-      [b.transitCoords, 'tranzit'],
-      [b.destinationCoords, 'destinație'],
+      // Internal role markers, never rendered.
+      [b.originCoords, 'origin'],
+      [b.transitCoords, 'transit'],
+      [b.destinationCoords, 'destination'],
     ];
     for (const [coords, role] of ends) {
       if (!coords) continue;
@@ -294,7 +309,18 @@ function retintForContrast(map: MlMap) {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+/** BCP-47 tag for a UI language code. */
+function timeLocaleFor(language: string): string {
+  const base = (language || 'ro').split('-')[0];
+  return (
+    ({ ro: 'ro-RO', ru: 'ru-RU', en: 'en-GB', zh: 'zh-CN' } as Record<string, string>)[base] ||
+    'en-GB'
+  );
+}
+
 export default function FleetGlobe() {
+  const { t, i18n } = useTranslation();
+  const timeLocale = timeLocaleFor(i18n.language);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MlMap | null>(null);
   const readyRef = useRef(false);
@@ -322,7 +348,7 @@ export default function FleetGlobe() {
       setFetchedAt(res.fetchedAt || new Date().toISOString());
       setError(null);
     } catch {
-      setError('Nu am putut încărca pozițiile flotei.');
+      setError(t('fleetMap.loadFailed'));
     }
   }, []);
 
@@ -585,12 +611,22 @@ export default function FleetGlobe() {
   return (
     <div className="flex flex-col gap-3">
       <header className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-700/60 bg-slate-900/80 px-4 py-3">
-        <h1 className="text-lg font-semibold text-slate-100">Hartă Flotă — Live</h1>
+        <h1 className="text-lg font-semibold text-slate-100">{t('fleetMap.title')}</h1>
 
-        <Pill color="#22d3ee">{counts.live} AIS live</Pill>
-        <Pill color="#f59e0b">{counts.stale} poziție estimată</Pill>
-        {counts.none > 0 && <Pill color="#475569">{counts.none} fără poziție</Pill>}
-        <Pill color="#38bdf8">{ambient.length} nave în trafic</Pill>
+        <Pill color="#22d3ee">
+          {counts.live} {t('fleetMap.aisLive')}
+        </Pill>
+        <Pill color="#f59e0b">
+          {counts.stale} {t('fleetMap.estimated')}
+        </Pill>
+        {counts.none > 0 && (
+          <Pill color="#475569">
+            {counts.none} {t('fleetMap.noPosition')}
+          </Pill>
+        )}
+        <Pill color="#38bdf8">
+          {ambient.length} {t('fleetMap.inTraffic')}
+        </Pill>
 
         <label className="ml-auto flex cursor-pointer items-center gap-2 text-xs text-slate-300">
           <input
@@ -599,11 +635,13 @@ export default function FleetGlobe() {
             onChange={(e) => setShowAmbient(e.target.checked)}
             className="accent-sky-500"
           />
-          Trafic AIS global
+          {t('fleetMap.globalTraffic')}
         </label>
         {fetchedAt && (
           <span className="text-xs text-slate-400">
-            Actualizat {new Date(fetchedAt).toLocaleTimeString('ro-RO')}
+            {t('fleetMap.updated', {
+              time: new Date(fetchedAt).toLocaleTimeString(timeLocale),
+            })}
           </span>
         )}
       </header>
@@ -629,10 +667,8 @@ export default function FleetGlobe() {
         {fleet.length === 0 && !error && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div className="rounded-lg bg-slate-900/85 px-5 py-4 text-center">
-              <p className="font-medium text-slate-100">Nicio navă în flotă</p>
-              <p className="text-sm text-slate-400">
-                Containerele apar aici pe măsură ce primesc o poziție.
-              </p>
+              <p className="font-medium text-slate-100">{t('fleetMap.emptyTitle')}</p>
+              <p className="text-sm text-slate-400">{t('fleetMap.emptyDesc')}</p>
             </div>
           </div>
         )}
@@ -657,25 +693,27 @@ function Pill({ color, children }: { color: string; children: React.ReactNode })
 }
 
 function Legend() {
+  const { t } = useTranslation();
   return (
     <div className="absolute bottom-3 left-3 rounded-lg border border-slate-700/60 bg-slate-900/85 px-3 py-2.5 text-xs backdrop-blur">
-      <p className="mb-1.5 font-semibold text-slate-200">Sursa poziției</p>
+      <p className="mb-1.5 font-semibold text-slate-200">{t('fleetMap.legendTitle')}</p>
       <ul className="space-y-1">
         {Object.values(SOURCE_STYLES).map((s) => (
-          <li key={s.label} className="flex items-center gap-2 text-slate-300">
+          <li key={s.labelKey} className="flex items-center gap-2 text-slate-300">
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: s.color }} />
-            {s.label}
+            {t(s.labelKey)}
           </li>
         ))}
       </ul>
       <p className="mt-2 max-w-[15rem] text-[11px] leading-snug text-slate-500">
-        AIS terestru nu acoperă mijlocul oceanului. Ce nu e observat live e marcat ca estimat.
+        {t('fleetMap.legendNote')}
       </p>
     </div>
   );
 }
 
 function TacticalCard({ container, onClose }: { container: FleetContainer; onClose: () => void }) {
+  const { t } = useTranslation();
   const p = container.position;
   const st = styleFor(p?.source);
   const b = container.booking;
@@ -690,7 +728,7 @@ function TacticalCard({ container, onClose }: { container: FleetContainer; onClo
         <button
           onClick={onClose}
           className="rounded px-2 py-0.5 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-          aria-label="Închide"
+          aria-label={t('fleetMap.close')}
         >
           ✕
         </button>
@@ -699,29 +737,35 @@ function TacticalCard({ container, onClose }: { container: FleetContainer; onClo
       <div className="mb-3 flex items-center gap-2 rounded-lg bg-slate-800/70 px-2.5 py-2">
         <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: st.color }} />
         <div className="leading-tight">
-          <p className="text-xs font-medium text-slate-200">{st.label}</p>
+          <p className="text-xs font-medium text-slate-200">{t(st.labelKey)}</p>
           <p className="text-[11px] text-slate-400">
-            {ageLabel(p?.timestamp)}
-            {!st.observed && ' · nu e o observație live'}
+            {ageLabel(p?.timestamp, t)}
+            {!st.observed && ` · ${t('fleetMap.notObserved')}`}
           </p>
         </div>
       </div>
 
       <dl className="space-y-1.5 text-xs">
-        <Row label="MMSI" value={container.vessel?.mmsi} mono />
-        <Row label="IMO" value={container.vessel?.imo} mono />
-        <Row label="B/L" value={container.blNumber} mono />
-        <Row label="Viteză" value={p?.sog != null ? `${p.sog.toFixed(1)} noduri` : null} />
-        <Row label="Curs" value={p?.cog != null ? `${Math.round(p.cog)}°` : null} />
-        <Row label="Destinație declarată" value={p?.destination} />
+        <Row label={t('fleetMap.card.mmsi')} value={container.vessel?.mmsi} mono />
+        <Row label={t('fleetMap.card.imo')} value={container.vessel?.imo} mono />
+        <Row label={t('fleetMap.card.bl')} value={container.blNumber} mono />
         <Row
-          label="Rută"
+          label={t('fleetMap.card.speed')}
+          value={p?.sog != null ? `${p.sog.toFixed(1)} ${t('fleetMap.card.knots')}` : null}
+        />
+        <Row
+          label={t('fleetMap.card.course')}
+          value={p?.cog != null ? `${Math.round(p.cog)}°` : null}
+        />
+        <Row label={t('fleetMap.card.declaredDestination')} value={p?.destination} />
+        <Row
+          label={t('fleetMap.card.route')}
           value={b?.origin && b?.destination ? `${b.origin} → ${b.destination}` : null}
         />
-        <Row label="Client" value={b?.client} />
-        <Row label="Status" value={container.currentStatus} />
+        <Row label={t('fleetMap.card.client')} value={b?.client} />
+        <Row label={t('fleetMap.card.status')} value={container.currentStatus} />
         <Row
-          label="ETA"
+          label={t('fleetMap.card.eta')}
           value={container.eta ? new Date(container.eta).toLocaleDateString('ro-RO') : null}
         />
       </dl>

@@ -229,5 +229,49 @@
       "thisWeek": "本周",
       "older": "更早"
     }
+  },
+  "fleetMap": {
+    "title": "船队地图 — 实时",
+    "aisLive": "AIS 实时",
+    "estimated": "推算位置",
+    "noPosition": "无位置",
+    "inTraffic": "艘在航",
+    "globalTraffic": "全球 AIS 动态",
+    "updated": "更新于 {{time}}",
+    "loadFailed": "无法加载船队位置。",
+    "emptyTitle": "船队暂无船舶",
+    "emptyDesc": "集装箱一旦有位置就会显示在这里。",
+    "legendTitle": "位置来源",
+    "legendNote": "岸基 AIS 不覆盖远洋海域。非实时观测的位置均标注为推算。",
+    "source": {
+      "AIS_LIVE": "AIS 实时",
+      "LAST_KNOWN": "最后已知位置",
+      "LAST_EVENT": "最后事件",
+      "PORT_FALLBACK": "按港口推算",
+      "UNKNOWN": "无位置"
+    },
+    "notObserved": "非实时观测",
+    "unknownVessel": "未知船舶",
+    "close": "关闭",
+    "card": {
+      "mmsi": "MMSI",
+      "imo": "IMO",
+      "bl": "提单号",
+      "speed": "航速",
+      "course": "航向",
+      "declaredDestination": "申报目的港",
+      "route": "航线",
+      "client": "客户",
+      "status": "状态",
+      "eta": "预计到港",
+      "knots": "节"
+    },
+    "age": {
+      "seconds": "几秒前",
+      "minutes": "{{n}} 分钟前",
+      "hours": "{{n}} 小时前",
+      "days_other": "{{count}} 天前",
+      "unknown": "未知"
+    }
   }
 }

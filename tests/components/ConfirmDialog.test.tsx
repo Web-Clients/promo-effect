@@ -7,9 +7,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 
+// Resolve against the real Romanian locale rather than echoing the key. A mock
+// that returns the key cannot tell a working translation from a missing one —
+// which is how t('common.confirm') survived in this component while no locale
+// defined it, and every user saw the call site's hardcoded fallback.
+import ro from '../../locales/ro/common.json';
+
+const lookup = (key: string): string | undefined =>
+  key.split('.').reduce<unknown>((acc, part) => {
+    if (acc && typeof acc === 'object' && part in (acc as Record<string, unknown>)) {
+      return (acc as Record<string, unknown>)[part];
+    }
+    return undefined;
+  }, ro) as string | undefined;
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, fallback?: string) => fallback ?? key,
+    t: (key: string, fallback?: string) => lookup(key) ?? fallback ?? key,
     i18n: { language: 'ro', changeLanguage: vi.fn() },
   }),
 }));

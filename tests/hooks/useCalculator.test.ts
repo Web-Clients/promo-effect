@@ -15,6 +15,12 @@ const { mockCalculateService } = vi.hoisted(() => {
     getAvailableShippingLines: vi.fn(),
     calculatePrices: vi.fn(),
     placeOrder: vi.fn(),
+    // The hook loads clients and agents in the same Promise.all as the option
+    // lists. Leaving them off the mock rejected the whole batch, the catch
+    // swallowed it, and every option list stayed empty — which is why
+    // addContainer appeared to do nothing.
+    getClients: vi.fn(),
+    getAgents: vi.fn(),
   };
   return { mockCalculateService };
 });
@@ -42,6 +48,8 @@ describe('useCalculator', () => {
     );
     mockCalculateService.getAvailableWeightRanges.mockResolvedValue(defaultOptions.weightRanges);
     mockCalculateService.getAvailableShippingLines.mockResolvedValue(['Maersk', 'CMA CGM', 'MSC']);
+    mockCalculateService.getClients.mockResolvedValue([]);
+    mockCalculateService.getAgents.mockResolvedValue([]);
   });
 
   describe('initial state', () => {
@@ -49,8 +57,11 @@ describe('useCalculator', () => {
       const { result } = renderHook(() => useCalculator());
 
       expect(result.current.params.portDestination).toBe('Constanța');
-      expect(result.current.params.incoterm).toBe('FOB');
-      expect(result.current.params.finalDestination).toBe('constanta');
+      // CFR is the default: most China→Moldova imports arrive on the seller's
+      // ocean booking (see useCalculator.ts).
+      expect(result.current.params.incoterm).toBe('CFR');
+      // The land leg is the normal case; Constanța-only pickup is the exception.
+      expect(result.current.params.finalDestination).toBe('chisinau');
       expect(result.current.params.portOrigin).toBe('');
       expect(result.current.params.cargoWeight).toBe('');
       expect(result.current.params.cargoReadyDate).toBe('');
@@ -83,10 +94,12 @@ describe('useCalculator', () => {
     it('starts with empty supplier data', () => {
       const { result } = renderHook(() => useCalculator());
 
+      // supplierEmail, invoiceValue and invoiceCurrency were dropped when
+      // CFR/CIF stopped asking for supplier details at all.
       expect(result.current.supplierData.supplierName).toBe('');
-      expect(result.current.supplierData.supplierEmail).toBe('');
-      expect(result.current.supplierData.invoiceValue).toBe(0);
-      expect(result.current.supplierData.invoiceCurrency).toBe('USD');
+      expect(result.current.supplierData.supplierAddress).toBe('');
+      expect(result.current.supplierData.supplierContact).toBe('');
+      expect(result.current.supplierData.beneficiaryName).toBe('');
     });
 
     it('initializes isPlacingOrder and orderSuccess to falsy values', () => {
@@ -313,6 +326,13 @@ describe('useCalculator', () => {
         await Promise.resolve();
       });
 
+      // CFR is the default incoterm and CFR pins one carrier, so a quote is
+      // refused until a line is chosen. Without this the hook never reaches
+      // calculatePrices and the assertion below fails for the wrong reason.
+      act(() => {
+        result.current.setParams((p) => ({ ...p, shippingLine: 'Maersk' }));
+      });
+
       const fakeEvent = { preventDefault: vi.fn() } as unknown as React.FormEvent;
 
       await act(async () => {
@@ -332,6 +352,12 @@ describe('useCalculator', () => {
 
       await act(async () => {
         await Promise.resolve();
+      });
+
+      // Get past the CFR line requirement so the failure under test is the
+      // API's, not the form's own validation.
+      act(() => {
+        result.current.setParams((p) => ({ ...p, shippingLine: 'Maersk' }));
       });
 
       const fakeEvent = { preventDefault: vi.fn() } as unknown as React.FormEvent;

@@ -20,6 +20,10 @@ const CONSTANTA: [number, number] = [28.6348, 44.1598];
 const INDIAN_OCEAN: [number, number] = [74.9, 6.4];
 
 async function openGlobe(page: import('@playwright/test').Page) {
+  // Pin the language: these assertions read wording, and the session's stored
+  // language is whatever a previous run left behind.
+  await page.goto(BASE + '/dashboard');
+  await page.evaluate(() => localStorage.setItem('language', 'ro'));
   await page.goto(BASE + '/dashboard/fleet-map');
   const canvas = page.locator('canvas.maplibregl-canvas');
   await expect(canvas).toBeVisible({ timeout: 30000 });

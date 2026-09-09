@@ -872,5 +872,50 @@
     },
     "submitForApproval": "Submit for approval",
     "expired": "Expired"
+  },
+  "fleetMap": {
+    "title": "Fleet Map — Live",
+    "aisLive": "AIS live",
+    "estimated": "estimated position",
+    "noPosition": "no position",
+    "inTraffic": "vessels in traffic",
+    "globalTraffic": "Global AIS traffic",
+    "updated": "Updated {{time}}",
+    "loadFailed": "Could not load the fleet positions.",
+    "emptyTitle": "No vessels in the fleet",
+    "emptyDesc": "Containers appear here once they have a position.",
+    "legendTitle": "Position source",
+    "legendNote": "Terrestrial AIS does not cover mid-ocean. Anything not observed live is marked as estimated.",
+    "source": {
+      "AIS_LIVE": "AIS live",
+      "LAST_KNOWN": "Last known position",
+      "LAST_EVENT": "Last event",
+      "PORT_FALLBACK": "Estimated from port",
+      "UNKNOWN": "No position"
+    },
+    "notObserved": "not a live observation",
+    "unknownVessel": "Unknown vessel",
+    "close": "Close",
+    "card": {
+      "mmsi": "MMSI",
+      "imo": "IMO",
+      "bl": "B/L",
+      "speed": "Speed",
+      "course": "Course",
+      "declaredDestination": "Declared destination",
+      "route": "Route",
+      "client": "Client",
+      "status": "Status",
+      "eta": "ETA",
+      "knots": "knots"
+    },
+    "age": {
+      "seconds": "seconds ago",
+      "minutes": "{{n}} min ago",
+      "hours": "{{n}} h ago",
+      "days_one": "a day ago",
+      "days_other": "{{count}} days ago",
+      "unknown": "unknown"
+    }
   }
 }

@@ -36,6 +36,7 @@ import {
   resetPassword,
   verifyEmail,
 } from '../../services/auth';
+import { getErrorMessage } from '../../utils/formatters';
 
 const mockUser = {
   id: 'abc-123',
@@ -102,14 +103,20 @@ describe('auth service', () => {
       );
     });
 
-    it('throws error with message from server on failure', async () => {
+    it('rethrows the server error so components can read its message', async () => {
+      // login() deliberately rethrows the raw axios error rather than wrapping
+      // it, so that getErrorMessage() can pull the structured payload out. The
+      // rejection is therefore not an Error and has no .message — assert on
+      // what a component actually consumes.
       mockPost.mockRejectedValueOnce({
         response: { data: { error: 'Invalid credentials' } },
       });
 
-      await expect(login({ email: 'test@example.com', password: 'wrong' })).rejects.toThrow(
-        'Invalid credentials'
-      );
+      await expect(
+        login({ email: 'test@example.com', password: 'wrong' }).catch((e) => {
+          throw new Error(getErrorMessage(e));
+        })
+      ).rejects.toThrow('Invalid credentials');
     });
   });
 
@@ -279,12 +286,16 @@ describe('auth service', () => {
       });
     });
 
-    it('throws with server error message on failure', async () => {
+    it('rethrows the server error so components can read its message', async () => {
       mockGet.mockRejectedValueOnce({
         response: { data: { error: 'Token expired' } },
       });
 
-      await expect(verifyEmail('expired-token')).rejects.toThrow('Token expired');
+      await expect(
+        verifyEmail('expired-token').catch((e) => {
+          throw new Error(getErrorMessage(e));
+        })
+      ).rejects.toThrow('Token expired');
     });
   });
 });

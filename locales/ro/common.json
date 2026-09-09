@@ -872,5 +872,51 @@
     },
     "submitForApproval": "Trimite pentru Aprobare",
     "expired": "Expirat"
+  },
+  "fleetMap": {
+    "title": "Hartă Flotă — Live",
+    "aisLive": "AIS live",
+    "estimated": "poziție estimată",
+    "noPosition": "fără poziție",
+    "inTraffic": "nave în trafic",
+    "globalTraffic": "Trafic AIS global",
+    "updated": "Actualizat {{time}}",
+    "loadFailed": "Nu am putut încărca pozițiile flotei.",
+    "emptyTitle": "Nicio navă în flotă",
+    "emptyDesc": "Containerele apar aici pe măsură ce primesc o poziție.",
+    "legendTitle": "Sursa poziției",
+    "legendNote": "AIS terestru nu acoperă mijlocul oceanului. Ce nu e observat live e marcat ca estimat.",
+    "source": {
+      "AIS_LIVE": "AIS live",
+      "LAST_KNOWN": "Ultima poziție cunoscută",
+      "LAST_EVENT": "Ultimul eveniment",
+      "PORT_FALLBACK": "Estimat din port",
+      "UNKNOWN": "Fără poziție"
+    },
+    "notObserved": "nu e o observație live",
+    "unknownVessel": "Navă necunoscută",
+    "close": "Închide",
+    "card": {
+      "mmsi": "MMSI",
+      "imo": "IMO",
+      "bl": "B/L",
+      "speed": "Viteză",
+      "course": "Curs",
+      "declaredDestination": "Destinație declarată",
+      "route": "Rută",
+      "client": "Client",
+      "status": "Status",
+      "eta": "ETA",
+      "knots": "noduri"
+    },
+    "age": {
+      "seconds": "acum câteva secunde",
+      "minutes": "acum {{n}} min",
+      "hours": "acum {{n}} h",
+      "days_one": "acum o zi",
+      "days_few": "acum {{count}} zile",
+      "days_other": "acum {{count}} de zile",
+      "unknown": "necunoscut"
+    }
   }
 }

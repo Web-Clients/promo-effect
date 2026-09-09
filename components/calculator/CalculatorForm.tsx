@@ -126,7 +126,8 @@ export const CalculatorForm = ({
             label={t('calculator.deliveryCondition')}
             hint={t('calculator.deliveryConditionHint')}
           >
-            <div className="flex gap-2">
+            {/* data-tour anchors the page walkthrough; see PageTour. */}
+            <div className="flex gap-2" data-tour="incoterm">
               {(['FOB', 'EXW', 'CFR', 'CIF'] as Incoterm[]).map((inc) => (
                 <button
                   key={inc}
@@ -253,7 +254,7 @@ export const CalculatorForm = ({
 
           {/* CFR / CIF: Shipping Line selector (required) */}
           {(params.incoterm === 'CFR' || params.incoterm === 'CIF') && (
-            <FormField label="Linie Maritimă" required>
+            <FormField label={t('calculator.shippingLine')} required>
               <CalcSelect
                 value={params.shippingLine || ''}
                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
@@ -373,17 +374,19 @@ export const CalculatorForm = ({
             />
           </FormField>
 
-          <FormField label={t('calculator.cargoReadyDate')} required>
-            <CalcInput
-              type="date"
-              value={params.cargoReadyDate}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setParams({ ...params, cargoReadyDate: e.target.value })
-              }
-              min={new Date().toISOString().split('T')[0]}
-              required
-            />
-          </FormField>
+          <div data-tour="cargoReady">
+            <FormField label={t('calculator.cargoReadyDate')} required>
+              <CalcInput
+                type="date"
+                value={params.cargoReadyDate}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setParams({ ...params, cargoReadyDate: e.target.value })
+                }
+                min={new Date().toISOString().split('T')[0]}
+                required
+              />
+            </FormField>
+          </div>
 
           {error && !showSupplierForm && (
             <div className="p-3 bg-error-50 dark:bg-error-500/20 border border-error-200 dark:border-error-500/30 rounded-lg">
@@ -396,6 +399,7 @@ export const CalculatorForm = ({
             variant="accent"
             disabled={isLoading}
             loading={isLoading}
+            data-tour="calculate"
             className="w-full"
             size="lg"
           >

@@ -202,7 +202,7 @@
     "invalidFormat": "Format invalid"
   },
   "calculator": {
-    "title": "Calculator Preț",
+    "title": "Calculator de Prețuri",
     "transportDetails": "Detalii Transport",
     "fillAllFields": "Completați toate câmpurile",
     "originPort": "Port Origine",
@@ -252,6 +252,22 @@
     "offer": {
       "localCharges": "Cheltuieli Locale",
       "commission": "Comision"
+    },
+    "shippingLine": "Linie Maritimă",
+    "subtitle": "Obțineți cele mai bune oferte de la toate liniile maritime",
+    "tour": {
+      "incoterm": {
+        "title": "Începe cu condiția de livrare",
+        "body": "Ea decide ce intră în preț. La CFR și CIF furnizorul a plătit deja navlul, așa că nu-l mai cerem — și nici portul de plecare. La FOB și EXW navlul intră în ofertă."
+      },
+      "cargoReady": {
+        "title": "Data când marfa e gata",
+        "body": "După ea se aleg tarifele: se ofertează doar cele valabile la acea dată. Dacă nu apare nicio ofertă, înseamnă că nu există tarif valabil atunci, nu că ruta lipsește."
+      },
+      "calculate": {
+        "title": "Vezi ofertele",
+        "body": "Primești cele mai bune oferte de la liniile disponibile. Prețul de pe card este exact prețul comenzii — nu se mai schimbă la „Selectează Oferta”."
+      }
     }
   },
   "bookings": {
@@ -940,5 +956,14 @@
       "account": "Cont",
       "calculator": "Calculator"
     }
+  },
+  "tour": {
+    "stepOf": "Pasul {{current}} din {{total}}",
+    "skip": "Sari peste",
+    "back": "Înapoi",
+    "next": "Mai departe",
+    "done": "Am înțeles",
+    "replay": "Arată-mi din nou",
+    "help": "Ghid pagină"
   }
 }

@@ -252,6 +252,22 @@
     "offer": {
       "localCharges": "Local Charges",
       "commission": "Commission"
+    },
+    "shippingLine": "Shipping line",
+    "subtitle": "Get the best offers from every shipping line",
+    "tour": {
+      "incoterm": {
+        "title": "Start with the delivery term",
+        "body": "It decides what the price contains. Under CFR and CIF the supplier has already paid the ocean freight, so we ask for neither it nor the port of loading. Under FOB and EXW the freight is part of the quote."
+      },
+      "cargoReady": {
+        "title": "The date the cargo is ready",
+        "body": "Rates are chosen against it: only those in force on that date are offered. No offers means no rate is valid then — not that the route is missing."
+      },
+      "calculate": {
+        "title": "See the offers",
+        "body": "You get the best offers from the available lines. The price on the card is exactly the order price — it no longer changes when you select the offer."
+      }
     }
   },
   "bookings": {
@@ -939,5 +955,14 @@
       "account": "Account",
       "calculator": "Calculator"
     }
+  },
+  "tour": {
+    "stepOf": "Step {{current}} of {{total}}",
+    "skip": "Skip",
+    "back": "Back",
+    "next": "Next",
+    "done": "Got it",
+    "replay": "Show me again",
+    "help": "Page guide"
   }
 }

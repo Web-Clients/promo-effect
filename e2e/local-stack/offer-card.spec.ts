@@ -39,7 +39,7 @@ async function quote(page: import('@playwright/test').Page, incoterm: 'FOB' | 'C
   await page.waitForTimeout(2500);
 
   // The breakdown lives inside the card and the card starts collapsed.
-  await page.getByRole('button').filter({ hasText: /^#1/ }).first().click();
+  await page.locator('[role="button"][aria-pressed]').first().click();
   await page.waitForTimeout(400);
 }
 

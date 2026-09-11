@@ -35,7 +35,9 @@ test('offers are laid out as cards, several carriers at once', async ({ page }) 
   test.setTimeout(120_000);
   await quote(page);
 
-  const cards = page.getByRole('button').filter({ hasText: /^#\d/ });
+  // The card header is the element with aria-pressed; its text no longer starts
+  // with "#" since the cards went compact.
+  const cards = page.locator('[role="button"][aria-pressed]');
   const count = await cards.count();
   expect(count).toBeGreaterThan(1);
   // Capped at eight so the grid is whole rows.
@@ -48,7 +50,7 @@ test('one carrier does not appear twice for the same sailing week', async ({ pag
   test.setTimeout(120_000);
   await quote(page);
 
-  const names = await page.getByRole('button').filter({ hasText: /^#\d/ }).allInnerTexts();
+  const names = await page.locator('[role="button"][aria-pressed]').allInnerTexts();
 
   // A carrier may appear twice only when the sailings differ — an agent rate
   // for a named week and the standing base rate are genuinely two offers. What

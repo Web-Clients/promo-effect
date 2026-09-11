@@ -204,7 +204,10 @@ export const OfferCard = ({
               <h4 className="truncate text-base font-bold text-primary-800 dark:text-white">
                 {offer.shippingLine}
               </h4>
-              <p className="shrink-0 text-xl font-bold leading-none text-accent-500">
+              <p
+                data-offer-price
+                className="shrink-0 text-xl font-bold leading-none text-accent-500"
+              >
                 ${adjustedTotal.toFixed(0)}
               </p>
             </div>

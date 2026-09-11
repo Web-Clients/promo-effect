@@ -232,8 +232,9 @@ describe('CalculatorForm', () => {
         },
       });
       render(<CalculatorForm {...props} />);
-      // CFR shows "Linie Maritimă" label (hardcoded in component)
-      expect(screen.getByText('Linie Maritimă')).toBeInTheDocument();
+      // CFR shows the shipping-line label. It now comes from i18n, whose casing
+      // is a copy decision, not what this test is about.
+      expect(screen.getByText(/^Linie maritimă$/i)).toBeInTheDocument();
     });
   });
 

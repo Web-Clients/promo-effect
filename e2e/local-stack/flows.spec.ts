@@ -78,7 +78,7 @@ test('the price on the offer card survives "Selectează Această Ofertă"', asyn
   // beside it, and neither is legal inside a button element.
   const card = page.locator('[role="button"][aria-pressed]').first();
   await card.waitFor({ timeout: 15000 });
-  const cardPrice = (await card.locator('p.text-2xl').first().innerText()).trim();
+  const cardPrice = (await card.locator('[data-offer-price]').first().innerText()).trim();
 
   await card.click(); // expand
   await page

@@ -11,12 +11,17 @@ import { createClientSchema, updateClientSchema } from '../../middleware/validat
 const router = Router();
 const clientsService = new ClientsService();
 
+// The client list carries bank accounts, tax ids and credit limits. It used to
+// be open to any logged-in user, so one client could read every other client.
+const STAFF_ROLES = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'OPERATOR', 'CONTABIL'];
+
 /**
  * GET /api/clients - List all clients with pagination and filters
  * Auth: Required
+ * Role: staff only
  * Query params: page, limit, search, status
  */
-router.get('/', authMiddleware, async (req: Request, res: Response) => {
+router.get('/', authMiddleware, requireRole(STAFF_ROLES), async (req: Request, res: Response) => {
   try {
     const MAX_LIMIT = 200;
     const DEFAULT_LIMIT = 50;
@@ -39,22 +44,33 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
 /**
  * GET /api/clients/stats - Get client statistics
  * Auth: Required
+ * Role: staff only
  */
-router.get('/stats', authMiddleware, async (req: Request, res: Response) => {
-  try {
-    const stats = await clientsService.getStats();
-    res.json(stats);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to fetch stats';
-    res.status(500).json({ error: message });
+router.get(
+  '/stats',
+  authMiddleware,
+  requireRole(STAFF_ROLES),
+  async (req: Request, res: Response) => {
+    try {
+      const stats = await clientsService.getStats();
+      res.json(stats);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch stats';
+      res.status(500).json({ error: message });
+    }
   }
-});
+);
 
 /**
  * GET /api/clients/:id - Get single client by ID
  * Auth: Required
+ * Role: staff, or the client reading its own record
  */
 router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
+  const isStaff = STAFF_ROLES.includes(req.user!.role);
+  if (!isStaff && req.user!.clientId !== req.params.id) {
+    return res.status(403).json({ error: 'Insufficient permissions' });
+  }
   try {
     const client = await clientsService.findOne(req.params.id);
     res.json(client);

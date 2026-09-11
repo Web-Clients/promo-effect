@@ -137,6 +137,11 @@ app.use('/api', (req: Request, res: Response, next: NextFunction) => {
 // Rate limiting - apply to all API routes
 app.use('/api', apiLimiter);
 
+// Agent accounts belong to outside forwarders: fence them to their own portal
+// before any route runs. Deny by default — see agent-sandbox.middleware.ts.
+import { agentSandbox } from './middleware/agent-sandbox.middleware';
+app.use('/api', agentSandbox);
+
 // Health Check Route
 // FIX: Explicitly type req and res to ensure correct type resolution for res.status.
 app.get('/health', (req: Request, res: Response) => {

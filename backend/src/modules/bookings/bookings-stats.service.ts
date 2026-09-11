@@ -44,13 +44,13 @@ const MDL_RATE_FALLBACK = 17.8; // approximate USD→MDL
 
 // ─── Stats computation ───────────────────────────────────────────────────────
 
-async function computeStats(): Promise<AllTabStats> {
+async function computeStats(clientId?: string): Promise<AllTabStats> {
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  // Get all bookings with minimal fields
+  // Get all bookings with minimal fields — only the caller's own when scoped
   const bookings = await (prisma.booking as any).findMany({
-    where: { archived: false },
+    where: { archived: false, ...(clientId ? { clientId } : {}) },
     select: {
       id: true,
       status: true,
@@ -157,6 +157,8 @@ export function invalidateStatsCache(): void {
 
 const router = Router();
 
+const STAFF_ROLES = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'OPERATOR', 'CONTABIL'];
+
 type TabKey = 'loading' | 'transit' | 'port' | 'delivered' | 'archive' | 'all';
 const VALID_TABS: TabKey[] = ['loading', 'transit', 'port', 'delivered', 'archive', 'all'];
 
@@ -175,7 +177,20 @@ router.get('/stats', authMiddleware, async (req: Request, res: Response) => {
       });
     }
 
-    const allStats = await getBookingStats();
+    // Company-wide counts and turnover are for staff. A client sees the same
+    // badges computed over its own bookings; anyone else sees nothing.
+    const role = req.user!.role;
+    let allStats: AllTabStats;
+    if (STAFF_ROLES.includes(role)) {
+      allStats = await getBookingStats();
+    } else if (role === 'CLIENT') {
+      if (!req.user!.clientId) {
+        return res.status(403).json({ success: false, error: 'Insufficient permissions' });
+      }
+      allStats = await computeStats(req.user!.clientId);
+    } else {
+      return res.status(403).json({ success: false, error: 'Insufficient permissions' });
+    }
 
     return res.json({
       success: true,

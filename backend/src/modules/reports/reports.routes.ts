@@ -8,7 +8,6 @@ import { ReportsService } from './reports.service';
 import { authMiddleware, requireRole } from '../../middleware/auth.middleware';
 import { reportLimiter } from '../../middleware/rateLimit.middleware';
 import { reportExportService } from '../../services/report-export.service';
-import prisma from '../../lib/prisma';
 
 const router = Router();
 const reportsService = new ReportsService();
@@ -26,13 +25,15 @@ router.get('/dashboard', authMiddleware, reportLimiter, async (req: Request, res
       dateTo: req.query.date_to ? new Date(req.query.date_to as string) : undefined,
     };
 
-    // CLIENT users can only see their own data
+    // CLIENT users can only see their own data. The clientId comes from the
+    // auth middleware; the old lookup read `currentUser.id`, which the token
+    // does not carry, so a client got a 500 — or, had the lookup come back
+    // empty, the whole company's figures.
     if (currentUser.role === 'CLIENT') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const client = await (prisma.client as any).findUnique({ where: { userId: currentUser.id } });
-      if (client) {
-        filters.clientId = client.id;
+      if (!currentUser.clientId) {
+        return res.status(403).json({ success: false, error: 'Insufficient permissions' });
       }
+      filters.clientId = currentUser.clientId;
     } else if (req.query.client_id) {
       filters.clientId = req.query.client_id as string;
     }
@@ -71,13 +72,12 @@ router.get('/containers', authMiddleware, async (req: Request, res: Response) =>
       shippingLine: req.query.shipping_line as string,
     };
 
-    // CLIENT users can only see their own data
+    // CLIENT users can only see their own data (see /dashboard above)
     if (currentUser.role === 'CLIENT') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const client = await (prisma.client as any).findUnique({ where: { userId: currentUser.id } });
-      if (client) {
-        filters.clientId = client.id;
+      if (!currentUser.clientId) {
+        return res.status(403).json({ success: false, error: 'Insufficient permissions' });
       }
+      filters.clientId = currentUser.clientId;
     } else if (req.query.client_id) {
       filters.clientId = req.query.client_id as string;
     }

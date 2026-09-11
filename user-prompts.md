@@ -5,3 +5,8 @@
 Decizii: MapLibre GL JS glob 3D (gratuit); notificări doar email; livrare integrală fără termen intermediar; nimic către Ion până e tot gata.
 
 > fă tot
+
+## 2026-09-11
+
+- (terminal) `ssh promo-effect` + comanda `create-agent.ts` pentru sky@asggroup.cn lipită înainte de conectare — nu a rulat
+- "de ce te-ai oprit?"

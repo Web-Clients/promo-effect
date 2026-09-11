@@ -15,6 +15,11 @@ email; livrare integrală, fără termen intermediar; nimic către Ion până e 
 - [x] Coliziune de token la login (`jti`) — două logări în aceeași secundă blocau contul 15 min
 - [x] Hartă flotă: glob 3D, rute cerc-mare, fișă tactică, prospețimea poziției
 - [x] Stivă locală reproductibilă + capturi vizuale (Postgres brew, seed scenariu)
+- [x] Deploy ramura pe prod (11 sep) + cont real ASG Youmi (`sky@asggroup.cn`, AG-5823979F) prin `scripts/create-agent.ts`
+- [x] SECURITATE (găsit pe prod 11 sep, cu primul cont real de agent): orice cont logat citea toți cei 393 clienți cu cont bancar/IDNO, flota întreagă, rapoartele și rulajul. Reparat: agenții îngrădiți la portalul lor (listă albă, `agent-sandbox.middleware.ts`); lista de clienți doar pentru personal; statistici rezervări, flotă și rapoarte filtrate pe clientul logat
+- [ ] Furnizori (`/api/suppliers`): listare și creare deschise oricărui cont logat — tabelul e gol pe prod, de închis înainte să se umple
+- [ ] Email: pe prod nu e configurat niciun furnizor de email — resetarea parolei și notificările nu pleacă
+- [ ] Domeniul `promo-efect.md` nu e înregistrat/nu are DNS; prod merge doar pe `141-227-180-107.sslip.io`
 
 ## În lucru / următoarele
 

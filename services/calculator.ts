@@ -286,8 +286,11 @@ export const getClients = async (): Promise<ClientSummary[]> => {
       '/clients?limit=200&status=ACTIVE'
     );
     return response.data.clients || response.data.data || [];
-  } catch (error: unknown) {
-    throw new Error(getErrorMessage(error, 'Nu s-au putut încărca clienții'), { cause: error });
+  } catch {
+    // The client list is staff-only. A client opening the calculator gets an
+    // empty dropdown, not a calculator that fails to load at all — this sits in
+    // the same Promise.all as the ports and container types.
+    return [];
   }
 };
 

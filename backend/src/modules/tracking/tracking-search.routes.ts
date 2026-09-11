@@ -7,6 +7,8 @@ import logger from '../../utils/logger';
 
 const router = Router();
 
+const FLEET_STAFF_ROLES = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'OPERATOR', 'CONTABIL'];
+
 /**
  * GET /api/tracking/search/:containerNumber
  * Look up a container by number. Always served from local DB.
@@ -274,8 +276,18 @@ router.get('/positions/live', authMiddleware, async (_req: Request, res: Respons
  * Used by the FleetMap admin view to render all client containers
  * on a single live map.
  */
-router.get('/fleet/live', authMiddleware, async (_req: Request, res: Response) => {
+router.get('/fleet/live', authMiddleware, async (req: Request, res: Response) => {
   try {
+    // Staff see the whole fleet. A client sees its own containers only — the
+    // map popup names the client company, so an unscoped list showed every
+    // client which other companies ship with us and on which vessel.
+    const role = req.user!.role;
+    const isStaff = FLEET_STAFF_ROLES.includes(role);
+    if (!isStaff && !(role === 'CLIENT' && req.user!.clientId)) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+    const scope = isStaff ? {} : { booking: { clientId: req.user!.clientId } };
+
     const { geocodePort } = await import('../../services/port-geocoder.service');
 
     /** Port name -> {lat,lng}, or null when the port is not in the table. */
@@ -291,6 +303,7 @@ router.get('/fleet/live', authMiddleware, async (_req: Request, res: Response) =
     // via booking port destination/origin.
     const containers = await prisma.container.findMany({
       where: {
+        ...scope,
         OR: [{ currentStatus: { notIn: ['DELIVERED', 'CANCELLED'] } }, { currentStatus: null }],
       },
       include: {

@@ -40,8 +40,10 @@ const MainDashboard = ({ user }: MainDashboardProps) => {
   const [stats, setStats] = useState<BookingStatsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load stats from API
+  // Load stats from API. Agents are redirected below and are not allowed the
+  // company's booking stats, so they skip the request instead of eating a 403.
   useEffect(() => {
+    if (user.role === UserRole.AGENT) return;
     const loadStats = async () => {
       try {
         const statsData = await bookingsService.getBookingStats();

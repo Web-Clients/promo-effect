@@ -35,18 +35,28 @@ echo ""
 
 # 0. Do not restart the API out from under someone who is filling in an order.
 #    A booking half-submitted across a restart is silently lost.
+#
+#    What counts as "someone is working" is not "a session row was written".
+#    Refresh-token rotation writes a new session every seven minutes for as long
+#    as a tab is open, so a browser left open overnight made this gate refuse
+#    every deploy, for days, with nobody at the keyboard. All sessions from one
+#    login share a token family, so a genuine login is a family whose first row
+#    is recent — and what actually risks data loss is a write in flight, which
+#    shows up as a booking touched in the last few minutes.
 echo "[0/7] Checking for live sessions..."
-ACTIVE=$(remote "DB=\$(grep -m1 '^DATABASE_URL=' $REMOTE_PATH/backend/.env | cut -d= -f2- | tr -d '\"'); psql \$DB -tAc \"select count(*) from sessions where created_at > now() - interval '15 minutes'\"" | tr -d '[:space:]')
-if [ "${ACTIVE:-0}" != "0" ]; then
+LOGINS=$(remote "DB=\$(grep -m1 '^DATABASE_URL=' $REMOTE_PATH/backend/.env | cut -d= -f2- | tr -d '\"'); psql \$DB -tAc \"select count(*) from (select token_family from sessions group by token_family having min(created_at) > now() - interval '15 minutes') f\"" | tr -d '[:space:]')
+WRITES=$(remote "DB=\$(grep -m1 '^DATABASE_URL=' $REMOTE_PATH/backend/.env | cut -d= -f2- | tr -d '\"'); psql \$DB -tAc \"select count(*) from bookings where updated_at > now() - interval '15 minutes'\"" | tr -d '[:space:]')
+BUSY=$(( ${LOGINS:-0} + ${WRITES:-0} ))
+if [ "$BUSY" != "0" ]; then
     if [ "$FORCE" = true ]; then
-        echo "  $ACTIVE session(s) in the last 15 min — continuing (--force)"
+        echo "  ${LOGINS:-0} login(s), ${WRITES:-0} booking write(s) in the last 15 min — continuing (--force)"
     else
-        echo "  REFUSING: $ACTIVE session(s) started in the last 15 minutes."
+        echo "  REFUSING: ${LOGINS:-0} login(s) and ${WRITES:-0} booking write(s) in the last 15 minutes."
         echo "  Someone may be mid-order. Wait, or re-run with --force."
         exit 1
     fi
 else
-    echo "  No sessions in the last 15 minutes."
+    echo "  No logins and no order writes in the last 15 minutes."
 fi
 
 if [ "$SKIP_BACKUP" = false ]; then

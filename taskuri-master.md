@@ -20,6 +20,8 @@ email; livrare integrală, fără termen intermediar; nimic către Ion până e 
 - [x] Harta flotei nu desena nimic în producție (pânză neagră): build-ul nu livra worker-ul MapLibre; reparat cu `utils/maplibreWorker.ts`
 - [x] Navele se mișcă în timp real între fixele AIS (proiecție din viteză și cap, `utils/deadReckoning.ts`), urma se taie la navă, fișa navei se actualizează
 - [x] Etichetele hărții foloseau un font pe care OpenFreeMap nu-l servea (404) — trecut pe Noto Sans
+- [x] Poarta de deploy număra reînnoirile de jeton, nu logări: refuza deployul la nesfârșit cu filele deschise. Acum numără logări reale + scrieri pe rezervări
+- [x] CI-ul rula pe Node 18 și era roșu de luni de zile (`node:inspector/promises` lipsă) — trecut pe Node 20, ca pe server; toate verificările verzi
 - [ ] Bara de căutare din antet (rezervări/containere/clienți) apare și la agent — ascunde-o
 - [ ] Furnizori (`/api/suppliers`): listare și creare deschise oricărui cont logat — tabelul e gol pe prod, de închis înainte să se umple
 - [ ] Email: pe prod nu e configurat niciun furnizor de email — resetarea parolei și notificările nu pleacă

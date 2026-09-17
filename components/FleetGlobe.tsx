@@ -7,10 +7,12 @@ import {
   type MapLayerMouseEvent,
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { configureMaplibreWorker } from '../utils/maplibreWorker';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import trackingService, { FleetContainer, AmbientVessel } from '../services/tracking';
 import { seaRoute, greatCircle, progressAlong, routeLengthKm, type Coord } from '../utils/seaLanes';
+import { isNewFix, projectPosition, type DrFix } from '../utils/deadReckoning';
 
 /**
  * Fleet globe — every container Promo-Efect is carrying, on a 3D Earth.
@@ -28,7 +30,22 @@ import { seaRoute, greatCircle, progressAlong, routeLengthKm, type Coord } from 
  */
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/dark';
+
+// Must run before the first Map is constructed; see maplibreWorker.ts.
+configureMaplibreWorker();
 const POLL_MS = 15000;
+
+/**
+ * How often the drawn positions are recomputed between polls.
+ *
+ * A container ship makes about six metres a second, which at ocean zoom is far
+ * less than a pixel per frame — ten times a second is already smoother than the
+ * eye can follow, and leaves the frame budget to the map itself.
+ */
+const MOTION_TICK_MS = 100;
+
+/** The background traffic is 1500 markers, so it moves on a slower clock. */
+const AMBIENT_TICK_MS = 500;
 
 interface SourceStyle {
   color: string;
@@ -118,7 +135,9 @@ type FC = GeoJSON.FeatureCollection<GeoJSON.Geometry, Record<string, unknown>>;
 
 const EMPTY: FC = { type: 'FeatureCollection', features: [] };
 
-function vesselFeatures(fleet: FleetContainer[]): FC {
+type PositionOverrides = Map<string, Coord>;
+
+function vesselFeatures(fleet: FleetContainer[], at: PositionOverrides = new Map()): FC {
   return {
     type: 'FeatureCollection',
     features: fleet
@@ -126,9 +145,12 @@ function vesselFeatures(fleet: FleetContainer[]): FC {
       .map((c) => {
         const p = c.position!;
         const st = styleFor(p.source);
+        // Where we are carrying the vessel forward between fixes, draw it where
+        // it is now rather than where it last reported.
+        const here = at.get(c.containerId) ?? [p.longitude, p.latitude];
         return {
           type: 'Feature' as const,
-          geometry: { type: 'Point' as const, coordinates: [p.longitude, p.latitude] },
+          geometry: { type: 'Point' as const, coordinates: here },
           properties: {
             containerId: c.containerId,
             containerNumber: c.containerNumber,
@@ -158,17 +180,26 @@ function vesselFeatures(fleet: FleetContainer[]): FC {
  * waypoints — Singapore, Bab-el-Mandeb, Suez, the Bosphorus. Where it is not,
  * we fall back to a great circle and do not pretend otherwise.
  */
-function routeFeatures(fleet: FleetContainer[]): FC {
+function routeFeatures(
+  fleet: FleetContainer[],
+  at: PositionOverrides = new Map(),
+  cache: Map<string, { path: Coord[]; charted: boolean }> = new Map()
+): FC {
   const features: FC['features'] = [];
 
   for (const c of fleet) {
     const b = c.booking;
     if (!b || !c.position) continue;
 
-    const here: Coord = [c.position.longitude, c.position.latitude];
+    const here: Coord = at.get(c.containerId) ?? [c.position.longitude, c.position.latitude];
     const endName = b.transit || b.destination;
-    let path = seaRoute(b.origin, endName);
-    let charted = true;
+
+    // The lane depends only on the two ports, so it is computed once per
+    // container and reused every frame; only the split point moves.
+    const key = `${c.containerId}|${b.origin ?? ''}>${endName ?? ''}`;
+    const hit = cache.get(key);
+    let path = hit ? hit.path : seaRoute(b.origin, endName);
+    let charted = hit ? hit.charted : true;
 
     if (!path) {
       charted = false;
@@ -181,6 +212,8 @@ function routeFeatures(fleet: FleetContainer[]): FC {
           ]
         : greatCircle([b.originCoords.lng, b.originCoords.lat], here);
     }
+
+    cache.set(key, { path, charted });
 
     const progress = progressAlong(path, here);
     const cut = progress ? progress.index : path.length - 1;
@@ -244,12 +277,12 @@ function portFeatures(fleet: FleetContainer[]): FC {
   };
 }
 
-function ambientFeatures(ambient: AmbientVessel[]): FC {
+function ambientFeatures(ambient: AmbientVessel[], at: PositionOverrides = new Map()): FC {
   return {
     type: 'FeatureCollection',
     features: ambient.map((v) => ({
       type: 'Feature' as const,
-      geometry: { type: 'Point' as const, coordinates: [v.lng, v.lat] },
+      geometry: { type: 'Point' as const, coordinates: at.get(v.mmsi) ?? [v.lng, v.lat] },
       properties: { rotation: v.cog ?? v.heading ?? 0 },
     })),
   };
@@ -338,11 +371,62 @@ export default function FleetGlobe() {
 
   const fleetRef = useRef<FleetContainer[]>([]);
   fleetRef.current = fleet;
+  const ambientRef = useRef<AmbientVessel[]>([]);
+  ambientRef.current = ambient;
+  const showAmbientRef = useRef(showAmbient);
+  showAmbientRef.current = showAmbient;
+  const selectedRef = useRef<FleetContainer | null>(null);
+  selectedRef.current = selected;
+
+  // The open vessel card reads its progress from here, so the kilometres sailed
+  // tick over with the ship instead of freezing at the last fix.
+  const [livePosition, setLivePosition] = useState<Coord | null>(null);
+
+  // Baselines the motion loop projects from: the last fix we actually received
+  // per vessel, with the local clock reading when it arrived.
+  const fleetFixes = useRef<Map<string, DrFix>>(new Map());
+  const ambientFixes = useRef<Map<string, DrFix>>(new Map());
+  const routeCache = useRef<Map<string, { path: Coord[]; charted: boolean }>>(new Map());
 
   // ── Data ───────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     try {
       const res = await trackingService.getFleetLive();
+      const arrivedAtMs = Date.now();
+
+      // Refresh the motion baselines. A poll usually returns the fix we already
+      // have; restarting its clock every fifteen seconds would pin the vessel
+      // in place, so the baseline moves only when the fix itself changed.
+      const fleetNext = new Map<string, DrFix>();
+      for (const c of res.fleet || []) {
+        const p = c.position;
+        if (!p || p.source !== 'AIS_LIVE') continue;
+        const fix: DrFix = {
+          lat: p.latitude,
+          lng: p.longitude,
+          sogKnots: p.sog,
+          cogDeg: p.cog ?? p.heading,
+          observedAtMs: arrivedAtMs,
+        };
+        const prev = fleetFixes.current.get(c.containerId);
+        fleetNext.set(c.containerId, isNewFix(prev, fix) ? fix : prev!);
+      }
+      fleetFixes.current = fleetNext;
+
+      const ambientNext = new Map<string, DrFix>();
+      for (const v of res.ambient || []) {
+        const fix: DrFix = {
+          lat: v.lat,
+          lng: v.lng,
+          sogKnots: v.sog,
+          cogDeg: v.cog ?? v.heading,
+          observedAtMs: arrivedAtMs,
+        };
+        const prev = ambientFixes.current.get(v.mmsi);
+        ambientNext.set(v.mmsi, isNewFix(prev, fix) ? fix : prev!);
+      }
+      ambientFixes.current = ambientNext;
+
       setFleet(res.fleet || []);
       setAmbient(res.ambient || []);
       setFetchedAt(res.fetchedAt || new Date().toISOString());
@@ -474,6 +558,9 @@ export default function FleetGlobe() {
         source: 'ports',
         layout: {
           'text-field': ['get', 'name'],
+          // MapLibre's default stack ("Open Sans Regular") 404s on OpenFreeMap,
+          // and every label then falls back to the browser's own glyphs.
+          'text-font': ['Noto Sans Regular'],
           'text-size': 11,
           'text-offset': [0, -1.3],
           'text-anchor': 'bottom',
@@ -521,6 +608,7 @@ export default function FleetGlobe() {
         source: 'vessels',
         layout: {
           'text-field': ['get', 'containerNumber'],
+          'text-font': ['Noto Sans Regular'],
           'text-size': 11,
           'text-offset': [0, 1.5],
           'text-anchor': 'top',
@@ -612,7 +700,9 @@ export default function FleetGlobe() {
     if (!map || !readyRef.current) return;
 
     (map.getSource('vessels') as GeoJSONSource | undefined)?.setData(vesselFeatures(fleet));
-    (map.getSource('routes') as GeoJSONSource | undefined)?.setData(routeFeatures(fleet));
+    (map.getSource('routes') as GeoJSONSource | undefined)?.setData(
+      routeFeatures(fleet, new Map(), routeCache.current)
+    );
     (map.getSource('ports') as GeoJSONSource | undefined)?.setData(portFeatures(fleet));
 
     if (fittedRef.current) return;
@@ -638,6 +728,66 @@ export default function FleetGlobe() {
       showAmbient ? ambientFeatures(ambient) : EMPTY
     );
   }, [ambient, showAmbient, mapReady]);
+
+  // ── Motion between fixes ───────────────────────────────────────────────────
+  // AIS reports every few minutes and the map polls every fifteen seconds, so
+  // drawing only what arrived gives a fleet that stands still and teleports.
+  // Each vessel is carried along its own course at its own speed instead, and
+  // snaps back the moment a real fix contradicts the projection.
+  useEffect(() => {
+    if (!mapReady) return;
+
+    let frame = 0;
+    let lastFleetAt = 0;
+    let lastAmbientAt = 0;
+    let lastCardAt = 0;
+
+    const tick = () => {
+      frame = requestAnimationFrame(tick);
+      const map = mapRef.current;
+      if (!map || !readyRef.current) return;
+
+      const now = Date.now();
+
+      if (now - lastFleetAt >= MOTION_TICK_MS) {
+        lastFleetAt = now;
+        const at: PositionOverrides = new Map();
+        for (const [id, fix] of fleetFixes.current) {
+          const p = projectPosition(fix, now);
+          at.set(id, [p.lng, p.lat]);
+        }
+        (map.getSource('vessels') as GeoJSONSource | undefined)?.setData(
+          vesselFeatures(fleetRef.current, at)
+        );
+        // The track is split at the ship, so it has to follow it.
+        (map.getSource('routes') as GeoJSONSource | undefined)?.setData(
+          routeFeatures(fleetRef.current, at, routeCache.current)
+        );
+
+        // The card is text: once a second is as fast as anyone can read it.
+        if (now - lastCardAt >= 1000) {
+          lastCardAt = now;
+          const open = selectedRef.current;
+          setLivePosition(open ? (at.get(open.containerId) ?? null) : null);
+        }
+      }
+
+      if (showAmbientRef.current && now - lastAmbientAt >= AMBIENT_TICK_MS) {
+        lastAmbientAt = now;
+        const at: PositionOverrides = new Map();
+        for (const [mmsi, fix] of ambientFixes.current) {
+          const p = projectPosition(fix, now);
+          at.set(mmsi, [p.lng, p.lat]);
+        }
+        (map.getSource('ambient') as GeoJSONSource | undefined)?.setData(
+          ambientFeatures(ambientRef.current, at)
+        );
+      }
+    };
+
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [mapReady]);
 
   // ── Counters ───────────────────────────────────────────────────────────────
   const counts = useMemo(() => {
@@ -717,7 +867,13 @@ export default function FleetGlobe() {
 
         <Legend />
 
-        {selected && <TacticalCard container={selected} onClose={() => setSelected(null)} />}
+        {selected && (
+          <TacticalCard
+            container={selected}
+            livePosition={livePosition}
+            onClose={() => setSelected(null)}
+          />
+        )}
       </div>
     </div>
   );
@@ -754,7 +910,16 @@ function Legend() {
   );
 }
 
-function TacticalCard({ container, onClose }: { container: FleetContainer; onClose: () => void }) {
+function TacticalCard({
+  container,
+  livePosition,
+  onClose,
+}: {
+  container: FleetContainer;
+  /** Where the vessel is now, carried forward from its last fix. */
+  livePosition: Coord | null;
+  onClose: () => void;
+}) {
   const { t } = useTranslation();
   const p = container.position;
   const st = styleFor(p?.source);
@@ -763,7 +928,8 @@ function TacticalCard({ container, onClose }: { container: FleetContainer; onClo
   // How far along the voyage is. Only shown for a lane we chart: a percentage
   // derived from a straight line nobody sails would be a made-up number.
   const route = b ? seaRoute(b.origin, b.transit || b.destination) : null;
-  const progress = route && p ? progressAlong(route, [p.longitude, p.latitude]) : null;
+  const here: Coord | null = livePosition ?? (p ? [p.longitude, p.latitude] : null);
+  const progress = route && here ? progressAlong(route, here) : null;
 
   return (
     <div className="absolute right-3 top-3 w-80 rounded-xl border border-slate-700/60 bg-slate-900/92 p-4 text-sm backdrop-blur">

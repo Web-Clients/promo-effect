@@ -16,7 +16,11 @@ email; livrare integrală, fără termen intermediar; nimic către Ion până e 
 - [x] Hartă flotă: glob 3D, rute cerc-mare, fișă tactică, prospețimea poziției
 - [x] Stivă locală reproductibilă + capturi vizuale (Postgres brew, seed scenariu)
 - [x] Deploy ramura pe prod (11 sep) + cont real ASG Youmi (`sky@asggroup.cn`, AG-5823979F) prin `scripts/create-agent.ts`
-- [x] SECURITATE (găsit pe prod 11 sep, cu primul cont real de agent): orice cont logat citea toți cei 393 clienți cu cont bancar/IDNO, flota întreagă, rapoartele și rulajul. Reparat: agenții îngrădiți la portalul lor (listă albă, `agent-sandbox.middleware.ts`); lista de clienți doar pentru personal; statistici rezervări, flotă și rapoarte filtrate pe clientul logat
+- [x] SECURITATE (găsit pe prod 11 sep, cu primul cont real de agent): orice cont logat citea toți cei 393 clienți cu cont bancar/IDNO, flota întreagă, rapoartele și rulajul. Reparat: agenții îngrădiți la portalul lor (listă albă, `agent-sandbox.middleware.ts`); lista de clienți doar pentru personal; statistici rezervări, flotă și rapoarte filtrate pe clientul logat. LIVE pe prod 14 sep, verificat ca Sky (13 rute 403, portal 200, browser fără refuzuri)
+- [x] Harta flotei nu desena nimic în producție (pânză neagră): build-ul nu livra worker-ul MapLibre; reparat cu `utils/maplibreWorker.ts`
+- [x] Navele se mișcă în timp real între fixele AIS (proiecție din viteză și cap, `utils/deadReckoning.ts`), urma se taie la navă, fișa navei se actualizează
+- [x] Etichetele hărții foloseau un font pe care OpenFreeMap nu-l servea (404) — trecut pe Noto Sans
+- [ ] Bara de căutare din antet (rezervări/containere/clienți) apare și la agent — ascunde-o
 - [ ] Furnizori (`/api/suppliers`): listare și creare deschise oricărui cont logat — tabelul e gol pe prod, de închis înainte să se umple
 - [ ] Email: pe prod nu e configurat niciun furnizor de email — resetarea parolei și notificările nu pleacă
 - [ ] Domeniul `promo-efect.md` nu e înregistrat/nu are DNS; prod merge doar pe `141-227-180-107.sslip.io`
